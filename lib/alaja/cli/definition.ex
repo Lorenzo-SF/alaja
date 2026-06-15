@@ -1,0 +1,423 @@
+defmodule Alaja.CLI.Definition do
+  # credo:disable-for-this-file Credo.Check.Design.AliasUsage
+  @moduledoc """
+  Declarative DSL for defining CLI commands.
+
+  ## Usage
+
+      defmodule MyApp.CLI do
+        use Alaja.CLI.Definition, otp_app: :my_app
+
+        command "deploy", "Deploy to production" do
+          flag :env, :string, default: "staging", values: ~w(staging production)
+          flag :force, :boolean, default: false
+
+          run fn opts ->
+            IO.puts("Deploying to " <> opts.env)
+            if opts.force, do: IO.puts("Forced mode!")
+          end
+        end
+
+        subcommand "config", "Manage configuration" do
+          command "get", "Read a value" do
+            argument :key, :string, required: true
+            run fn opts -> IO.inspect(opts.key) end
+          end
+        end
+      end
+
+  ## Structure
+
+  The DSL generates a command map with the following shape:
+
+      %{
+        name: "deploy",
+        description: "Deploy to production",
+        flags: [...],
+        arguments: [...],
+        subcommands: %{},
+        run: function
+      }
+  """
+
+  @type flag_type :: :string | :integer | :float | :boolean | :atom
+  @type arg_type :: :string | :integer | :float
+
+  @doc false
+  @spec __using__(Keyword.t()) :: Macro.t()
+  defmacro __using__(opts) do
+    otp_app = Keyword.get(opts, :otp_app)
+
+    quote do
+      import Alaja.CLI.Definition, only: [command: 3, subcommand: 3, flag: 3, argument: 3, run: 1]
+      Module.register_attribute(__MODULE__, :commands, accumulate: true)
+      Module.register_attribute(__MODULE__, :otp_app, accumulate: false)
+      @otp_app unquote(otp_app)
+      @before_compile Alaja.CLI.Definition
+    end
+  end
+
+  # ─── DSL macros ─────────────────────────────────────────────────────
+
+  @doc "Defines a CLI command with a name, description, and block."
+  @spec command(String.t(), String.t(), do: Macro.t()) :: Macro.t()
+  defmacro command(name, description, do: block) do
+    quote do
+      @current_command %{
+        name: unquote(name),
+        description: unquote(description),
+        flags: [],
+        arguments: [],
+        subcommands: %{}
+      }
+      unquote(block)
+      @commands @current_command
+    end
+  end
+
+  defmacro command(name, description, opts) when is_list(opts) do
+    run_handler = Keyword.get(opts, :run)
+
+    quote do
+      @current_command %{
+        name: unquote(name),
+        description: unquote(description),
+        flags: [],
+        arguments: [],
+        subcommands: %{},
+        run: unquote(run_handler)
+      }
+      @commands @current_command
+    end
+  end
+
+  @doc "Defines a CLI subcommand group."
+  @spec subcommand(String.t(), String.t(), do: Macro.t()) :: Macro.t()
+  defmacro subcommand(name, description, do: block) do
+    quote do
+      @current_command %{
+        name: unquote(name),
+        description: unquote(description),
+        flags: [],
+        arguments: [],
+        subcommands: %{}
+      }
+      unquote(block)
+      @commands @current_command
+    end
+  end
+
+  @doc "Defines a CLI flag within a command."
+  @spec flag(atom(), flag_type(), Keyword.t()) :: Macro.t()
+  defmacro flag(name, type, opts \\ []) do
+    quote do
+      @current_command update_in(@current_command.flags, fn flags ->
+                         flags ++
+                           [
+                             %{
+                               name: unquote(name),
+                               type: unquote(type),
+                               default: unquote(Keyword.get(opts, :default)),
+                               required: unquote(Keyword.get(opts, :required, false)),
+                               values: unquote(Keyword.get(opts, :values)),
+                               short: unquote(Keyword.get(opts, :short)),
+                               repeatable: unquote(Keyword.get(opts, :repeatable, false))
+                             }
+                           ]
+                       end)
+    end
+  end
+
+  @doc "Defines a positional argument within a command."
+  @spec argument(atom(), arg_type(), Keyword.t()) :: Macro.t()
+  defmacro argument(name, type, opts \\ []) do
+    quote do
+      @current_command update_in(@current_command.arguments, fn args ->
+                         args ++
+                           [
+                             %{
+                               name: unquote(name),
+                               type: unquote(type),
+                               required: unquote(Keyword.get(opts, :required, false)),
+                               default: unquote(Keyword.get(opts, :default))
+                             }
+                           ]
+                       end)
+    end
+  end
+
+  @doc """
+  Defines the handler for a command.
+
+  Accepts a `{module, function_name}` tuple. The handler will be called
+  with a single argument: the parsed opts map, which includes `:_args`
+  (the raw positional arguments).
+
+  ## Example
+
+      command "deploy", "Deploy to production" do
+        flag :env, :string, default: "staging"
+        run {MyApp.Deploy, :run}
+      end
+  """
+  @spec run({module(), atom()}) :: Macro.t()
+  defmacro run({_mod, _fun} = tuple) do
+    quote do
+      @current_command Map.put(@current_command, :run, unquote(tuple))
+    end
+  end
+
+  # ─── Compilation ──────────────────────────────────────────────────────
+
+  @doc false
+  @spec __before_compile__(Macro.Env.t()) :: Macro.t()
+  defmacro __before_compile__(_env) do
+    quote do
+      @doc false
+      def __commands__ do
+        @commands |> Enum.reverse()
+      end
+
+      @doc false
+      def __otp_app__ do
+        @otp_app
+      end
+
+      @doc "Runs the CLI with the given arguments."
+      def main(args) do
+        Alaja.CLI.Definition.dispatch(@commands |> Enum.reverse(), args)
+      end
+    end
+  end
+
+  # ─── Runtime dispatch ─────────────────────────────────────────────────
+
+  alias Alaja.CLI.ErrorHandler
+
+  @doc false
+  def dispatch(commands, args) do
+    dispatch(commands, args, [])
+  end
+
+  defp dispatch(commands, [name | rest], parent_flags) do
+    case find_command(commands, name) do
+      nil ->
+        ErrorHandler.unknown_command(name, commands)
+
+      %{subcommands: subs} = cmd when map_size(subs) > 0 ->
+        dispatch_with_subcommands(cmd, rest, parent_flags)
+
+      cmd ->
+        with {:ok, flags, remaining} <- parse_flags(cmd.flags, rest) do
+          execute(cmd, flags, remaining, parent_flags)
+        end
+    end
+  end
+
+  defp dispatch(commands, [], _parent_flags) do
+    ErrorHandler.no_command(commands)
+  end
+
+  defp find_command(commands, name) when is_list(commands) do
+    Enum.find(commands, &(&1.name == name)) ||
+      Enum.find(commands, fn
+        {^name, cmd} -> cmd
+        _ -> nil
+      end)
+  end
+
+  defp find_command(commands, name) when is_map(commands) do
+    Map.get(commands, name) || find_command_by_atom(commands, name)
+  end
+
+  defp find_command_by_atom(commands, name) do
+    case Alaja.Helpers.safe_string_to_atom(name) do
+      {:ok, atom} -> Map.get(commands, atom)
+      {:error, _} -> nil
+    end
+  end
+
+  defp dispatch_with_subcommands(%{subcommands: subs} = cmd, rest, parent_flags) do
+    with {:ok, flags, remaining} <- parse_flags(cmd.flags, rest) do
+      handle_remaining(subs, cmd, flags, remaining, parent_flags)
+    end
+  end
+
+  defp handle_remaining(_subs, cmd, flags, [], parent_flags) do
+    execute(cmd, flags, [], parent_flags)
+  end
+
+  defp handle_remaining(subs, cmd, flags, [sub | rest], parent_flags) do
+    if subcommand_exists?(subs, sub) do
+      dispatch(Map.values(subs), [sub | rest], parent_flags ++ flags)
+    else
+      execute(cmd, flags, [sub | rest], parent_flags)
+    end
+  end
+
+  defp subcommand_exists?(subs, sub) when is_map(subs), do: Map.has_key?(subs, sub)
+  defp subcommand_exists?(subs, sub), do: Enum.any?(subs, &(elem(&1, 0) == sub))
+
+  # ─── Flag parsing ─────────────────────────────────────────────────────
+
+  defp parse_flags(flags, args, acc \\ [])
+  defp parse_flags([], args, acc), do: {:ok, acc, args}
+
+  defp parse_flags(flags, args, acc) do
+    matched = match_flag(flags, args)
+    parse_matched_flag(matched, flags, args, acc)
+  end
+
+  defp parse_matched_flag(nil, _flags, args, acc), do: {:ok, acc, args}
+
+  defp parse_matched_flag(%{type: :boolean, repeatable: true} = flag, flags, [arg | rest], acc) do
+    value_already = arg =~ "=true" or arg =~ "=false"
+    value = if value_already, do: String.contains?(arg, "=true"), else: true
+    next = if value_already, do: rest, else: rest
+    parse_flags(flags, next, [{flag.name, value} | acc])
+  end
+
+  defp parse_matched_flag(%{type: :boolean} = flag, flags, [arg | rest], acc) do
+    value_already = arg =~ "=true" or arg =~ "=false"
+    value = if value_already, do: String.contains?(arg, "=true"), else: true
+    next = if value_already, do: rest, else: rest
+    parse_flags(flags -- [flag], next, [{flag.name, value} | acc])
+  end
+
+  defp parse_matched_flag(%{type: :boolean} = flag, _flags, [], acc) do
+    parse_flags([flag], [], [{flag.name, true} | acc])
+  end
+
+  defp parse_matched_flag(%{repeatable: true} = flag, flags, [arg | rest], acc) do
+    {value, remaining} = parse_flag_value(arg, rest)
+    parsed = cast_flag_value(flag.type, value, flag.default)
+    parse_flags(flags, remaining, [{flag.name, parsed} | acc])
+  end
+
+  defp parse_matched_flag(%{} = flag, flags, [arg | rest], acc) do
+    {value, remaining} = parse_flag_value(arg, rest)
+    parsed = cast_flag_value(flag.type, value, flag.default)
+    parse_flags(flags -- [flag], remaining, [{flag.name, parsed} | acc])
+  end
+
+  defp parse_matched_flag(%{} = _flag, _flags, [], acc) do
+    {:ok, acc, []}
+  end
+
+  defp match_flag(_flags, []), do: nil
+
+  defp match_flag(flags, [arg | _]) do
+    Enum.find(flags, fn flag ->
+      full = "--#{flag.name}"
+      short = flag.short && "-#{flag.short}"
+
+      String.starts_with?(arg, full) or
+        (short && String.starts_with?(arg, short))
+    end)
+  end
+
+  defp parse_flag_value(arg, rest) do
+    cond do
+      String.contains?(arg, "=") ->
+        [_name, val] = String.split(arg, "=", parts: 2)
+        {val, rest}
+
+      rest != [] and not String.starts_with?(hd(rest), "-") ->
+        [val | rem] = rest
+        {val, rem}
+
+      true ->
+        {nil, rest}
+    end
+  end
+
+  defp cast_flag_value(:string, nil, default), do: default
+  defp cast_flag_value(:string, val, _default), do: val
+  defp cast_flag_value(:integer, nil, default), do: default
+  defp cast_flag_value(:integer, val, _default), do: String.to_integer(val)
+  defp cast_flag_value(:float, nil, default), do: default
+  defp cast_flag_value(:float, val, _default), do: String.to_float(val)
+  defp cast_flag_value(:boolean, nil, default), do: default
+  defp cast_flag_value(:boolean, val, _default), do: val in [true, "true", "1"]
+  defp cast_flag_value(:atom, nil, default), do: default
+
+  defp cast_flag_value(:atom, val, _default) do
+    case Alaja.Helpers.safe_string_to_atom(val) do
+      {:ok, atom} -> atom
+      {:error, _} -> val
+    end
+  end
+
+  # ─── Execution ────────────────────────────────────────────────────────
+
+  defp execute(cmd, flags, positional, parent_flags) do
+    all_flags = parent_flags ++ flags
+
+    # Build a map of flag defaults + parsed values
+    # For repeatable flags, aggregate all values into a list
+    flag_values =
+      cmd.flags
+      |> Enum.map(fn f ->
+        flag_values = Keyword.get_values(all_flags, f.name)
+
+        if f.repeatable and flag_values != [] do
+          {f.name, flag_values}
+        else
+          value = Keyword.get(all_flags, f.name, f.default)
+          {f.name, value}
+        end
+      end)
+      |> Map.new()
+
+    # Parse positional arguments
+    arg_values = parse_arguments(cmd.arguments, positional)
+
+    # Validate required arguments
+    case validate_required_args(cmd.arguments, arg_values) do
+      {:error, missing} ->
+        ErrorHandler.missing_args(cmd.name, missing)
+
+      :ok ->
+        # Inject raw positional args so existing legacy handlers (that
+        # do their own OptionParser) can receive the unparsed list.
+        opts =
+          flag_values
+          |> Map.merge(arg_values)
+          |> struct_to_map()
+          |> Map.put(:_args, positional)
+
+        if match?({mod, fun} when is_atom(mod) and is_atom(fun), cmd.run) do
+          {mod, fun} = cmd.run
+          apply(mod, fun, [opts])
+        else
+          ErrorHandler.no_handler(cmd.name)
+        end
+    end
+  end
+
+  defp validate_required_args(args, arg_values) do
+    missing =
+      args
+      |> Enum.filter(& &1.required)
+      |> Enum.map(& &1.name)
+      |> Enum.reject(&(Map.has_key?(arg_values, &1) && Map.get(arg_values, &1) != nil))
+
+    if missing == [], do: :ok, else: {:error, missing}
+  end
+
+  defp parse_arguments(args, positional) do
+    Enum.zip(args, positional)
+    |> Enum.map(fn
+      {%{name: name, type: type}, value} -> {name, cast_arg_value(type, value)}
+      {%{name: name} = arg, nil} -> {name, arg.default}
+    end)
+    |> Map.new()
+  end
+
+  defp cast_arg_value(:string, val), do: val
+  defp cast_arg_value(:integer, val), do: String.to_integer(val)
+  defp cast_arg_value(:float, val), do: String.to_float(val)
+
+  defp struct_to_map(%_{} = struct), do: Map.from_struct(struct)
+  defp struct_to_map(map) when is_map(map), do: map
+end
