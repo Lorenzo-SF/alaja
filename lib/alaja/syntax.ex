@@ -141,23 +141,14 @@ defmodule Alaja.Syntax do
   defp tokenize_json(line) do
     line
     |> String.split(~r/("[^"]*"|\d+|true|false|null|[{}\[\],:])/, include_captures: true, trim: true)
-    |> Enum.map(fn
-      <<"\"", _::binary>> = s -> {:string, s}
-      "true" -> {:keyword, "true"}
-      "false" -> {:keyword, "false"}
-      "null" -> {:keyword, "null"}
-      "{" -> {:operator, s}
-      "}" -> {:operator, s}
-      "[" -> {:operator, s}
-      "]" -> {:operator, s}
-      "," -> {:operator, s}
-      ":" -> {:operator, s}
-      s ->
-        if Regex.match?(~r/^\d+(\.\d+)?$/, s) do
-          {:number, s}
-        else
-          {:plain, s}
-        end
+    |> Enum.map(fn token ->
+      cond do
+        String.starts_with?(token, "\"") -> {:string, token}
+        token in ["true", "false", "null"] -> {:keyword, token}
+        token in ["{", "}", "[", "]", ",", ":"] -> {:operator, token}
+        Regex.match?(~r/^\d+(\.\d+)?$/, token) -> {:number, token}
+        true -> {:plain, token}
+      end
     end)
   end
 
@@ -165,7 +156,7 @@ defmodule Alaja.Syntax do
 
   defp tokenize_markdown(line) do
     cond do
-      Regex.match?(~r/^#{1,6}\s+/, line) -> [{:keyword, line}]
+      Regex.match?(~r/^\#{1,6}\s+/, line) -> [{:keyword, line}]
       Regex.match?(~r/^\*\*[^*]+\*\*$/, String.trim(line)) -> [{:keyword, line}]
       Regex.match?(~r/^\*[^*]+\*$/, String.trim(line)) -> [{:keyword, line}]
       String.contains?(line, "`") -> [{:string, line}]
