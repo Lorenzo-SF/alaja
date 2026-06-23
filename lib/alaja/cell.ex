@@ -322,6 +322,11 @@ defmodule Alaja.Cell do
 
   defp char_width(_), do: 0
 
+  # Dialyzer cannot infer the codepoint type from <<cp::utf8, _::binary>>
+  # because the tail is _::binary (any size). The two-clause pattern is
+  # correct at runtime; the type annotation just confuses the analyser.
+  @dialyzer {:nowarn_function, char_width: 1}
+
   defp wide_char?(cp) do
     Enum.any?(@wide_char_ranges, fn range -> cp in range end)
   end
