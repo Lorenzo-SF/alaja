@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `Alaja.CLI.Definition` upgraded to the rich DSL from hex 1.0.0 (flags, arguments, subcommands, `main/1` auto-generated, keyword-style `command/3` with `run: {Mod, :fun}`).
 
 ### Changed
+- **i18n**: translated remaining Spanish docstrings and inline comments to English across the library for consistency.
 - **Self-hosting**: `Alaja.CLI` now uses `use Alaja.CLI.Definition` to define its commands, replacing the manual `command_dispatch/0` and `command_descriptions/0` maps. The CLI is built with its own framework.
 - `Pote.Conversions.*` calls in `Alaja.CLI.Commands.Color` migrated to the new `Pote.Converters.Advanced.*` and `Pote.Converters.RGB.*` API to avoid deprecation warnings.
 - `Alaja.Helpers` no longer exposes the 11 deprecated ANSI wrappers. Internal helpers (`progress_bar`, `box`, `double_box`) now call `Alaja.ANSI.*` directly. Consumers should migrate to `Alaja.ANSI`.
@@ -25,4 +26,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [1.0.0] - 2026-06-10
 
 ### Added
-- Initial release: DSL, components, rendering, syntax highlighting, ANSI utilities.
+- Initial open source release: DSL, components, rendering, syntax highlighting, ANSI utilities.
+
+[1.0.0]: https://hex.pm/packages/alaja/1.0.0

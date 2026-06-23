@@ -607,10 +607,10 @@ defmodule Alaja.Components.Table do
     if valid_data == [] do
       []
     else
-      # Obtener número máximo de columnas
+      # Get the maximum number of columns
       max_columns = Enum.map(valid_data, &length/1) |> Enum.max(fn -> 0 end)
 
-      # Calcular ancho máximo para cada columna
+      # Calculate the maximum width for each column
       Enum.map(0..(max_columns - 1), fn col_index ->
         calculate_max_column_width(valid_data, col_index)
       end)
@@ -625,7 +625,7 @@ defmodule Alaja.Components.Table do
     |> Enum.max(fn -> 0 end)
   end
 
-  # Calcula la longitud visible del texto (sin secuencias ANSI)
+  # Calculates the visible length of the text (excluding ANSI sequences)
   defp visible_length(text) do
     stripped = text |> String.replace(@ansi_regex, "")
     len = String.length(stripped)

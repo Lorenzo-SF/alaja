@@ -223,12 +223,10 @@ defmodule Alaja.Cell do
   defp ansi_fg({r, g, b}), do: "\e[38;2;#{r};#{g};#{b}m"
 
   defp ansi_fg(atom) when is_atom(atom) do
-    case Pote.color(atom) do
+    case safe_pote_color(atom) do
       nil -> []
       {r, g, b} -> "\e[38;2;#{r};#{g};#{b}m"
     end
-  rescue
-    _ -> []
   end
 
   defp ansi_fg(_unknown), do: []
@@ -237,15 +235,26 @@ defmodule Alaja.Cell do
   defp ansi_bg({r, g, b}), do: "\e[48;2;#{r};#{g};#{b}m"
 
   defp ansi_bg(atom) when is_atom(atom) do
-    case Pote.color(atom) do
+    case safe_pote_color(atom) do
       nil -> []
       {r, g, b} -> "\e[48;2;#{r};#{g};#{b}m"
     end
-  rescue
-    _ -> []
   end
 
   defp ansi_bg(_unknown), do: []
+
+  # Pote.color/1 raises FunctionClauseError when given a tuple or other
+  # non-atom, non-{r,g,b} term. Wrap the call so the render path returns
+  # an empty prefix instead of crashing the cell pipeline. We catch
+  # FunctionClauseError specifically — catching every exception would
+  # hide real bugs (KeyError, ArithmeticError, etc.) in the colour
+  # resolution.
+  @spec safe_pote_color(term()) :: {0..255, 0..255, 0..255} | nil
+  defp safe_pote_color(term) do
+    Pote.color(term)
+  rescue
+    FunctionClauseError -> nil
+  end
 
   @spec ansi_effects(effects()) :: iodata()
   defp ansi_effects([]), do: []
@@ -300,19 +309,23 @@ defmodule Alaja.Cell do
   ]
 
   @spec char_width(String.t()) :: 0 | 1 | 2
-  defp char_width(<<cp>>) when cp <= 126 do
-    if cp <= 31, do: 0, else: 1
+  # ASCII byte: 0x00..0x7F (one column, control chars are 0 width).
+  defp char_width(<<cp::utf8, _::binary>>) when cp <= 0x7F do
+    if cp <= 0x1F, do: 0, else: 1
   end
 
-  defp char_width(<<_>>), do: 1
-
-  @dialyzer {:nowarn_function, {:char_width, 1}}
-  defp char_width(char) do
-    case :binary.first(char) do
-      cp when is_integer(cp) -> if wide_char?(cp), do: 2, else: 1
-      _ -> 0
-    end
+  # Multi-byte UTF-8: first byte 0x80..0xFF — must decode the codepoint,
+  # not just inspect the first byte, to detect wide characters.
+  defp char_width(<<cp::utf8, _::binary>>) do
+    if wide_char?(cp), do: 2, else: 1
   end
+
+  defp char_width(_), do: 0
+
+  # Dialyzer cannot infer the codepoint type from <<cp::utf8, _::binary>>
+  # because the tail is _::binary (any size). The two-clause pattern is
+  # correct at runtime; the type annotation just confuses the analyser.
+  @dialyzer {:nowarn_function, char_width: 1}
 
   defp wide_char?(cp) do
     Enum.any?(@wide_char_ranges, fn range -> cp in range end)
