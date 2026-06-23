@@ -300,19 +300,18 @@ defmodule Alaja.Cell do
   ]
 
   @spec char_width(String.t()) :: 0 | 1 | 2
-  defp char_width(<<cp>>) when cp <= 126 do
-    if cp <= 31, do: 0, else: 1
+  # ASCII byte: 0x00..0x7F (one column, control chars are 0 width).
+  defp char_width(<<cp::utf8, _::binary>>) when cp <= 0x7F do
+    if cp <= 0x1F, do: 0, else: 1
   end
 
-  defp char_width(<<_>>), do: 1
-
-  @dialyzer {:nowarn_function, {:char_width, 1}}
-  defp char_width(char) do
-    case :binary.first(char) do
-      cp when is_integer(cp) -> if wide_char?(cp), do: 2, else: 1
-      _ -> 0
-    end
+  # Multi-byte UTF-8: first byte 0x80..0xFF — must decode the codepoint,
+  # not just inspect the first byte, to detect wide characters.
+  defp char_width(<<cp::utf8, _::binary>>) do
+    if wide_char?(cp), do: 2, else: 1
   end
+
+  defp char_width(_), do: 0
 
   defp wide_char?(cp) do
     Enum.any?(@wide_char_ranges, fn range -> cp in range end)
