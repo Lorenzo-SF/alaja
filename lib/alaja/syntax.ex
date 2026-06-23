@@ -143,9 +143,9 @@ defmodule Alaja.Syntax do
     |> String.split(~r/("[^"]*"|\d+|true|false|null|[{}\[\],:])/, include_captures: true, trim: true)
     |> Enum.map(fn
       <<"\"", _::binary>> = s -> {:string, s}
-      "true" -> {:keyword, s}
-      "false" -> {:keyword, s}
-      "null" -> {:keyword, s}
+      "true" -> {:keyword, "true"}
+      "false" -> {:keyword, "false"}
+      "null" -> {:keyword, "null"}
       "{" -> {:operator, s}
       "}" -> {:operator, s}
       "[" -> {:operator, s}
