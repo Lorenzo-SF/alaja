@@ -223,12 +223,10 @@ defmodule Alaja.Cell do
   defp ansi_fg({r, g, b}), do: "\e[38;2;#{r};#{g};#{b}m"
 
   defp ansi_fg(atom) when is_atom(atom) do
-    case Pote.color(atom) do
+    case safe_pote_color(atom) do
       nil -> []
       {r, g, b} -> "\e[38;2;#{r};#{g};#{b}m"
     end
-  rescue
-    _ -> []
   end
 
   defp ansi_fg(_unknown), do: []
@@ -237,15 +235,26 @@ defmodule Alaja.Cell do
   defp ansi_bg({r, g, b}), do: "\e[48;2;#{r};#{g};#{b}m"
 
   defp ansi_bg(atom) when is_atom(atom) do
-    case Pote.color(atom) do
+    case safe_pote_color(atom) do
       nil -> []
       {r, g, b} -> "\e[48;2;#{r};#{g};#{b}m"
     end
-  rescue
-    _ -> []
   end
 
   defp ansi_bg(_unknown), do: []
+
+  # Pote.color/1 raises FunctionClauseError when given a tuple or other
+  # non-atom, non-{r,g,b} term. Wrap the call so the render path returns
+  # an empty prefix instead of crashing the cell pipeline. We catch
+  # FunctionClauseError specifically — catching every exception would
+  # hide real bugs (KeyError, ArithmeticError, etc.) in the colour
+  # resolution.
+  @spec safe_pote_color(term()) :: {0..255, 0..255, 0..255} | nil
+  defp safe_pote_color(term) do
+    Pote.color(term)
+  rescue
+    FunctionClauseError -> nil
+  end
 
   @spec ansi_effects(effects()) :: iodata()
   defp ansi_effects([]), do: []
