@@ -271,7 +271,7 @@ defmodule Alaja.Printer do
 
     case add_line do
       :before ->
-        IO.write(cursor_move <> clear_line <> output <> "\n")
+        IO.write(cursor_move <> clear_line <> "\n" <> output)
 
       :after ->
         IO.write(cursor_move <> clear_line <> output <> "\n")
