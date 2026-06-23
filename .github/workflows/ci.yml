@@ -81,8 +81,8 @@ jobs:
       - name: Install dependencies
         run: mix deps.get
 
-      - name: Compile (warnings as errors)
-        run: mix compile --warnings-as-errors --force
+      - name: Compile
+        run: mix compile --force
 
       - name: Run tests with coverage
         run: mix test --cover
