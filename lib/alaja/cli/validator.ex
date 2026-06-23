@@ -1,8 +1,8 @@
 defmodule Alaja.CLI.Validator do
   @moduledoc """
-  Validacion de inputs para comandos CLI.
+  Validation of inputs for CLI commands.
 
-  ## Uso
+  ## Usage
 
       Alaja.CLI.Validator.validate_flags(flags, parsed)
       Alaja.CLI.Validator.validate_args(arguments, positional)
