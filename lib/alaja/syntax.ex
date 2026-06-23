@@ -121,7 +121,12 @@ defmodule Alaja.Syntax do
           end
       end
 
-    tokenize_elixir_parts(rest, [{type, text} | acc])
+    # Guard against infinite loops if the regex matched but did not consume.
+    if rest == "" or rest == line do
+      Enum.reverse([{type, text} | acc])
+    else
+      tokenize_elixir_parts(rest, [{type, text} | acc])
+    end
   end
 
   defp take_next_token(line) do
