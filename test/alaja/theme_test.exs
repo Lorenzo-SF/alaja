@@ -47,4 +47,15 @@ defmodule Alaja.ThemeTest do
   test "config_app/0 returns :alaja" do
     assert Theme.config_app() == :alaja
   end
+
+  test "storage_dir/0 honours the ALAJA_THEMES_PATH env var" do
+    original = System.get_env("ALAJA_THEMES_PATH")
+    System.put_env("ALAJA_THEMES_PATH", "/tmp/alaja_themes_path_test")
+
+    try do
+      assert Theme.storage_dir() == "/tmp/alaja_themes_path_test"
+    after
+      if original, do: System.put_env("ALAJA_THEMES_PATH", original), else: System.delete_env("ALAJA_THEMES_PATH")
+    end
+  end
 end
