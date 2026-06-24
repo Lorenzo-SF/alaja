@@ -23,8 +23,8 @@ Add `alaja` and `pote` to your `mix.exs`:
 ```elixir
 def deps do
   [
-    {:alaja, path: "../alaja"},
-    {:pote, path: "../pote"}
+    {:alaja, github: "Lorenzo-SF/alaja"}
+    {:pote, github: "Lorenzo-SF/pote"}
   ]
 end
 ```
