@@ -158,6 +158,7 @@ defmodule Alaja.CLI.Commands.Show.Message do
         |> maybe_add(:effects, effects)
 
       chunk = ChunkText.new(text, chunk_opts)
+
       align =
         case Keyword.get(opts, :align) do
           nil -> global.align
@@ -286,7 +287,13 @@ defmodule Alaja.CLI.Commands.Show.Message do
   end
 
   defp global_opts_to_printer(global) do
-    [raw: global.raw, pos_x: global.pos_x, pos_y: global.pos_y, verbose: global.verbose, align: global.align]
+    [
+      raw: global.raw,
+      pos_x: global.pos_x,
+      pos_y: global.pos_y,
+      verbose: global.verbose,
+      align: global.align
+    ]
   end
 
   defp maybe_add(list, _key, nil), do: list

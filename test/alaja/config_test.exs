@@ -39,15 +39,19 @@ defmodule Alaja.ConfigTest do
       File.mkdir_p!(Path.join(tmp_dir, "themes"))
 
       dracula_path = Path.join([tmp_dir, "themes", "dracula.json"])
-      File.write!(dracula_path, Jason.encode!(%{
-        "name" => "dracula",
-        "description" => "Dracula",
-        "colors" => %{
-          "primary" => [189, 147, 249],
-          "ternary" => [255, 184, 108],
-          "background" => [40, 42, 54]
-        }
-      }))
+
+      File.write!(
+        dracula_path,
+        Jason.encode!(%{
+          "name" => "dracula",
+          "description" => "Dracula",
+          "colors" => %{
+            "primary" => [189, 147, 249],
+            "ternary" => [255, 184, 108],
+            "background" => [40, 42, 54]
+          }
+        })
+      )
 
       System.put_env("ALAJA_THEMES_PATH", Path.join(tmp_dir, "themes"))
       Application.put_env(:alaja, :theme_active, "dracula")
