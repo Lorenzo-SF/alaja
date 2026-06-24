@@ -7,7 +7,7 @@ defmodule Alaja.Printer.InteractiveTest do
   describe "question/2" do
     test "returns user input" do
       # Mock IO.gets with provided input
-      input =
+      _ =
         capture_io([input: "hello\n"], fn ->
           result = Interactive.question("Name:")
           assert result == "hello"
