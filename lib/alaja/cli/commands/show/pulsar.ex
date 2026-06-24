@@ -255,7 +255,11 @@ defmodule Alaja.CLI.Commands.Show.Pulsar do
       if frame == 0 do
         IO.write([Alaja.ANSI.hide_cursor(), Alaja.ANSI.move_to(start_x, start_y), padded_output])
       else
-        IO.write([Alaja.ANSI.move_to(start_x, start_y), Alaja.ANSI.clear_line_down(), padded_output])
+        IO.write([
+          Alaja.ANSI.move_to(start_x, start_y),
+          Alaja.ANSI.clear_line_down(),
+          padded_output
+        ])
       end
     else
       if frame == 0 do
@@ -288,6 +292,7 @@ defmodule Alaja.CLI.Commands.Show.Pulsar do
   end
 
   defp apply_left_padding_pixels(pixels, 0), do: pixels
+
   defp apply_left_padding_pixels(pixels, left_pad) do
     padding_row = List.duplicate({0, 0, 0}, left_pad)
     Enum.map(pixels, fn row -> padding_row ++ row end)
@@ -392,7 +397,13 @@ defmodule Alaja.CLI.Commands.Show.Pulsar do
           "Y position for content within pulsar (nil = auto centered)"
         ],
         ["--content-type TYPE", "string", "text, image", "text", "Content type: text or image"],
-        ["--image-path PATH", "string", "", "", "Path to image (required with --content-type image)"],
+        [
+          "--image-path PATH",
+          "string",
+          "",
+          "",
+          "Path to image (required with --content-type image)"
+        ],
         ["--verbose", "boolean", "", "false", "Print 20 sample frames as static text"]
       ],
       table_border: :none,

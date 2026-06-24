@@ -295,7 +295,8 @@ defmodule Alaja.ImageRenderer do
     - `:width` — target width in characters (default: 40)
     - `:height` — target height in characters (default: auto from aspect ratio)
   """
-  @spec load_image_pixels(String.t(), keyword()) :: {:ok, [[{0..255, 0..255, 0..255}]]} | {:error, String.t()}
+  @spec load_image_pixels(String.t(), keyword()) ::
+          {:ok, [[{0..255, 0..255, 0..255}]]} | {:error, String.t()}
   def load_image_pixels(path, opts \\ []) do
     width = Keyword.get(opts, :width, 40)
     height = Keyword.get(opts, :height, 0)
