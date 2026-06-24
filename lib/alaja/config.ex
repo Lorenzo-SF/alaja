@@ -89,6 +89,39 @@ defmodule Alaja.Config do
     end
   end
 
+  @doc """
+  Looks up a color key in the currently active theme.
+
+  This is the public API used by the Pote theme resolver bridge:
+  `"theme:<key>"` lookups in `Pote.Orchestrator` end up here when Alaja
+  is the running app, so e.g. `alaja separator --color "theme:ternary"`
+  resolves to the actual `ternary` color of the active theme, not Pote's
+  hardcoded default palette.
+
+  Returns `{:ok, {r, g, b}}` on hit, `:error` on miss (key absent or
+  theme file unreadable).
+  """
+  @spec lookup_theme_color(String.t()) :: {:ok, {integer(), integer(), integer()}} | :error
+  def lookup_theme_color(key) when is_binary(key) do
+    theme_name = get(:theme_active, "default") |> to_string()
+
+    case load_theme(theme_name) do
+      {:ok, data} ->
+        colors = Map.get(data, "colors", %{})
+
+        case Map.get(colors, key) do
+          [r, g, b] when is_integer(r) and is_integer(g) and is_integer(b) ->
+            {:ok, {r, g, b}}
+
+          _ ->
+            :error
+        end
+
+      {:error, _} ->
+        :error
+    end
+  end
+
   @doc "Returns the path to the config file."
   @spec config_file_path() :: String.t()
   def config_file_path do

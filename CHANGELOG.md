@@ -12,6 +12,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `Alaja.CLI.Dispatch` module that centralises dispatch from `Alaja.CLI` into the existing `Alaja.CLI.Commands.*` handlers, isolating them from the DSL.
 - New test `test/alaja/cli/dispatch_test.exs` covering all 27 commands.
 - `Alaja.CLI.Definition` upgraded to the rich DSL from hex 1.0.0 (flags, arguments, subcommands, `main/1` auto-generated, keyword-style `command/3` with `run: {Mod, :fun}`).
+- `Alaja.Config.lookup_theme_color/1` — looks up a key in the active theme. Used by Pote's theme resolver bridge.
+- `Alaja.Application` — registers Pote's theme resolver on boot so `Pote.parse("theme:<key>")` consults the active theme.
+
+### Fixed
+- **BUG**: `alaja separator --color "theme:ternary"` (and any other command going through `Pote.Orchestrator.parse_color("theme:<key>")`) used to ignore the active theme and always return Pote's hardcoded `@default_colors`. It now returns the active theme's color. Same fix applies to atom lookups like `:ternary`.
 
 ### Changed
 - **i18n**: translated remaining Spanish docstrings and inline comments to English across the library for consistency.
