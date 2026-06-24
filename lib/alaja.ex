@@ -97,4 +97,33 @@ defmodule Alaja do
     opts = Keyword.put_new(opts, :device, :stdio)
     IO.write(Keyword.fetch!(opts, :device), iodata)
   end
+
+  @doc """
+  Unified entry point for running an Alaja-based CLI.
+
+  The default `cli_module` is `Alaja.CLI` (the self-hosted demo CLI shipped
+  with the framework). Pass any module built with
+  `use Alaja.CLI.Definition, otp_app: :my_app` to run your own.
+
+  Both escript entry points and library callers should go through this
+  function rather than calling `cli_module.main/1` directly so the
+  public facade has a single documented entry point.
+
+  ## Examples
+
+      # Library caller
+      Alaja.run(System.argv())
+
+      # Custom CLI
+      Alaja.run(System.argv(), MyApp.CLI)
+
+      # escript main_module
+      defmodule MyApp.CLIEntry do
+        def main(argv), do: Alaja.run(argv, MyApp.CLI)
+      end
+  """
+  @spec run([String.t()], module()) :: any()
+  def run(argv, cli_module \\ Alaja.CLI) when is_list(argv) and is_atom(cli_module) do
+    cli_module.main(argv)
+  end
 end
