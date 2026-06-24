@@ -108,16 +108,31 @@ defmodule Alaja.Syntax do
 
     {type, text} =
       case token do
-        "" -> {:plain, rest}
+        "" ->
+          {:plain, rest}
+
         text ->
           cond do
-            String.starts_with?(text, "\"") -> {:string, text}
-            String.starts_with?(text, ":") and not String.starts_with?(text, "::") -> {:atom, text}
-            String.starts_with?(text, "#") -> {:comment, text}
-            text in @elixir_keywords -> {:keyword, text}
-            Regex.match?(~r/^[A-Z]/, text) and String.contains?(text, ".") -> {:module, text}
-            Regex.match?(~r/^-?\d+(\.\d+)?$/, text) -> {:number, text}
-            true -> {:plain, text}
+            String.starts_with?(text, "\"") ->
+              {:string, text}
+
+            String.starts_with?(text, ":") and not String.starts_with?(text, "::") ->
+              {:atom, text}
+
+            String.starts_with?(text, "#") ->
+              {:comment, text}
+
+            text in @elixir_keywords ->
+              {:keyword, text}
+
+            Regex.match?(~r/^[A-Z]/, text) and String.contains?(text, ".") ->
+              {:module, text}
+
+            Regex.match?(~r/^-?\d+(\.\d+)?$/, text) ->
+              {:number, text}
+
+            true ->
+              {:plain, text}
           end
       end
 
@@ -130,7 +145,10 @@ defmodule Alaja.Syntax do
   end
 
   defp take_next_token(line) do
-    case Regex.run(~r/^(\s+|[A-Za-z_][A-Za-z0-9_]*[!?]?|"[^"]*"|:[A-Za-z_][A-Za-z0-9_]*[!?]?|#[^\n]*|-?\d+(\.\d+)?|.)/, line) do
+    case Regex.run(
+           ~r/^(\s+|[A-Za-z_][A-Za-z0-9_]*[!?]?|"[^"]*"|:[A-Za-z_][A-Za-z0-9_]*[!?]?|#[^\n]*|-?\d+(\.\d+)?|.)/,
+           line
+         ) do
       [match, token] -> {token, String.replace_prefix(line, match, "")}
       _ -> {"", line}
     end
@@ -140,7 +158,10 @@ defmodule Alaja.Syntax do
 
   defp tokenize_json(line) do
     line
-    |> String.split(~r/("[^"]*"|\d+|true|false|null|[{}\[\],:])/, include_captures: true, trim: true)
+    |> String.split(~r/("[^"]*"|\d+|true|false|null|[{}\[\],:])/,
+      include_captures: true,
+      trim: true
+    )
     |> Enum.map(fn token ->
       cond do
         String.starts_with?(token, "\"") -> {:string, token}

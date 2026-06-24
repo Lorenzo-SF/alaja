@@ -237,11 +237,13 @@ defmodule Alaja.Components.Pulsar do
     content_x = Keyword.get(opts, :content_position_x, nil)
     content_y = Keyword.get(opts, :content_position_y, nil)
 
-    with {:ok, image_pixels} <- ImageRenderer.load_image_pixels(image_path, width: width, height: height) do
+    with {:ok, image_pixels} <-
+           ImageRenderer.load_image_pixels(image_path, width: width, height: height) do
       img_height = length(image_pixels)
       img_width = length(List.first(image_pixels, []))
 
-      content_start = calc_content_position(content_x, content_y, width, height, img_width, img_height)
+      content_start =
+        calc_content_position(content_x, content_y, width, height, img_width, img_height)
 
       {content_start_x, content_start_y} = content_start
       content_end_x = content_start_x + img_width - 1
