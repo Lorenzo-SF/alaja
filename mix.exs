@@ -130,7 +130,7 @@ defmodule Alaja.MixProject do
 
   defp deps do
     [
-      {:pote, github: "Lorenzo-SF/pote"},
+      {:pote, github: "Lorenzo-SF/pote", tag: "v0.2.0"},
       {:jason, "~> 1.4"},
       {:credo, "~> 1.7", only: [:dev, :test], runtime: false},
       {:dialyxir, "~> 1.4", only: [:dev, :test], runtime: false},
