@@ -55,7 +55,9 @@ defmodule Alaja.ThemeTest do
     try do
       assert Theme.storage_dir() == "/tmp/alaja_themes_path_test"
     after
-      if original, do: System.put_env("ALAJA_THEMES_PATH", original), else: System.delete_env("ALAJA_THEMES_PATH")
+      if original,
+        do: System.put_env("ALAJA_THEMES_PATH", original),
+        else: System.delete_env("ALAJA_THEMES_PATH")
     end
   end
 end
