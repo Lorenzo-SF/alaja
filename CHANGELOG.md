@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.1] - 2026-06-25
+
+### Fixed
+- **BUG**: `Alaja.CLI.Definition.main/1` used to call `System.halt/1` whenever
+  the dispatcher hit an error (unknown command, no command, missing arg,
+  invalid flag, missing flag value, no handler, invalid global flag value).
+  This made the framework unusable as a library — calling `main/1` from
+  tests or from another module would kill the BEAM with exit code 1.
+  Now the dispatcher returns `{:error, reason}` and the framework's
+  `main/1` only halts if the consumer opted in via
+  `use Alaja.CLI.Definition, otp_app: :my_app, halt_on_error: true`
+  (the default, kept for backwards-compatible escript behaviour). To load
+  as a library without `System.halt`:
+  `use Alaja.CLI.Definition, otp_app: :my_app, halt_on_error: false`.
+
 ## [0.3.0] - 2026-06-25
 
 ### Added — Cell/Buffer engine unification
