@@ -53,6 +53,7 @@ defmodule Alaja.CLI.Definition do
       Module.register_attribute(__MODULE__, :commands, accumulate: true)
       Module.register_attribute(__MODULE__, :otp_app, accumulate: false)
       @otp_app unquote(otp_app)
+      @halt_on_error Keyword.get(unquote(opts), :halt_on_error, true)
       @before_compile Alaja.CLI.Definition
     end
   end
@@ -185,7 +186,15 @@ defmodule Alaja.CLI.Definition do
 
       @doc "Runs the CLI with the given arguments."
       def main(args) do
-        Alaja.CLI.Definition.dispatch(@commands |> Enum.reverse(), args)
+        dispatch_main(args)
+      end
+
+      defp dispatch_main(args) do
+        result = Alaja.CLI.Definition.dispatch(@commands |> Enum.reverse(), args)
+        if match?({:error, _}, result) and @halt_on_error do
+          System.halt(1)
+        end
+        result
       end
     end
   end
