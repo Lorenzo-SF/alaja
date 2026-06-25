@@ -1,8 +1,8 @@
 # Alaja — Declarative CLI framework & terminal rendering kit for Elixir
 
-[![Hex version](https://img.shields.io/badge/hex-1.0.0-blue.svg)](https://hex.pm/packages/alaja)
+[![Hex version](https://img.shields.io/badge/hex-0.2.0-blue.svg)](https://hex.pm/packages/alaja)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE.md)
-[![Version](https://img.shields.io/badge/version-1.0.0-blue.svg)](https://github.com/Lorenzo-SF/alaja)
+[![Version](https://img.shields.io/badge/version-0.2.0-blue.svg)](https://github.com/Lorenzo-SF/alaja)
 
 Alaja is a declarative CLI framework and terminal rendering kit for Elixir.
 Define commands with a DSL, validate flags, auto-generate help, and render
@@ -10,9 +10,9 @@ rich terminal output — tables, headers, boxes, bars, breadcrumbs, JSON
 syntax highlighting, gradients, and interactive prompts — all powered by
 true-color ANSI escape sequences.
 
-Alaja is the rendering and I/O layer for the [Zaguan](https://github.com/lorenzo-sf/zaguan)
-toolchain. It depends on [Pote](https://github.com/lorenzo-sf/pote) for colour
-management, theme resolution, and format conversions.
+Alaja is a standalone CLI framework and terminal rendering kit. It depends on
+[Pote](https://github.com/lorenzo-sf/pote) for colour management, theme
+resolution, and format conversions.
 
 ---
 
@@ -603,7 +603,7 @@ OSS cut-over point — all the features shipped in `1.0.0` were built and tested
 before being made public. Subsequent releases (`1.0.1`, `1.1.0`, ...) will be
 tagged normally, providing a clean public history going forward.
 
-A Spanish version of this README is available at [`README_ES.md`](./README_ES.md).
+A Spanish version of this README is available at [`docs/README.es.md`](./docs/README.es.md).
 
 ## License
 
