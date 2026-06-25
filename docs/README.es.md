@@ -1,7 +1,7 @@
 # Alaja — Framework CLI declarativo y kit de renderizado para terminal en Elixir
 
-[![Hex version](https://img.shields.io/badge/hex-1.0.0-blue.svg)](https://hex.pm/packages/alaja)
-[![Version](https://img.shields.io/badge/version-1.0.0-blue.svg)](https://github.com/Lorenzo-SF/alaja)
+[![Hex version](https://img.shields.io/badge/hex-0.3.3-blue.svg)](https://hex.pm/packages/alaja)
+[![Version](https://img.shields.io/badge/version-0.3.3-blue.svg)](https://github.com/Lorenzo-SF/alaja)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 
 Alaja es un framework CLI declarativo y kit de renderizado para terminal en
@@ -29,6 +29,23 @@ def deps do
   ]
 end
 ```
+
+### `halt_on_error` (v0.3.3+)
+
+Por defecto, `Alaja.CLI.Definition` NO llama a `System.halt/1` en errores
+de despacho (comando desconocido, argumento faltante, flag inválido).
+Esto hace que el DSL sea seguro de usar como librería — llamar a `main/1`
+desde un test o desde otro módulo no mata el BEAM.
+
+Para comportamiento estilo escript (exit code 1 en error), opt-in explícito:
+
+```elixir
+use Alaja.CLI.Definition, otp_app: :my_app, halt_on_error: true
+```
+
+Cuando `halt_on_error: false` (el default), `main/1` retorna
+`{:error, reason}` donde `reason` es uno de `:no_command`,
+`:unknown_command`, `:no_handler`, `:invalid_command`, etc.
 
 ### Define un CLI en 5 minutos
 
@@ -410,7 +427,7 @@ Alaja.Components.Breadcrumbs.print(["Inicio", "Proyectos", "Zaguan"])
 **JSON**:
 
 ```elixir
-Alaja.Components.Json.print(%{nombre: "Alaja", version: "0.2.0", deps: ["pote", "jason"]})
+Alaja.Components.Json.print(%{nombre: "Alaja", version: "0.3.3", deps: ["pote", "jason"]})
 ```
 
 **ColorWheel**:
@@ -551,6 +568,55 @@ Dev/herramientas:
 | Benchee     | Benchmarking                |
 
 ---
+
+## Motor Cell/Buffer (v0.3.0+)
+
+Los componentes devuelven `Alaja.Buffer.t()` (una cuadrícula 2D de
+`Alaja.Cell.t()`) desde su función `render/N` en lugar de iodata opaco.
+Esto desbloquea **composición** — overlays, apilados horizontal/vertical,
+recortes, padding — todo sin re-implementar cada componente.
+
+```elixir
+buf1 = Components.Header.render("Estado", color: :cyan)
+buf2 = Components.Bar.render(width: 30, percent: 75, color: :green)
+
+# Superponer buf2 en la esquina inferior derecha de buf1
+combined = Buffer.overlay(buf1, buf2,
+  offset_x: 5,
+  offset_y: Buffer.height(buf1) - Buffer.height(buf2) - 1
+)
+
+# Imprimir con posicionamiento de cursor
+Printer.print_buffer(combined)
+```
+
+Primitivas de composición disponibles en `Alaja.Buffer`:
+
+- `to_iodata/1` — fusiona celdas consecutivas con el mismo estado ANSI en
+  un único prefijo de escape + caracteres (como cualquier emulador de
+  terminal). Crítico para paridad visual con la salida pre-v0.3.0.
+- `overlay/4` — coloca un buffer encima de otro en `(offset_x, offset_y)`.
+- `hstack/2` — concatena horizontalmente (bordes superiores alineados).
+- `vstack/2` — concatena verticalmente (bordes izquierdos alineados).
+- `crop/5` — extrae un sub-rectángulo.
+- `pad/3` — añade padding (top/right/bottom/left, fg, bg).
+- `with_offset/3` — traslada un buffer por (dx, dy).
+
+Componentes movidos al motor Cell en v0.3.0:
+
+| Componente | Función | Retorna |
+|-----------|---------|---------|
+| Separator | `Components.Separator.render/2` | `Buffer.t()` |
+| Bar | `Components.Bar.render/2` | `Buffer.t()` |
+| Breadcrumbs | `Components.Breadcrumbs.render/2` | `Buffer.t()` |
+| Header | `Components.Header.render/2` | `Buffer.t()` |
+| Box | `Components.Box.render/2` | `Buffer.t()` |
+| Json | `Components.Json.render/2` | `Buffer.t()` |
+| Table | `Components.Table.render_buffer/2` | `Buffer.t()` |
+| Pulsar | (ya era Cell) | `Buffer.t()` |
+
+El `Components.Table.render/2` legacy mantiene salida iodata para
+compatibilidad con consumidores anteriores.
 
 ## Instalación
 
