@@ -6,6 +6,7 @@ defmodule Alaja.CLI.Commands.Show.Bar do
   alias Alaja.Components.{Header, Separator, Table}
 
   alias Alaja.Printer
+  alias Alaja.Buffer
   @spec run([String.t()]) :: :ok | no_return()
   def run(args) do
     {global, rest} = GlobalOpts.parse(args)
@@ -62,7 +63,8 @@ defmodule Alaja.CLI.Commands.Show.Bar do
       |> Enum.reject(fn {_, v} -> is_nil(v) end)
 
     rendered = BarComp.render(value, max, bar_opts)
-    output = if global.raw, do: rendered, else: ["  ", rendered]
+    rendered_iodata = Buffer.to_iodata(rendered)
+    output = if global.raw, do: rendered_iodata, else: ["  ", rendered_iodata]
     Printer.print_raw(output, printer_opts(global))
   end
 

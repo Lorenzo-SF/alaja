@@ -30,7 +30,7 @@ defmodule Alaja.Buffer do
           cells: tuple()
         }
 
-  defstruct [:width, :height, cells: {}]
+  defstruct [:width, :height, :offset_x, :offset_y, cells: {}]
 
   @doc """
   Creates a new buffer with the specified dimensions.
@@ -60,6 +60,8 @@ defmodule Alaja.Buffer do
     %__MODULE__{
       width: width,
       height: height,
+      offset_x: 0,
+      offset_y: 0,
       cells: cells
     }
   end
@@ -425,4 +427,345 @@ defmodule Alaja.Buffer do
       put(buf, x + idx, y, char, fg, bg)
     end)
   end
+
+  # ---------------------------------------------------------------------------
+  # Composition primitives (Cell/Buffer engine unification, v0.3.0)
+  # ---------------------------------------------------------------------------
+
+  @doc """
+  Converts a buffer to iodata by iterating cells row-by-row and emitting
+  ANSI escapes via `Alaja.Cell.to_ansi/1`. Empty cells are coalesced into
+  a single space; row ends get a `\n`.
+
+  ## Examples
+
+      iex> buffer = Alaja.Buffer.new(5, 1) |> Alaja.Buffer.put(0, 0, "H", {255, 0, 0})
+      iex> Alaja.Buffer.to_iodata(buffer) |> IO.iodata_to_binary()
+      \"\\e[38;2;255;0;0mH\\e[0m    \"
+  """
+  @spec to_iodata(t()) :: iodata()
+  def to_iodata(%__MODULE__{width: 0, height: 0}), do: []
+  def to_iodata(%__MODULE__{} = buffer), do: do_to_iodata(buffer, 0, [])
+
+  defp do_to_iodata(%__MODULE__{height: h}, y, acc) when y >= h do
+    acc
+  end
+
+  defp do_to_iodata(%__MODULE__{width: w, height: h} = buffer, y, acc) do
+    row_binary = do_row_to_iodata(buffer, y, 0, w, [], nil)
+
+    row_binary =
+      if y + 1 >= h do
+        # Final row: skip trailing whitespace but keep ANSI escapes
+        trim_trailing_visible(row_binary)
+      else
+        row_binary
+      end
+
+    next_acc = if y == 0, do: [row_binary], else: [acc, "\n", row_binary]
+
+    do_to_iodata(buffer, y + 1, next_acc)
+  end
+
+  # Removes trailing space characters from a binary that may contain
+  # ANSI escape sequences. Used to clean up the final row.
+  defp trim_trailing_visible(""), do: ""
+  defp trim_trailing_visible(binary) do
+    # Strip trailing spaces. ANSI escapes don't contain raw spaces
+    # so this is safe — the last visible char on the last row is always
+    # either a space or a printable char.
+    binary
+    |> String.reverse()
+    |> String.replace(~r/^[ ]+/, "")
+    |> String.reverse()
+  end
+
+  # Optimized row emitter: coalesces consecutive cells with the same
+  # ANSI state into a single escape prefix + characters, then a single
+  # reset. This is what makes output visually equivalent to the old
+  # iodata-emitting components (one escape per colour change, not per
+  # cell). `prev_state` tracks the last emitted fg/bg/effects so we
+  # know when a new escape is needed.
+  defp do_row_to_iodata(_buffer, _y, x, w, acc, _prev) when x >= w do
+    case acc do
+      [] -> ""
+      _ -> IO.iodata_to_binary(acc)
+    end
+  end
+
+  defp do_row_to_iodata(buffer, y, x, w, acc, prev) do
+    cell = get(buffer, x, y)
+    state = {cell.fg, cell.bg, cell.effects}
+    prefix = Cell.to_ansi_prefix(cell)
+
+    cond do
+      # First cell ever
+      prev == nil ->
+        chunk =
+          if prefix == [] do
+            [acc, cell.char]
+          else
+            [acc, [prefix, cell.char]]
+          end
+
+        do_row_to_iodata(buffer, y, x + 1, w, chunk, state)
+
+      # Same style as previous — append the char to acc as iolist
+      state == prev ->
+        new_acc = append_to_last(acc, cell.char)
+        do_row_to_iodata(buffer, y, x + 1, w, new_acc, prev)
+
+      # Style change
+      true ->
+        chunk =
+          if prefix == [] do
+            [acc, IO.ANSI.reset(), cell.char]
+          else
+            [acc, [IO.ANSI.reset(), prefix, cell.char]]
+          end
+
+        do_row_to_iodata(buffer, y, x + 1, w, chunk, state)
+    end
+  end
+
+  # Appends a char to the rightmost position of an iolist.
+  # Walks nested cons cells until reaching a binary, then appends.
+  defp append_to_last([], char), do: [char]
+  defp append_to_last(binary, char) when is_binary(binary), do: [binary, char]
+
+  defp append_to_last([head | tail], char) do
+    [head | append_to_last(tail, char)]
+  end
+
+  @doc """
+  Overlays `src` onto `dest` at offset `(x, y)`. Cells outside the
+  destination bounds are clipped. Empty cells in `src` (char `" "`,
+  no fg, no bg, no effects) are skipped so they don't paint over
+  content in `dest`.
+
+  ## Examples
+
+      dest = Alaja.Buffer.new(10, 1)
+      src = Alaja.Buffer.new(3, 1) |> Alaja.Buffer.put(0, 0, "X", {255, 0, 0})
+      Alaja.Buffer.overlay(dest, src, 2, 0)
+  """
+  @spec overlay(t(), t(), non_neg_integer(), non_neg_integer()) :: t()
+  def overlay(%__MODULE__{} = dest, %__MODULE__{} = src, x_offset, y_offset) do
+    do_overlay(dest, src, x_offset, y_offset, 0)
+  end
+
+  defp do_overlay(dest, _src, _x_offset, _y_offset, y) when y >= _src.height do
+    dest
+  end
+
+  defp do_overlay(dest, src, x_offset, y_offset, y) when y < src.height do
+    result = do_overlay_row(dest, src, x_offset, y_offset + y, 0, y)
+    do_overlay(result, src, x_offset, y_offset, y + 1)
+  end
+
+  defp do_overlay_row(dest, src, x_offset, dest_y, x, src_y) when x < src.width do
+    src_cell = get(src, x, src_y)
+    target_x = x + x_offset
+    target_y = dest_y
+
+    if empty_cell?(src_cell) or not valid_coord?(dest, target_x, target_y) do
+      do_overlay_row(dest, src, x_offset, dest_y, x + 1, src_y)
+    else
+      dest2 = put_cell(dest, target_x, target_y, src_cell)
+      do_overlay_row(dest2, src, x_offset, dest_y, x + 1, src_y)
+    end
+  end
+
+  defp put_cell(%__MODULE__{} = buffer, x, y, %Cell{} = cell) do
+    if valid_coord?(buffer, x, y) do
+      index = y * buffer.width + x
+      %{buffer | cells: put_elem(buffer.cells, index, cell)}
+    else
+      buffer
+    end
+  end
+
+  defp do_overlay_row(dest, _src, _x_offset, _dest_y, _x, _src_y), do: dest
+
+
+  defp extract_row(cells, start, count) do
+    Enum.reduce(0..(count - 1), [], fn offset, acc ->
+      [elem(cells, start + offset) | acc]
+    end)
+    |> Enum.reverse()
+  end
+
+  defp empty_cell?(%Cell{char: " ", fg: nil, bg: nil, effects: []}), do: true
+  defp empty_cell?(%Cell{}), do: false
+
+  @doc """
+  Stacks buffers horizontally (left to right) with an optional gap
+  (in columns) between them. Resulting buffer has `sum(widths) +
+  gap * (n - 1)` columns and `max(heights)` rows. Buffers are
+  top-aligned; shorter buffers get padded with empty rows at the
+  bottom.
+
+  ## Examples
+
+      a = Alaja.Buffer.new(3, 1) |> Alaja.Buffer.put(0, 0, "A")
+      b = Alaja.Buffer.new(3, 1) |> Alaja.Buffer.put(0, 0, "B")
+      Alaja.Buffer.hstack([a, b], 1)
+      # 7 cols x 1 row: 'A   B   '
+  """
+  @spec hstack([t()], non_neg_integer()) :: t()
+  def hstack(buffers, gap \\ 0) when is_list(buffers) do
+    case buffers do
+      [] -> new(0, 0)
+      [single] -> single
+      [first | rest] -> do_hstack(first, rest, gap, first.width, first.height)
+    end
+  end
+
+  defp do_hstack(acc, [], _gap, acc_width, _max_h), do: expand_to_width(acc, acc_width)
+
+  defp do_hstack(acc, [next | rest], gap, acc_width, max_h) do
+    new_x = acc_width + gap
+    new_h = max(max_h, next.height)
+    # Pad acc on the right to make room for next
+    acc_padded = expand_to_width(acc, new_x + next.width)
+    acc_padded = expand_to_height(acc_padded, new_h)
+    next_expanded = expand_to_height(next, new_h)
+    merged = overlay(acc_padded, next_expanded, new_x, 0)
+    do_hstack(merged, rest, gap, new_x + next.width, new_h)
+  end
+
+  @doc """
+  Stacks buffers vertically (top to bottom) with an optional gap (in
+  rows) between them. Resulting buffer has `sum(heights) + gap * (n - 1)`
+  rows and `max(widths)` columns. Buffers are left-aligned; narrower
+  buffers get padded with empty columns on the right.
+
+  ## Examples
+
+      a = Alaja.Buffer.new(1, 2) |> Alaja.Buffer.put(0, 0, "A")
+      b = Alaja.Buffer.new(1, 2) |> Alaja.Buffer.put(0, 0, "B")
+      Alaja.Buffer.vstack([a, b], 1)
+  """
+  @spec vstack([t()], non_neg_integer()) :: t()
+  def vstack(buffers, gap \\ 0) when is_list(buffers) do
+    case buffers do
+      [] -> new(0, 0)
+      [single] -> single
+      [first | rest] -> do_vstack(first, rest, gap, first.height, first.width)
+    end
+  end
+
+  defp do_vstack(acc, [], _gap, acc_height, _max_w), do: expand_to_height(acc, acc_height)
+
+  defp do_vstack(acc, [next | rest], gap, acc_height, max_w) do
+    new_y = acc_height + gap
+    new_w = max(max_w, next.width)
+    acc_padded = expand_to_width(acc, new_w)
+    acc_padded = expand_to_height(acc_padded, new_y + next.height)
+    next_expanded = expand_to_width(next, new_w)
+    merged = overlay(acc_padded, next_expanded, 0, new_y)
+    do_vstack(merged, rest, gap, new_y + next.height, new_w)
+  end
+
+  defp expand_to_height(%__MODULE__{height: h} = buffer, h), do: buffer
+
+  defp expand_to_height(%__MODULE__{width: w, height: h} = buffer, target_h) when target_h > h do
+    new_cells =
+      buffer.cells
+      |> Tuple.to_list()
+      |> Kernel.++(List.duplicate(Cell.empty(), w * (target_h - h)))
+
+    %{buffer | height: target_h, cells: List.to_tuple(new_cells)}
+  end
+
+  defp expand_to_width(%__MODULE__{width: w} = buffer, w), do: buffer
+
+  defp expand_to_width(%__MODULE__{width: w, height: h, cells: cells} = buffer, target_w)
+       when target_w > w do
+    cells_per_row = w
+    new_cells_per_row = target_w
+    pad_count = new_cells_per_row - cells_per_row
+
+    rows =
+      for y <- 0..(h - 1), reduce: [] do
+        acc ->
+          start = y * cells_per_row
+          row_cells = extract_row(cells, start, cells_per_row)
+          acc ++ row_cells ++ List.duplicate(Cell.empty(), pad_count)
+      end
+
+    %{buffer | width: target_w, cells: List.to_tuple(rows)}
+  end
+
+  @doc """
+  Crops a buffer to a sub-region. Out-of-range bounds are clamped.
+  Useful for slicing a layout into a window.
+
+  ## Examples
+
+      buf = Alaja.Buffer.new(10, 5)
+      Alaja.Buffer.crop(buf, 2, 1, 5, 3)  # 5 cols x 3 rows starting at (2,1)
+  """
+  @spec crop(t(), non_neg_integer(), non_neg_integer(), non_neg_integer(), non_neg_integer()) :: t()
+  def crop(%__MODULE__{} = buffer, x, y, w, h) do
+    x = max(0, min(x, buffer.width))
+    y = max(0, min(y, buffer.height))
+    w = max(0, min(w, buffer.width - x))
+    h = max(0, min(h, buffer.height - y))
+
+    new_cells =
+      for row <- 0..(h - 1), reduce: [] do
+        acc ->
+          start = (y + row) * buffer.width + x
+          row_cells = extract_row(buffer.cells, start, w)
+          acc ++ row_cells
+      end
+
+    %{buffer | width: w, height: h, cells: List.to_tuple(new_cells)}
+  end
+
+  @doc """
+  Pads a buffer to a target size. Negative padding is clamped to 0.
+  Content stays at the top-left.
+
+  ## Examples
+
+      Alaja.Buffer.pad(buf, 10, 5)  # buf becomes 10 cols x 5 rows, padded right/bottom
+  """
+  @spec pad(t(), non_neg_integer(), non_neg_integer()) :: t()
+  def pad(%__MODULE__{} = buffer, target_w, target_h) do
+    buffer
+    |> expand_to_width(max(target_w, buffer.width))
+    |> expand_to_height(max(target_h, buffer.height))
+  end
+
+  @doc """
+  Attaches a logical offset `(x, y)` to a buffer without copying cells. The
+  buffer can later be rendered at this offset via
+  `Alaja.Printer.print_buffer/2` or composed with `Alaja.Buffer.overlay/4`.
+
+  Returns a new buffer struct with `offset_x` and `offset_y` set. Cells
+  are NOT moved — this is purely metadata for layout composition.
+
+  ## Examples
+
+      buf = Alaja.Components.Table.render_buffer(headers: ["A"], rows: [["1"]])
+      positioned = Alaja.Buffer.with_offset(buf, 10, 5)
+      positioned.offset_x  # => 10
+      positioned.offset_y  # => 5
+  """
+  @spec with_offset(t(), non_neg_integer(), non_neg_integer()) :: t()
+  def with_offset(%__MODULE__{} = buffer, x, y) when x >= 0 and y >= 0 do
+    %{buffer | offset_x: x, offset_y: y}
+  end
+
+  @doc """
+  Returns `true` if the buffer has a non-zero offset set via `with_offset/3`.
+
+  Useful when composing layouts: a positioned buffer overlays differently
+  than an unpositioned one.
+  """
+  @spec positioned?(t()) :: boolean()
+  def positioned?(%__MODULE__{offset_x: 0, offset_y: 0}), do: false
+  def positioned?(%__MODULE__{}), do: true
 end

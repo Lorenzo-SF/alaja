@@ -17,6 +17,7 @@ defmodule Alaja.Printer do
   alias Alaja.Components.Box
   alias Alaja.Printer.Basics
   alias Alaja.Structures.{ChunkText, MessageInfo}
+  alias Alaja.Buffer
 
   @ansi_regex ~r/\x1b\[[0-9;]*m/
 
@@ -162,17 +163,27 @@ defmodule Alaja.Printer do
       iex> Alaja.Printer.print_raw("Hello")
       :ok
   """
-  @spec print_raw(iodata()) :: :ok | String.t()
+  @spec print_raw(iodata() | Alaja.Buffer.t()) :: :ok | String.t()
   def print_raw(data), do: print_raw(data, [])
 
   @doc """
-  Prints raw iodata or a string with global formatting options.
+  Prints raw iodata, a string, or an `Alaja.Buffer.t()` with global
+  formatting options.
 
   Accepts the same options as `print/2` (`:raw`, `:x`, `:y`,
   `:verbose`). Also supports box wrapping via `:box`, `:box_title`,
   `:box_border`, `:box_color`, and alignment via `:align`.
+
+  If `data` is an `Alaja.Buffer.t()`, it is rendered via
+  `Buffer.to_iodata/1` first. Box wrapping requires a string/iodata;
+  pass a Buffer to `Box.render/2` directly if you need a Buffer-in,
+  Buffer-out pipeline.
   """
-  @spec print_raw(iodata(), keyword()) :: :ok | String.t()
+  @spec print_raw(iodata() | Alaja.Buffer.t(), keyword()) :: :ok | String.t()
+  def print_raw(%Alaja.Buffer{} = buffer, opts) do
+    print_raw(Buffer.to_iodata(buffer), opts)
+  end
+
   def print_raw(data, opts) do
     text = IO.iodata_to_binary(data)
     verbose = Keyword.get(opts, :verbose, false)
@@ -304,5 +315,67 @@ defmodule Alaja.Printer do
       {:ok, width} -> width
       _ -> 80
     end
+  end
+
+  @doc """
+  Prints a `Alaja.Buffer.t()` to the terminal, optionally positioned at
+  `(x, y)` via ANSI cursor escape. Unlike `print_raw/2`, this preserves
+  the 2D structure of the buffer when positioning it on screen.
+
+  ## Options
+
+  - `:x` / `:pos_x` / `:"pos-x"` — column (default 0)
+  - `:y` / `:pos_y` / `:"pos-y"` — row (default 0)
+  - `:verbose` — return the rendered string instead of writing
+  - `:clear_line` — when `true`, prepend `\e[K` to each row to clear
+    trailing characters (default `true`)
+
+  ## Examples
+
+      buffer = Alaja.Buffer.new(5, 1) |> Alaja.Buffer.put(0, 0, "X", {255, 0, 0})
+      Alaja.Printer.print_buffer(buffer, x: 10, y: 5)
+  """
+  @spec print_buffer(Alaja.Buffer.t(), keyword()) :: :ok | String.t()
+  def print_buffer(%Alaja.Buffer{} = buffer, opts \\ []) do
+    verbose = Keyword.get(opts, :verbose, false)
+
+    # The buffer's offset_x/offset_y are added on top of any explicit
+    # x/y option. This lets layouts compose: a Table rendered with
+    # `with_offset(t, 5, 0)` and a Box next to it can both be printed
+    # to the same terminal row without overwriting each other.
+    x = (buffer.offset_x || 0) + Keyword.get(opts, :"pos-x", Keyword.get(opts, :pos_x, Keyword.get(opts, :x, 0)))
+    y = (buffer.offset_y || 0) + Keyword.get(opts, :"pos-y", Keyword.get(opts, :pos_y, Keyword.get(opts, :y, 0)))
+    clear_line = Keyword.get(opts, :clear_line, true)
+
+    output =
+      if x == 0 and y == 0 do
+        Alaja.Buffer.to_iodata(buffer)
+      else
+        [cursor_move(x, y), Alaja.Buffer.to_iodata(buffer)]
+      end
+
+    output =
+      if clear_line do
+        prepend_clear_to_rows(output)
+      else
+        output
+      end
+
+    if verbose do
+      text = IO.iodata_to_binary(output)
+      IO.puts(inspect(text))
+      text
+    else
+      IO.write(output)
+      :ok
+    end
+  end
+
+  defp cursor_move(x, y), do: "\e[#{y + 1};#{x + 1}H"
+
+  defp prepend_clear_to_rows(output) do
+    # Coalesce output into a binary, split on newlines, prepend \e[K to each
+    binary = IO.iodata_to_binary(output)
+    binary |> String.split("\n") |> Enum.map_join("\n", &("\e[K" <> &1)) |> List.wrap()
   end
 end
