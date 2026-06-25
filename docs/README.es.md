@@ -410,7 +410,7 @@ Alaja.Components.Breadcrumbs.print(["Inicio", "Proyectos", "Zaguan"])
 **JSON**:
 
 ```elixir
-Alaja.Components.Json.print(%{nombre: "Zaguan", version: "1.0.0", deps: ["pote", "jason"]})
+Alaja.Components.Json.print(%{nombre: "Alaja", version: "0.2.0", deps: ["pote", "jason"]})
 ```
 
 **ColorWheel**:
