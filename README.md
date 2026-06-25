@@ -1,8 +1,8 @@
 # Alaja — Declarative CLI framework & terminal rendering kit for Elixir
 
-[![Hex version](https://img.shields.io/badge/hex-0.2.0-blue.svg)](https://hex.pm/packages/alaja)
+[![Hex version](https://img.shields.io/badge/hex-0.3.3-blue.svg)](https://hex.pm/packages/alaja)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE.md)
-[![Version](https://img.shields.io/badge/version-0.2.0-blue.svg)](https://github.com/Lorenzo-SF/alaja)
+[![Version](https://img.shields.io/badge/version-0.3.3-blue.svg)](https://github.com/Lorenzo-SF/alaja)
 
 Alaja is a declarative CLI framework and terminal rendering kit for Elixir.
 Define commands with a DSL, validate flags, auto-generate help, and render
@@ -29,11 +29,28 @@ def deps do
 end
 ```
 
+### `halt_on_error` (v0.3.3+)
+
+By default, `Alaja.CLI.Definition` does NOT call `System.halt/1` on
+dispatch errors (unknown command, missing arg, invalid flag). This
+makes the DSL safe to use as a library — calling `main/1` from a
+test or from another module won't kill the BEAM.
+
+For escript-style behaviour (exit code 1 on error), opt in explicitly:
+
+```elixir
+use Alaja.CLI.Definition, otp_app: :my_app, halt_on_error: true
+```
+
+When `halt_on_error: false` (the default), `main/1` returns
+`{:error, reason}` where `reason` is one of `:no_command`,
+`:unknown_command`, `:no_handler`, `:invalid_command`, etc.
+
 ### Define a CLI in 5 minutes
 
 ```elixir
 defmodule MyApp.CLI do
-  use Alaja.CLI.Definition, otp_app: :my_app
+  use Alaja.CLI.Definition, otp_app: :my_app, halt_on_error: true
 
   command "deploy", "Deploy to production" do
     flag :env, :string, default: "staging", values: ~w(staging production)
@@ -167,7 +184,7 @@ and `run` macros:
 
 ```elixir
 defmodule MyApp.CLI do
-  use Alaja.CLI.Definition, otp_app: :my_app
+  use Alaja.CLI.Definition, otp_app: :my_app, halt_on_error: true
 
   command "build", "Build the project" do
     flag :release, :boolean, default: false
@@ -408,7 +425,7 @@ Alaja.Components.Breadcrumbs.print(["Home", "Projects", "Zaguan"])
 **JSON**:
 
 ```elixir
-Alaja.Components.Json.print(%{name: "Alaja", version: "0.2.0", deps: ["pote", "jason"]})
+Alaja.Components.Json.print(%{name: "Alaja", version: "0.3.3", deps: ["pote", "jason"]})
 ```
 
 **ColorWheel**:
@@ -577,6 +594,55 @@ Dev/tooling:
 | Benchee     | Benchmarking             |
 
 ---
+
+## Cell/Buffer engine (v0.3.0+)
+
+Components return `Alaja.Buffer.t()` (a 2D grid of `Alaja.Cell.t()`) from
+their `render/N` function instead of opaque iodata. This unlocks
+**composition** — overlays, horizontal/vertical stacking, cropping, padding —
+all without re-implementing each component.
+
+```elixir
+buf1 = Components.Header.render("Status", color: :cyan)
+buf2 = Components.Bar.render(width: 30, percent: 75, color: :green)
+
+# Overlay buf2 in the bottom-right corner of buf1
+combined = Buffer.overlay(buf1, buf2,
+  offset_x: 5,
+  offset_y: Buffer.height(buf1) - Buffer.height(buf2) - 1
+)
+
+# Print with cursor positioning (no escape coalescing required)
+Printer.print_buffer(combined)
+```
+
+Available composition primitives in `Alaja.Buffer`:
+
+- `to_iodata/1` — coalesces consecutive cells with the same ANSI state into
+  a single escape prefix + chars (like any terminal emulator). Critical for
+  visual parity with pre-v0.3.0 output.
+- `overlay/4` — place one buffer on top of another at `(offset_x, offset_y)`.
+- `hstack/2` — horizontally concatenate buffers (top edges aligned).
+- `vstack/2` — vertically concatenate buffers (left edges aligned).
+- `crop/5` — extract a sub-rectangle.
+- `pad/3` — add padding (top/right/bottom/left, fg, bg).
+- `with_offset/3` — translate a buffer by (dx, dy).
+
+Components moved to Cell engine in v0.3.0:
+
+| Component | Function | Returns |
+|-----------|----------|---------|
+| Separator | `Components.Separator.render/2` | `Buffer.t()` |
+| Bar | `Components.Bar.render/2` | `Buffer.t()` |
+| Breadcrumbs | `Components.Breadcrumbs.render/2` | `Buffer.t()` |
+| Header | `Components.Header.render/2` | `Buffer.t()` |
+| Box | `Components.Box.render/2` | `Buffer.t()` |
+| Json | `Components.Json.render/2` | `Buffer.t()` |
+| Table | `Components.Table.render_buffer/2` | `Buffer.t()` |
+| Pulsar | (already Cell-based) | `Buffer.t()` |
+
+The legacy `Components.Table.render/2` keeps iodata output for backwards
+compatibility with downstream callers.
 
 ## Installation
 
