@@ -7,6 +7,78 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-06-25
+
+### Added — Cell/Buffer engine unification
+The terminal rendering engine is now unified around `Alaja.Buffer` as the
+single source of truth for 2D layout. Components return `Buffer.t()` from
+`render/N` instead of opaque iodata. This unlocks composition (overlay,
+hstack, vstack, crop, pad, with_offset) and precise positioning.
+
+#### Composition primitives in `Alaja.Buffer`
+- `Buffer.to_iodata/1` — emits ANSI-optimised iodata, coalescing
+  consecutive cells with the same style into one escape sequence.
+- `Buffer.overlay/4` — paint `src` onto `dest` at `(x, y)`, clipping
+  out-of-bounds cells. Empty cells in `src` don't overwrite `dest`.
+- `Buffer.hstack/2` — horizontal stack with optional gap.
+- `Buffer.vstack/2` — vertical stack with optional gap.
+- `Buffer.crop/5` — sub-region with bounds clamping.
+- `Buffer.pad/3` — grow to target size, content stays top-left.
+- `Buffer.with_offset/3` — attach logical `(x, y)` metadata for
+  layout composition without copying cells.
+
+#### New `Alaja.Printer.print_buffer/2`
+Prints a buffer to stdout at `(x, y)` (via ANSI cursor escapes). Honors
+`buffer.offset_x/offset_y` plus the `:x`/`:y` options.
+
+#### Components moved to the Cell engine
+- `Alaja.Components.Separator.render/2` → `Buffer.t()`
+- `Alaja.Components.Bar.render/3` → `Buffer.t()`
+- `Alaja.Components.Breadcrumbs.render/2` → `Buffer.t()`
+- `Alaja.Components.Header.render/2` → `Buffer.t()`
+- `Alaja.Components.Json.render/2` → `Buffer.t()` (tokenizer-based)
+- `Alaja.Components.Box.render/2` → `Buffer.t()` and **accepts a
+  `Buffer.t()` as content**, returning a Buffer-in, Buffer-out
+  pipeline (the foundation of Box-as-transversal-wrapper).
+
+#### New `Alaja.Components.Table.render_buffer/2`
+The Cell-engine variant of Table rendering. Supports layout-level
+options (column widths, alignment, header/row colors, border styles).
+For exotic per-cell/row/column formatting, `Table.render/2` still
+returns iodata. Pagination remains in `Table.print/2`.
+
+#### Tests
+- 18 snapshot tests under `test/alaja/snapshot_test.exs` capturing
+  the visual output of every component before/after the refactor.
+- 32 cell-engine tests under `test/alaja/cell_engine_test.exs`
+  covering composition (overlay, hstack, vstack, crop, pad,
+  with_offset), `Buffer.to_iodata/1`, `Printer.print_buffer/2`, and
+  end-to-end composition (Box around a Table, Header inside a Box,
+  Separator stacked on a Bar).
+- Updated `test/alaja/components/components_test.exs` to expect
+  `Buffer.t()` instead of iodata from `render/N`.
+
+### Changed
+- `Alaja.Components.Box.render/2` now returns a `Buffer.t()` (not
+  iodata). All call sites that previously used
+  `IO.iodata_to_binary(Box.render(...))` should switch to
+  `Buffer.to_iodata(Box.render(...)) |> IO.iodata_to_binary()` or
+  just call `Box.print/2`.
+- `Alaja.Components.Table.render/2` still returns iodata for
+  backward compatibility (exotic formatting options). Use
+  `Table.render_buffer/2` for the Cell-engine version.
+- `Alaja.Printer.print_raw/2` now accepts both `Buffer.t()` and
+  iodata; the Buffer path uses `Buffer.to_iodata/1` internally.
+
+### Migration notes
+- Downstream consumers (Delfos, Apero, etc.) only use `X.print(...)`
+  and `Alaja.print_raw(string)`, both of which are unchanged. **Zero
+  breaking changes for the ecosystem.**
+- If you call `render/N` directly and expect iodata, wrap with
+  `Buffer.to_iodata/1`. If you want to compose components, pass
+  Buffers to `Box.render/2` or use `Buffer.overlay/4` /
+  `Buffer.hstack/2` / `Buffer.vstack/2`.
+
 ## [0.2.0] - 2026-06-24
 
 ### Added

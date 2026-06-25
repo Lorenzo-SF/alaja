@@ -1,23 +1,29 @@
 defmodule Alaja.Components.ComponentsTest do
   use ExUnit.Case
 
+  alias Alaja.{Buffer, Components}
   alias Alaja.Components.{Bar, Box, Breadcrumbs, Header, Json, Separator}
 
+  # Helper: render a component (returning either a Buffer or iodata) to a binary.
+  # Components in v0.3.0+ return Buffer; older code paths may return iodata.
+  defp to_binary(%Buffer{} = buffer), do: Buffer.to_iodata(buffer) |> IO.iodata_to_binary()
+  defp to_binary(other), do: IO.iodata_to_binary(other)
+
   describe "Bar component" do
-    test "render/3 returns iodata" do
+    test "render/3 returns Buffer" do
       result = Bar.render(50, 100, label: "CPU", width: 20)
-      assert is_list(result)
-      str = IO.iodata_to_binary(result)
+      assert %Buffer{} = result
+      str = to_binary(result)
       assert String.contains?(str, "CPU")
       assert String.contains?(str, "50%")
     end
   end
 
   describe "Box component" do
-    test "render/2 returns iodata" do
+    test "render/2 returns Buffer" do
       result = Box.render("Hello World", title: "Test Box", border: :rounded)
-      assert is_list(result)
-      str = IO.iodata_to_binary(result)
+      assert %Buffer{} = result
+      str = to_binary(result)
       assert String.contains?(str, "Hello World")
       assert String.contains?(str, "Test Box")
       assert String.contains?(str, "╭")
@@ -25,7 +31,7 @@ defmodule Alaja.Components.ComponentsTest do
 
     test "render/2 handles lists of strings" do
       result = Box.render(["Line 1", "Line 2"], title: "Test Box", padding: 2)
-      str = IO.iodata_to_binary(result)
+      str = to_binary(result)
       assert String.contains?(str, "Line 1")
       assert String.contains?(str, "Line 2")
 
@@ -41,7 +47,7 @@ defmodule Alaja.Components.ComponentsTest do
 
     test "render/2 handles string with embedded newlines" do
       result = Box.render("Line A\nLine B", border: :rounded)
-      str = IO.iodata_to_binary(result)
+      str = to_binary(result)
 
       lines = String.split(str, "\n")
       content_line_a = Enum.find(lines, &String.contains?(&1, "Line A"))
@@ -54,10 +60,10 @@ defmodule Alaja.Components.ComponentsTest do
   end
 
   describe "Breadcrumbs component" do
-    test "render/2 returns iodata" do
+    test "render/2 returns Buffer" do
       result = Breadcrumbs.render(["Home", "Section", "Page"], separator: ">")
-      assert is_list(result)
-      str = IO.iodata_to_binary(result)
+      assert %Buffer{} = result
+      str = to_binary(result)
       assert String.contains?(str, "Home")
       assert String.contains?(str, "Section")
       assert String.contains?(str, "Page")
@@ -65,16 +71,17 @@ defmodule Alaja.Components.ComponentsTest do
     end
 
     test "render/2 handles empty list" do
-      assert Breadcrumbs.render([], []) == []
+      result = Breadcrumbs.render([], [])
+      assert result == [] or result == %Buffer{width: 0, height: 0}
     end
   end
 
   describe "Header component" do
-    test "render/2 returns iodata for all sizes" do
+    test "render/2 returns Buffer for all sizes" do
       for size <- [:small, :medium, :large] do
         result = Header.render("Main Title", subtitle: "version 1.0", size: size)
-        assert is_list(result)
-        str = IO.iodata_to_binary(result)
+        assert %Buffer{} = result
+        str = to_binary(result)
         assert String.contains?(str, "Main Title")
         assert String.contains?(str, "version 1.0")
       end
@@ -82,7 +89,7 @@ defmodule Alaja.Components.ComponentsTest do
   end
 
   describe "Json component" do
-    test "render/2 stringifies nested data structures" do
+    test "render/2 returns Buffer with nested data structures" do
       data = %{
         name: "Test",
         active: true,
@@ -93,8 +100,8 @@ defmodule Alaja.Components.ComponentsTest do
       }
 
       result = Json.render(data, indent: 2)
-      assert is_list(result)
-      str = IO.iodata_to_binary(result)
+      assert %Buffer{} = result
+      str = to_binary(result)
       assert String.contains?(str, "\"Test\"")
       assert String.contains?(str, "42")
       assert String.contains?(str, "true")
@@ -103,19 +110,21 @@ defmodule Alaja.Components.ComponentsTest do
     end
 
     test "render/2 handles empty structures" do
-      assert IO.iodata_to_binary(Json.render(%{})) |> String.contains?("{}")
-      assert IO.iodata_to_binary(Json.render([])) |> String.contains?("[]")
+      assert to_binary(Json.render(%{})) |> String.contains?("{}")
+      assert to_binary(Json.render([])) |> String.contains?("[]")
     end
   end
 
   describe "Separator component" do
-    test "render/2 returns iodata with or without text" do
+    test "render/2 returns Buffer with or without text" do
       result1 = Separator.render(nil, char: "-", width: 10)
-      str1 = IO.iodata_to_binary(result1)
+      assert %Buffer{} = result1
+      str1 = to_binary(result1)
       assert String.contains?(str1, "----------")
 
       result2 = Separator.render("Middle", char: "=", width: 20)
-      str2 = IO.iodata_to_binary(result2)
+      assert %Buffer{} = result2
+      str2 = to_binary(result2)
       assert String.contains?(str2, "Middle")
       assert String.contains?(str2, "=")
     end

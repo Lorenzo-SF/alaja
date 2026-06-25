@@ -8,7 +8,15 @@ defmodule Alaja.Components.Breadcrumbs do
 
       iex> Alaja.Components.Breadcrumbs.print(["Home", "Projects", "Alaja"])
       # Home > Projects > Alaja
+
+  ## Cell engine
+
+  As of v0.3.0, `render/2` returns an `Alaja.Buffer.t/0` (or an empty
+  list when given `[]`). Each item gets its own colour, with the last
+  item rendered in `:current_color`.
   """
+
+  alias Alaja.{Buffer, Cell}
 
   @default_separator "›"
   @default_item_color {0, 180, 216}
@@ -17,56 +25,74 @@ defmodule Alaja.Components.Breadcrumbs do
 
   @doc """
   Prints breadcrumbs to stdout.
-
-  ## Options
-
-  - `:separator` - String between items (default: `"›"`)
-  - `:item_color` - RGB for non-current items (default: cyan)
-  - `:current_color` - RGB for the last (current) item (default: white)
-  - `:separator_color` - RGB for separator (default: gray)
   """
   @spec print([String.t()], keyword()) :: :ok
   def print(items, opts \\ []) do
-    items |> render(opts) |> IO.write()
+    items
+    |> render(opts)
+    |> buffer_to_iodata()
+    |> IO.write()
+
     IO.puts("")
   end
 
   @doc """
-  Renders breadcrumbs to iodata without printing.
+  Renders breadcrumbs to an `Alaja.Buffer.t/0` (single row, height 1).
+
+  Returns `[]` for an empty list (legacy compat with the iodata API).
   """
-  @spec render([String.t()], keyword()) :: iodata()
+  @spec render([String.t()], keyword()) :: Buffer.t() | []
   def render([], _opts), do: []
 
   def render(items, opts) do
     separator = Keyword.get(opts, :separator, @default_separator)
-    {ir, ig, ib} = Keyword.get(opts, :item_color, @default_item_color)
-    {cr, cg, cb} = Keyword.get(opts, :current_color, @default_current_color)
-    {sr, sg, sb} = Keyword.get(opts, :separator_color, @default_separator_color)
+    item_color = Keyword.get(opts, :item_color, @default_item_color)
+    current_color = Keyword.get(opts, :current_color, @default_current_color)
+    sep_color = Keyword.get(opts, :separator_color, @default_separator_color)
 
+    sep_str = " #{separator} "
     last_idx = length(items) - 1
+
+    total_w =
+      items
+      |> Enum.with_index()
+      |> Enum.reduce(0, fn {item, idx}, acc ->
+        acc + String.length(item) + if(idx < last_idx, do: String.length(sep_str), else: 0)
+      end)
+
+    buffer = Buffer.new(total_w, 1)
+    x = 0
 
     items
     |> Enum.with_index()
-    |> Enum.map(fn {item, idx} ->
-      color =
-        if idx == last_idx do
-          Pote.Orchestrator.to_ansi({cr, cg, cb})
-        else
-          Pote.Orchestrator.to_ansi({ir, ig, ib})
-        end
+    |> Enum.reduce({buffer, x}, fn {item, idx}, {buf, cx} ->
+      color = if idx == last_idx, do: current_color, else: item_color
+      buf = write_string(buf, cx, 0, item, color)
 
-      sep =
-        if idx < last_idx do
-          [
-            Pote.Orchestrator.to_ansi({sr, sg, sb}),
-            " #{separator} ",
-            Alaja.ANSI.reset_attributes()
-          ]
-        else
-          []
-        end
+      if idx < last_idx do
+        {write_string(buf, cx + String.length(item), 0, sep_str, sep_color),
+         cx + String.length(item) + String.length(sep_str)}
+      else
+        {buf, cx + String.length(item)}
+      end
+    end)
+    |> elem(0)
+  end
 
-      [color, item, Alaja.ANSI.reset_attributes(), sep]
+  defp write_string(buffer, x, y, string, fg) do
+    string
+    |> String.graphemes()
+    |> Enum.with_index()
+    |> Enum.reduce(buffer, fn {char, idx}, buf ->
+      target_x = x + idx
+      if target_x < buffer.width do
+        Buffer.update_cell(buf, target_x, y, Cell.new(char, fg))
+      else
+        buf
+      end
     end)
   end
+
+  defp buffer_to_iodata(%Buffer{} = buffer), do: Buffer.to_iodata(buffer)
+  defp buffer_to_iodata(other), do: other
 end
