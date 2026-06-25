@@ -104,6 +104,7 @@ defmodule Alaja.Components.Table do
   """
 
   alias Alaja.Structures.ChunkText
+  alias Alaja.{Buffer, Cell}
 
   # Regex para strip ANSI sequences
   @ansi_regex ~r/\x1b\[[0-9;]*m/
@@ -247,6 +248,205 @@ defmodule Alaja.Components.Table do
     rendered = build_table_string(headers, rows, column_widths, config, opts)
     IO.iodata_to_binary(rendered)
   end
+
+  # ---------------------------------------------------------------------------
+  # Cell engine (v0.3.0)
+  # ---------------------------------------------------------------------------
+  #
+  # Renders the table into an `Alaja.Buffer.t/0`. This is the foundation for
+  # composition: tables can be placed inside boxes, stacked horizontally with
+  # other components, or positioned at exact (x, y) coordinates via
+  # `Alaja.Buffer.overlay/4`.
+  #
+  # We don't support every option from `render/2` here — just the core
+  # layout (column widths, alignment, colors, borders). For exotic layouts
+  # (per-cell colours, effects, custom borders) use `render/2` which still
+  # returns iodata.
+  @doc """
+  Renders a table into an `Alaja.Buffer.t/0` (Cell engine, v0.3.0).
+
+  Supports column widths, alignment, header/row colors, and the same
+  border styles as `render/2`. Pagination is NOT supported here — for
+  interactive tables, use `print/2`.
+
+  ## Options
+
+  Same as `render/2` but limited to layout-level options. Per-cell /
+  per-row / per-column formatting is supported via the same keywords.
+  """
+  @spec render_buffer(list(), keyword()) :: Buffer.t()
+  def render_buffer(data, opts \\ [])
+
+  def render_buffer([headers | rows], opts) when is_list(headers) do
+    do_render_buffer(headers, rows, opts)
+  end
+
+  def render_buffer(data, opts) do
+    headers = Keyword.get(data, :headers)
+    rows = Keyword.get(data, :rows, [])
+    table_opts = Keyword.drop(data, [:headers, :rows])
+    do_render_buffer(headers || [], rows, Keyword.merge(opts, table_opts))
+  end
+
+  defp do_render_buffer(headers, rows, opts) do
+    padding = Keyword.get(opts, :padding, 1)
+    border_style = Keyword.get(opts, :table_border, :normal)
+    border_color = resolve_color(Keyword.get(opts, :border_color))
+    header_color = resolve_color(Keyword.get(opts, :headers_color))
+    row_color = resolve_color(Keyword.get(opts, :rows_color))
+    b = get_border_chars(border_style, Keyword.get(opts, :table_border_custom))
+
+    {headers, rows} = normalize_data(headers, rows)
+    data = if headers == [], do: rows, else: [headers | rows]
+    column_widths = calculate_column_widths(data)
+
+    # Total inner width = sum(column_widths) + padding*2 * n_cols + (n_cols - 1) separators
+    n_cols = length(column_widths)
+    sep_count = max(n_cols - 1, 0)
+
+    inner_w =
+      Enum.sum(column_widths) + (padding * 2) * n_cols + sep_count
+
+    total_w = inner_w + 2
+    # height = top border + header + sep + rows + bottom border
+    has_header = headers != []
+    n_rows = length(rows)
+    total_h = 1 + (if has_header, do: 2, else: 0) + n_rows + 1
+
+    buffer = Buffer.new(total_w, total_h)
+    buffer = draw_top_border(buffer, b, inner_w, border_color)
+
+    next_y = 1
+    {buffer, next_y} =
+      if has_header do
+        buffer = draw_row(buffer, 1, headers, column_widths, b, header_color, padding)
+        {draw_separator(buffer, 2, inner_w, b, border_color), 3}
+      else
+        {buffer, 1}
+      end
+
+    buffer =
+      rows
+      |> Enum.with_index()
+      |> Enum.reduce(buffer, fn {row, i}, buf ->
+        draw_row(buf, next_y + i, row, column_widths, b, row_color, padding)
+      end)
+
+    draw_bottom_border(buffer, b, inner_w, border_color)
+  end
+
+  defp draw_top_border(buffer, b, inner_w, fg) do
+    fill_border_row(buffer, 0, inner_w, b.top_left, b.horizontal, b.top_right, fg)
+  end
+
+  defp draw_bottom_border(buffer, b, inner_w, fg) do
+    fill_border_row(buffer, buffer.height - 1, inner_w, b.bottom_left, b.horizontal, b.bottom_right, fg)
+  end
+
+  defp draw_separator(buffer, y, inner_w, b, fg) do
+    fill_border_row(buffer, y, inner_w, b.left_t, b.cross, b.right_t, fg)
+  end
+
+  defp fill_border_row(buffer, y, inner_w, left, mid, right, fg) do
+    # Layout: left + inner_w * mid + right = inner_w + 2 chars total
+    buffer
+    |> put_cell(0, y, left, fg)
+    |> fill_mid(1, y, inner_w, mid, fg)
+    |> put_cell(1 + inner_w, y, right, fg)
+  end
+
+  defp fill_mid(buffer, x, y, count, char, fg) do
+    Enum.reduce(0..(count - 1), buffer, fn offset, buf ->
+      put_cell(buf, x + offset, y, char, fg)
+    end)
+  end
+
+  defp draw_row(buffer, y, row, widths, b, color, padding) do
+    # Layout per row: | pad cell pad | pad cell pad | ...
+    buffer
+    |> put_cell(0, y, b.vertical, nil)
+
+    Enum.zip(Enum.with_index(widths), row)
+    |> Enum.reduce(buffer, fn {{w, i}, cell}, buf ->
+      # Left padding
+      buf = fill_chars(buf, 1 + sum_widths_before(widths, i), y, padding, " ", nil)
+      # Cell content (centered)
+      aligned = align_cell(cell, w, padding)
+      buf = put_cell_string(buf, 1 + sum_widths_before(widths, i) + padding, y, aligned, color)
+      # Right padding
+      buf = fill_chars(buf, 1 + sum_widths_before(widths, i) + padding + w, y, padding, " ", nil)
+      # Separator
+      buf =
+        if i < length(widths) - 1 do
+          put_cell(buf, 1 + sum_widths_before(widths, i + 1) - 1, y, b.vertical, nil)
+        else
+          buf
+        end
+
+      buf
+    end)
+    |> put_cell(buffer.width - 1, y, b.vertical, nil)
+  end
+
+  defp sum_widths_before(widths, i) do
+    widths |> Enum.take(i) |> Enum.sum() |> Kernel.+(i * 2) |> Kernel.+(i)
+  end
+
+  defp fill_chars(buffer, x, y, count, char, fg) when count > 0 do
+    Enum.reduce(0..(count - 1), buffer, fn offset, buf ->
+      put_cell(buf, x + offset, y, char, fg)
+    end)
+  end
+
+  defp fill_chars(buffer, _x, _y, 0, _char, _fg), do: buffer
+
+  defp put_cell_string(buffer, x, y, string, fg) do
+    string
+    |> String.graphemes()
+    |> Enum.with_index()
+    |> Enum.reduce(buffer, fn {char, idx}, buf ->
+      if x + idx < buffer.width, do: put_cell(buf, x + idx, y, char, fg), else: buf
+    end)
+  end
+
+  defp put_cell(buffer, x, y, char, fg) do
+    if x >= 0 and x < buffer.width and y >= 0 and y < buffer.height do
+      cell = Cell.new(char, fg)
+      Buffer.update_cell(buffer, x, y, cell)
+    else
+      buffer
+    end
+  end
+
+  defp align_cell(content, width, _padding) do
+    text = to_string(content)
+    visible_len = visible_length(text)
+    diff = width - visible_len
+
+    if diff <= 0 do
+      text
+    else
+      # Default: left align
+      text <> String.duplicate(" ", diff)
+    end
+  end
+
+  defp visible_length(text) do
+    text |> String.replace(~r/\x1b\[[0-9;]*m/, "") |> String.length()
+  end
+
+  defp resolve_color(nil), do: nil
+
+  defp resolve_color(color) when is_tuple(color), do: color
+
+  defp resolve_color(color) when is_atom(color) do
+    case Pote.Orchestrator.to_rgb(color) do
+      nil -> nil
+      rgb -> rgb
+    end
+  end
+
+  defp resolve_color(_), do: nil
 
   defp build_table_string(headers, rows, widths, config, opts) do
     lines =

@@ -3,100 +3,93 @@ defmodule Alaja.Components.Header do
   Static header component for terminal output.
 
   Renders a centered title with optional subtitle and decorative lines.
-  Used by the CLI `alaja show` commands and for formatted terminal output.
 
   ## Usage
 
       iex> Alaja.Components.Header.print("My App", subtitle: "v1.0.0")
-      # Prints a formatted header to stdout
-
       iex> Alaja.Components.Header.render("My App", size: :large)
-      # Returns iodata (does not print)
+
+  ## Cell engine
+
+  As of v0.3.0, `render/2` returns an `Alaja.Buffer.t/0` (height 3 or 4
+  depending on subtitle presence).
   """
 
   @type size :: :small | :medium | :large
   @type color :: {0..255, 0..255, 0..255} | nil
+
+  alias Alaja.{Buffer, Cell}
 
   @default_color {0, 180, 216}
   @default_subtitle_color {128, 128, 128}
 
   @doc """
   Prints a header directly to stdout.
-
-  ## Options
-
-  - `:subtitle` - Optional subtitle string
-  - `:size` - `:small | :medium | :large` (default: `:medium`)
-  - `:color` - RGB tuple for title color (default: cyan)
-  - `:subtitle_color` - RGB tuple for subtitle color (default: gray)
-  - `:width` - Total width in characters (default: terminal width or 80)
   """
   @spec print(String.t(), keyword()) :: :ok
   def print(title, opts \\ []) do
-    title |> render(opts) |> IO.write()
+    title
+    |> render(opts)
+    |> Buffer.to_iodata()
+    |> IO.write()
+
     IO.puts("")
   end
 
   @doc """
-  Renders a header to iodata without printing.
+  Renders a header to an `Alaja.Buffer.t/0`.
   """
-  @spec render(String.t(), keyword()) :: iodata()
+  @spec render(String.t(), keyword()) :: Buffer.t()
   def render(title, opts \\ []) do
     subtitle = Keyword.get(opts, :subtitle)
     size = Keyword.get(opts, :size, :medium)
-    {cr, cg, cb} = Keyword.get(opts, :color) || @default_color
-    {sr, sg, sb} = Keyword.get(opts, :subtitle_color) || @default_subtitle_color
-
-    # --size now means width (actual character width of header)
-    # Default to 80 if not specified
+    fg = Keyword.get(opts, :color) || @default_color
+    subtitle_fg = Keyword.get(opts, :subtitle_color) || @default_subtitle_color
     width = Keyword.get(opts, :width, 80)
 
-    {top_char, bottom_char, padding} = size_chars(size)
+    {top_char, bottom_char, _padding} = size_chars(size)
+    height = if subtitle, do: 4, else: 3
+    buffer = Buffer.new(width, height)
 
-    separator_line = String.duplicate(top_char, width)
-    bottom_line = String.duplicate(bottom_char, width)
+    buffer =
+      buffer
+      |> fill_row(0, top_char, fg)
+      |> write_centered(1, title, fg, width)
+      |> fill_row(2, bottom_char, fg)
 
-    # Fix: Correct centering calculation
-    # For centering: pad_leading to center the text, then pad_trailing to fill width
-    title_len = String.length(title)
-    title_left_pad = div(width - title_len, 2)
-
-    # Correct: pad_leading to position, then pad_trailing to full width
-    padded_title =
-      String.pad_leading(title, title_left_pad + title_len) |> String.pad_trailing(width)
-
-    header_parts = [
-      Pote.Orchestrator.to_ansi({cr, cg, cb}),
-      separator_line,
-      "\n",
-      String.duplicate(" ", padding),
-      padded_title,
-      "\n",
-      bottom_line,
-      Alaja.ANSI.reset_attributes()
-    ]
-
-    subtitle_part =
-      if subtitle do
-        # Correct subtitle centering - separate from title
-        subtitle_len = String.length(subtitle)
-        subtitle_left_pad = div(width - subtitle_len, 2)
-
-        # Properly pad subtitle separately from title
-        padded_sub =
-          String.pad_leading(subtitle, subtitle_left_pad + subtitle_len)
-          |> String.pad_trailing(width)
-
-        ["\n", Pote.Orchestrator.to_ansi({sr, sg, sb}), padded_sub, Alaja.ANSI.reset_attributes()]
-      else
-        []
-      end
-
-    [header_parts, subtitle_part, "\n"]
+    if subtitle do
+      write_centered(buffer, 3, subtitle, subtitle_fg, width)
+    else
+      buffer
+    end
   end
 
-  # Returns {decoration_char, bottom_char, padding_lines} for each size
-  # Now size is purely decorative - actual width comes from :width option
+  defp fill_row(buffer, y, char, fg) do
+    Enum.reduce(0..(buffer.width - 1), buffer, fn x, buf ->
+      Buffer.update_cell(buf, x, y, Cell.new(char, fg))
+    end)
+  end
+
+  defp write_centered(buffer, y, string, fg, width) do
+    str_len = String.length(string)
+    x = div(width - str_len, 2)
+    write_string(buffer, x, y, string, fg)
+  end
+
+  defp write_string(buffer, x, y, string, fg) do
+    string
+    |> String.graphemes()
+    |> Enum.with_index()
+    |> Enum.reduce(buffer, fn {char, idx}, buf ->
+      target_x = x + idx
+      if target_x < buffer.width and target_x >= 0 do
+        Buffer.update_cell(buf, target_x, y, Cell.new(char, fg))
+      else
+        buf
+      end
+    end)
+  end
+
   @spec size_chars(size()) :: {String.t(), String.t(), non_neg_integer()}
   defp size_chars(:small), do: {"─", "─", 0}
   defp size_chars(:medium), do: {"═", "─", 0}
