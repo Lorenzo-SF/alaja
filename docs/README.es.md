@@ -10,8 +10,8 @@ renderiza salida de terminal enriquecida — tablas, headers, cajas, barras,
 breadcrumbs, resaltado de sintaxis JSON, degradados y prompts interactivos
 — todo con secuencias ANSI de color verdadero (24-bit).
 
-Alaja es la capa de renderizado e I/O para el toolchain
-[Zaguan](https://github.com/lorenzo-sf/zaguan). Depende de
+Alaja es un framework CLI declarativo y kit de renderizado para terminal,
+publicado como librería independiente. Depende de
 [Pote](https://github.com/lorenzo-sf/pote) para la gestión de colores,
 resolución de temas y conversiones de formato.
 
