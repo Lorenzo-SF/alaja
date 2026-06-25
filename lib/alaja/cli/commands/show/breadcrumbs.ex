@@ -5,6 +5,7 @@ defmodule Alaja.CLI.Commands.Show.Breadcrumbs do
   alias Alaja.Components.Breadcrumbs, as: BCComp
   alias Alaja.Components.{Header, Separator, Table}
   alias Alaja.Printer
+  alias Alaja.Buffer
   @spec run([String.t()]) :: :ok | no_return()
   def run(args) do
     {global, rest} = GlobalOpts.parse(args)
@@ -32,8 +33,9 @@ defmodule Alaja.CLI.Commands.Show.Breadcrumbs do
         |> Enum.reject(fn {_, v} -> is_nil(v) end)
 
       rendered = BCComp.render(items, bc_opts)
+      rendered_iodata = if is_list(rendered), do: rendered, else: Buffer.to_iodata(rendered)
 
-      output = if global.raw, do: rendered, else: ["  ", rendered]
+      output = if global.raw, do: rendered_iodata, else: ["  ", rendered_iodata]
       Printer.print_raw(output, printer_opts(global))
     end
   end
