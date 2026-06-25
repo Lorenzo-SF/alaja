@@ -53,7 +53,7 @@ defmodule Alaja.CLI.Definition do
       Module.register_attribute(__MODULE__, :commands, accumulate: true)
       Module.register_attribute(__MODULE__, :otp_app, accumulate: false)
       @otp_app unquote(otp_app)
-      @halt_on_error Keyword.get(unquote(opts), :halt_on_error, true)
+      @halt_on_error Keyword.get(unquote(opts), :halt_on_error, false)
       @before_compile Alaja.CLI.Definition
     end
   end
