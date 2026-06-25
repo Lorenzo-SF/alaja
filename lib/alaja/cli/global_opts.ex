@@ -45,8 +45,12 @@ defmodule Alaja.CLI.GlobalOpts do
   """
   @spec parse([String.t()]) :: {t(), [String.t()]}
   def parse(args) do
-    {global_opts, rest} = extract_globals(args, %__MODULE__{})
-    {global_opts, rest}
+    try do
+      {global_opts, rest} = extract_globals(args, %__MODULE__{})
+      {global_opts, rest}
+    catch
+      :invalid_global -> System.halt(1)
+    end
   end
 
   defp extract_globals([], acc), do: {acc, []}
@@ -64,7 +68,7 @@ defmodule Alaja.CLI.GlobalOpts do
 
       :error ->
         IO.puts(:stderr, "Error: --pos-x requires an integer, got '#{val}'")
-        System.halt(1)
+        throw(:invalid_global)
     end
   end
 
@@ -75,7 +79,7 @@ defmodule Alaja.CLI.GlobalOpts do
 
       :error ->
         IO.puts(:stderr, "Error: --pos-y requires an integer, got '#{val}'")
-        System.halt(1)
+        throw(:invalid_global)
     end
   end
 

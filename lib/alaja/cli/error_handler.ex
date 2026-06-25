@@ -7,7 +7,7 @@ defmodule Alaja.CLI.ErrorHandler do
   """
 
   @doc "Handles unknown command by showing suggestions."
-  @spec unknown_command(String.t(), [map()]) :: no_return()
+  @spec unknown_command(String.t(), [map()]) :: {:error, :unknown_command}
   def unknown_command(command, commands) do
     IO.puts(:stderr, "Error: unknown command '#{command}'")
 
@@ -19,46 +19,46 @@ defmodule Alaja.CLI.ErrorHandler do
     end
 
     print_available(commands)
-    System.halt(1)
+    {:error, :handler}
   end
 
   @doc "Shows error when no command is given."
-  @spec no_command([map()]) :: no_return()
+  @spec no_command([map()]) :: {:error, :no_command}
   def no_command(commands) do
     IO.puts(:stderr, "Error: no command specified")
     print_available(commands)
-    System.halt(1)
+    {:error, :handler}
   end
 
   @doc "Shows error when a command has no run handler."
-  @spec no_handler(String.t()) :: no_return()
+  @spec no_handler(String.t()) :: {:error, :no_handler}
   def no_handler(name) do
     IO.puts(:stderr, "Error: command '#{name}' has no handler defined")
-    System.halt(1)
+    {:error, :handler}
   end
 
   @doc "Prints flag validation errors and exits."
-  @spec flag_errors([String.t()]) :: no_return()
+  @spec flag_errors([String.t()]) :: {:error, atom()}
   def flag_errors(errors) do
     IO.puts(:stderr, "Error: invalid options")
     Enum.each(errors, fn e -> IO.puts(:stderr, "  #{e}") end)
-    System.halt(1)
+    {:error, :handler}
   end
 
   @doc "Shows error for missing required positional arguments."
-  @spec missing_args(String.t(), [atom()]) :: no_return()
+  @spec missing_args(String.t(), [atom()]) :: {:error, atom()}
   def missing_args(command_name, missing_names) do
     args = Enum.map_join(missing_names, ", ", &"<#{&1}>")
     IO.puts(:stderr, "Error: command '#{command_name}' requires: #{args}")
-    System.halt(1)
+    {:error, :handler}
   end
 
   @doc "Prints a formatted error message for the CLI."
-  @spec format_error(String.t(), String.t()) :: no_return()
+  @spec format_error(String.t(), String.t()) :: {:error, atom()}
   def format_error(title, detail) do
     IO.puts(:stderr, "Error: #{title}")
     unless detail == "", do: IO.puts(:stderr, "  #{detail}")
-    System.halt(1)
+    {:error, :handler}
   end
 
   # ─── Private ──────────────────────────────────────────────────────
