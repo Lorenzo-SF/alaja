@@ -19,7 +19,7 @@ defmodule Alaja.CLI.ErrorHandler do
     end
 
     print_available(commands)
-    {:error, :handler}
+    {:error, :unknown_command}
   end
 
   @doc "Shows error when no command is given."
@@ -27,14 +27,14 @@ defmodule Alaja.CLI.ErrorHandler do
   def no_command(commands) do
     IO.puts(:stderr, "Error: no command specified")
     print_available(commands)
-    {:error, :handler}
+    {:error, :no_command}
   end
 
   @doc "Shows error when a command has no run handler."
   @spec no_handler(String.t()) :: {:error, :no_handler}
   def no_handler(name) do
     IO.puts(:stderr, "Error: command '#{name}' has no handler defined")
-    {:error, :handler}
+    {:error, :no_handler}
   end
 
   @doc "Prints flag validation errors and exits."
