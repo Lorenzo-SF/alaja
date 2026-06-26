@@ -4,8 +4,8 @@ defmodule Alaja.MixProject do
   def project do
     [
       app: :alaja,
-      version: "0.3.3",
-      elixir: "~> 1.19",
+      version: "0.3.4",
+      elixir: "~> 1.18",
       start_permanent: Mix.env() == :prod,
       deps: deps(),
       name: "Alaja",
