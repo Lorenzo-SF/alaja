@@ -181,13 +181,32 @@ defmodule Alaja.Printer do
   """
   @spec print_raw(iodata() | Alaja.Buffer.t(), keyword()) :: :ok | String.t()
   def print_raw(%Alaja.Buffer{} = buffer, opts) do
-    print_raw(Buffer.to_iodata(buffer), opts)
+    # Apply box wrapping at the Buffer level so we preserve buffer-ness
+    # end-to-end. Box.render/2 accepts a Buffer and returns a Buffer;
+    # calling Box.render on iodata later would lose ANSI escape coalescing.
+    boxed =
+      if Keyword.get(opts, :box, false) do
+        box_opts =
+          []
+          |> maybe_add(:title, Keyword.get(opts, :box_title))
+          |> maybe_add(:border, Keyword.get(opts, :box_border))
+          |> maybe_add(:border_color, Keyword.get(opts, :box_color))
+
+        Box.render(buffer, box_opts)
+      else
+        buffer
+      end
+
+    # Pass _box_applied: true so the iodata clause doesn't re-apply box.
+    print_raw(Buffer.to_iodata(boxed), Keyword.put(opts, :_box_applied, true))
   end
 
   def print_raw(data, opts) do
     text = IO.iodata_to_binary(data)
     verbose = Keyword.get(opts, :verbose, false)
 
+    # Note: Box wrapping for Buffer input is handled in the Buffer clause
+    # above. Here we only apply it when input was iodata/string.
     text = apply_box(text, opts)
     text = apply_align(text, opts)
     text = String.trim_trailing(text, "\n")
@@ -208,14 +227,22 @@ defmodule Alaja.Printer do
   end
 
   defp apply_box(text, opts) do
-    if Keyword.get(opts, :box, false) do
+    # When input was a Buffer, we already applied Box at the Buffer level
+    # in the Buffer clause. Skip here to avoid double-wrapping.
+  if Keyword.get(opts, :box, false) and not Keyword.get(opts, :_box_applied, false) do
       box_opts =
         []
         |> maybe_add(:title, Keyword.get(opts, :box_title))
         |> maybe_add(:border, Keyword.get(opts, :box_border))
         |> maybe_add(:border_color, Keyword.get(opts, :box_color))
 
-      Box.render(text, box_opts) |> IO.iodata_to_binary()
+      # Box.render/2 returns a Buffer. Convert it back to a binary so the
+      # downstream pipeline (alignment, padding, trim) keeps operating on
+      # string-typed values. ANSI coalescing is preserved by
+      # Buffer.to_iodata/1.
+      Box.render(text, box_opts)
+      |> Buffer.to_iodata()
+      |> IO.iodata_to_binary()
     else
       text
     end

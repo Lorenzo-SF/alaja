@@ -7,6 +7,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.4] - 2026-06-26
+
+### Fixed
+- **BUG**: `Alaja.Printer.print_raw/2` crashed with `ArgumentError: not an iodata term`
+  whenever the input was a `Buffer.t()` and the `:box` opt was set. Affects
+  every Cell-engine component used through the CLI with `--box`:
+  - `alaja json --box`
+  - `alaja header --box`
+  - `alaja gradient --box`
+  - `alaja table --box` (uses `render_buffer/2`)
+  - `alaja bar --box`, `alaja breadcrumbs --box`, `alaja separator --box`
+  Root cause: `print_raw/2` would call `Box.render/2` on the *iodata*
+  representation of the buffer, get back a `Buffer.t()`, and then try
+  `IO.iodata_to_binary(buffer)` which fails because `Buffer.t()` is not
+  iodata. Fix: `print_raw/2` now applies box wrapping at the Buffer
+  level (when input is a Buffer) so ANSI coalescing is preserved end-to-end.
+  For string/iodata input, `Box.render/2` is still called on the converted
+  binary, but the returned Buffer is converted back via
+  `Buffer.to_iodata/1 |> IO.iodata_to_binary/1`. Added internal
+  `:_box_applied` flag to prevent double-wrapping when input was a Buffer.
+
+### Tests
+- Added `test/alaja/print_raw_buffer_test.exs` with 12 regression tests
+  covering the Buffer + box path for all Cell-engine components.
+
 ## [0.3.1] - 2026-06-25
 
 ### Fixed
