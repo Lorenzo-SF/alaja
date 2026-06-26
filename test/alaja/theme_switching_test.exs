@@ -202,24 +202,37 @@ defmodule Alaja.ThemeSwitchingTest do
     test "persisted theme_active is honoured in this process" do
       # Simulate the "process restart" effect: wipe Application env
       # (just like a new escript process would start with a fresh env)
-      # and re-run Config.ensure_loaded/0 to simulate what
-      # Application.start/2 now does.
+      # and write an alaja.conf with theme_active: dracula into a
+      # sandbox location pointed at by ALAJA_CONFIG_PATH.
       Application.delete_env(:alaja, :theme_active)
       Application.delete_env(:alaja, :__conf_loaded__)
 
-      # Re-load from disk. This is what Application.start/2 does at boot.
-      :ok = Alaja.Config.ensure_loaded()
+      sandbox_conf =
+        Path.join(System.tmp_dir!(), "alaja-conf-test-#{System.unique_integer([:positive])}.conf")
 
-      # Without anyone calling Alaja.Theme.activate/1, the resolver should
-      # now see the persisted theme from alaja.conf.
-      assert Application.get_env(:alaja, :theme_active) == "dracula",
-             "Application.get_env(:alaja, :theme_active) must be \"dracula\" after Config.ensure_loaded"
+      File.write!(sandbox_conf, ~s({"theme_active": "dracula"}))
 
-      {:ok, parsed} = Pote.parse("theme:ternary")
+      original = System.get_env("ALAJA_CONFIG_PATH")
+      System.put_env("ALAJA_CONFIG_PATH", sandbox_conf)
 
-      # dracula.ternary = {255, 184, 108} (golden value)
-      assert parsed == {255, 184, 108},
-             "theme:ternary must resolve to dracula's {255, 184, 108}; got: #{inspect(parsed)}"
+      try do
+        # Re-load from disk. This is what Application.start/2 does at boot.
+        :ok = Alaja.Config.ensure_loaded()
+
+        # Without anyone calling Alaja.Theme.activate/1, the resolver should
+        # now see the persisted theme from alaja.conf.
+        assert Application.get_env(:alaja, :theme_active) == "dracula",
+               "Application.get_env(:alaja, :theme_active) must be \"dracula\" after Config.ensure_loaded"
+
+        {:ok, parsed} = Pote.parse("theme:ternary")
+
+        # dracula.ternary = {255, 184, 108} (golden value)
+        assert parsed == {255, 184, 108},
+               "theme:ternary must resolve to dracula's {255, 184, 108}; got: #{inspect(parsed)}"
+      after
+        if original, do: System.put_env("ALAJA_CONFIG_PATH", original), else: System.delete_env("ALAJA_CONFIG_PATH")
+        File.rm!(sandbox_conf)
+      end
     end
 
     test "Config.ensure_loaded/0 is callable as a public function" do
