@@ -7,6 +7,47 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.6] - 2026-06-27
+
+### Fixed
+- **BUG**: Every escript started with `:theme_active` unset in
+  Application env, even when `alaja config theme set <name>` had
+  persisted the user's choice to `alaja.conf`. As a result, every
+  `theme:<key>` lookup (and `Pote.parse(:success)` etc.) returned the
+  default theme's colour regardless of the persisted setting.
+  Repro:
+    ```
+    alaja config theme set dracula  # writes alaja.conf
+    alaja separator --color "theme:ternary"
+    # ^ in a NEW process — ternary is wrong colour (default, not dracula)
+    ```
+  Root cause: `Alaja.Application.start/2` registered Pote's theme
+  resolver before loading the on-disk config. The resolver reads
+  `Application.get_env(:alaja, :theme_active, "default")` at lookup time
+  — but in a fresh process, that env var was nil until something
+  called `Alaja.Config.ensure_loaded/0` (which `Config.get/2` does
+  transparently, but `Pote.parse/1` does not).
+  Fix: `Alaja.Application.start/2` now calls
+  `Alaja.Config.ensure_loaded/0` BEFORE `Theme.register_with_pote/0`.
+  `Config.ensure_loaded/0` is now public (was `defp`).
+  Verified cross-process: setting dracula in process 1 + reading
+  `theme:ternary` in process 2 now returns dracula's
+  `{255, 184, 108}` (not the default `{255, 128, 0}`).
+
+### Tests
+- Added 3 regression tests in `test/alaja/theme_switching_test.exs`:
+  - `persisted theme_active is honoured in this process` — simulates a
+    fresh process by wiping Application env, calling `ensure_loaded/0`,
+    and verifying `theme:ternary` resolves to the persisted theme.
+  - `Config.ensure_loaded/0 is callable as a public function` —
+    verifies the function is exported (so Application.start/2 can call
+    it).
+  - `Application.start/2 source order is config-load-then-resolver-register`
+    — verifies the call order in the source code (cheap structural
+    test that survives future refactors).
+
+Total: 606 tests, 0 failures.
+
 ## [0.3.5] - 2026-06-27
 
 ### Fixed
