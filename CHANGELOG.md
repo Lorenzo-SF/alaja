@@ -7,6 +7,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.7] - 2026-06-27
+
+### Fixed
+- **BUG**: Escripts (built with `mix gen` + batamanta) never auto-started
+  the consumer's OTP application. This meant `Alaja.Application.start/2`
+  never ran, which meant `Config.ensure_loaded/0` never ran, which meant
+  `:theme_active` was nil in Application env when Pote's theme resolver
+  was registered. As a result, every escript saw the default theme's
+  colours regardless of `alaja.conf`.
+  Repro:
+    ```
+    alaja config theme set dracula  # writes alaja.conf
+    alaja separator --color "theme:ternary"  # always default colours
+    ```
+  v0.3.6 fixed this for `mix run`-based invocations (which DO auto-start
+  the app), but escripts bypass that.
+  Fix: `Alaja.CLI.Definition.main/1` now calls
+  `Application.ensure_all_started(@otp_app)` before dispatching. This
+  ensures `Application.start/2` runs (which does config-load +
+  resolver-register in the right order).
+  Verified escript flow:
+    ```
+    alaja config theme set dracula
+    alaja separator --color "theme:ternary"  # 255,184,108 (dracula) ✓
+    alaja config theme set nord
+    alaja separator --color "theme:ternary"  # 235,203,139 (nord)    ✓
+    ```
+
 ## [0.3.6] - 2026-06-27
 
 ### Fixed
