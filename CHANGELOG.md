@@ -7,6 +7,55 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.5] - 2026-06-27
+
+### Fixed
+- **BUG**: `alaja config theme set <name>` did NOT change the colour
+  palette used by `theme:<key>` lookups or atom lookups (`:success`,
+  `:error`, `:warning`, etc.). Whatever theme the user selected, the
+  colours stayed the same — `print_success` always rendered green,
+  `print_error` always rendered red, etc.
+  Root cause: `alaja config init` was writing hand-rolled theme JSON
+  files with the legacy `{"rgb": [r,g,b]}` wrapper format. Pote's
+  resolver expected flat `[r,g,b]` arrays. So every lookup returned
+  `:not_found` and fell back to Pote's hardcoded `@default_colors`,
+  independent of which theme was "active".
+  Plus, the hand-rolled themes only had 11 colour keys each
+  (primary, secondary, ternary, quaternary, success, warning, error,
+  info, no_color, background — and not all 11 in every theme). Missing
+  keys: `debug`, `happy`, `sad`, `menu`, `alert`, `critical`,
+  `gradient_1..6`.
+- **BUG**: `alaja config theme list` listed files from disk directly
+  instead of consulting `Alaja.Theme.list/0`. The two could disagree.
+
+### Changed
+- `alaja config init` now calls `Alaja.Theme.install_template/1` for
+  every built-in Pote template (default, dracula, monokai, nord,
+  light). Each template has the full 22-key colour set and is written
+  in the correct flat `[r,g,b]` format that Pote's resolver expects.
+- `alaja config theme set NAME` now calls `Alaja.Theme.activate/1`
+  which writes through to `:theme_active` and re-registers Pote's
+  resolver. Both `Pote.parse(:success)` (atom) and
+  `Pote.parse("theme:success")` (string) now reflect the active theme.
+- `alaja config theme list` now uses `Alaja.Theme.list/0` as the
+  single source of truth.
+- Deleted 135 lines of hand-rolled theme definitions from
+  `lib/alaja/cli/commands/config.ex`. Single source of truth is
+  `Pote.Theme.Templates`.
+
+### Tests
+- Added `test/alaja/theme_switching_test.exs` with 8 regression tests:
+  - `install_template/1` writes JSON in flat `[r,g,b]` format
+  - Every template has the full 22-key colour set
+  - `activate/1` makes `Pote.parse(:atom)` return different RGB tuples
+    per theme (default vs dracula vs nord vs light)
+  - `activate/1` makes `Pote.parse("theme:<key>")` return different
+    RGB tuples per theme
+  - Every key (`debug`, `happy`, `sad`, `gradient_1..6`) is theme-aware
+  - `Alaja.print_success` uses the active theme's colour
+  - `Alaja.print_error` uses the active theme's colour
+  - `Theme.list/0` returns the installed templates
+
 ## [0.3.4] - 2026-06-26
 
 ### Fixed
