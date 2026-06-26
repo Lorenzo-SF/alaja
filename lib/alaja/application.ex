@@ -3,10 +3,17 @@ defmodule Alaja.Application do
 
   use Application
 
-  alias Alaja.Theme
+  alias Alaja.{Config, Theme}
 
   @impl true
   def start(_type, _args) do
+    # Load the on-disk alaja.conf into Application env BEFORE registering
+    # the theme resolver. The resolver reads `:theme_active` from app env
+    # at lookup time — if we don't load the conf first, every escript
+    # starts with `:theme_active` set to the default atom `:default`,
+    # ignoring whatever the user persisted via `alaja config theme set`.
+    :ok = Config.ensure_loaded()
+
     # Bridge Pote's theme lookup to Alaja's active theme.
     #
     # Without this, `Pote.Orchestrator.parse_color("theme:<key>")` falls
