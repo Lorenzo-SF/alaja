@@ -187,4 +187,58 @@ defmodule Alaja.ThemeSwitchingTest do
              "expected #{inspect(expected)}, got #{inspect(names)}"
     end
   end
+
+  describe "Application.start/2 loads alaja.conf before registering resolver" do
+    # Regression test for the bug where every escript started with
+    # `:theme_active` unset in Application env, so `theme:<key>` lookups
+    # always fell back to the default theme (ignoring whatever the user
+    # had persisted via `alaja config theme set`).
+    #
+    # The fix: `Alaja.Application.start/2` calls
+    # `Alaja.Config.ensure_loaded/0` before `Theme.register_with_pote/0`,
+    # so by the time the resolver is consulted, `:theme_active` is already
+    # in app env.
+
+    test "persisted theme_active is honoured in this process" do
+      # Simulate the "process restart" effect: wipe Application env
+      # (just like a new escript process would start with a fresh env)
+      # and re-run Config.ensure_loaded/0 to simulate what
+      # Application.start/2 now does.
+      Application.delete_env(:alaja, :theme_active)
+      Application.delete_env(:alaja, :__conf_loaded__)
+
+      # Re-load from disk. This is what Application.start/2 does at boot.
+      :ok = Alaja.Config.ensure_loaded()
+
+      # Without anyone calling Alaja.Theme.activate/1, the resolver should
+      # now see the persisted theme from alaja.conf.
+      assert Application.get_env(:alaja, :theme_active) == "dracula",
+             "Application.get_env(:alaja, :theme_active) must be \"dracula\" after Config.ensure_loaded"
+
+      {:ok, parsed} = Pote.parse("theme:ternary")
+
+      # dracula.ternary = {255, 184, 108} (golden value)
+      assert parsed == {255, 184, 108},
+             "theme:ternary must resolve to dracula's {255, 184, 108}; got: #{inspect(parsed)}"
+    end
+
+    test "Config.ensure_loaded/0 is callable as a public function" do
+      assert function_exported?(Alaja.Config, :ensure_loaded, 0)
+      assert :ok = Alaja.Config.ensure_loaded()
+      assert :ok = Alaja.Config.ensure_loaded()
+    end
+
+    test "Application.start/2 source order is config-load-then-resolver-register" do
+      source = File.read!("lib/alaja/application.ex")
+      ensure_idx = source |> String.split("Config.ensure_loaded()") |> List.first() |> String.length()
+      register_idx = source |> String.split("Theme.register_with_pote()") |> List.first() |> String.length()
+
+      assert ensure_idx > 0,
+             "Config.ensure_loaded() must be called in Alaja.Application.start/2"
+      assert register_idx > 0,
+             "Theme.register_with_pote() must be called in Alaja.Application.start/2"
+      assert ensure_idx < register_idx,
+             "Config.ensure_loaded() must be called BEFORE Theme.register_with_pote()"
+    end
+  end
 end
