@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.8] - 2026-06-27
+
+### Changed
+- Bumped `pote` to v0.3.0 in `mix.exs` and `mix.lock`. The v0.2.0 tag
+  pointed to a SHA without the `Pote.Theme` heredable system, so
+  `mix deps.get` would re-pin to that SHA and `Alaja.Theme` would fail
+  to compile with `module Pote.Theme is not loaded`. v0.3.0 of pote
+  explicitly tags the release that includes `Pote.Theme`.
+
+## [0.3.7] - 2026-06-27
+
 ## [0.3.7] - 2026-06-27
 
 ### Fixed
