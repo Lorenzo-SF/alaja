@@ -139,11 +139,18 @@ defmodule Alaja.Config do
   end
 
   # Load the conf file into Application env exactly once per process.
-  defp ensure_loaded do
+  # Public so Alaja.Application can call it at startup before registering
+  # the theme resolver (so :theme_active is already in app env when the
+  # resolver reads it).
+  @doc false
+  @spec ensure_loaded() :: :ok
+  def ensure_loaded do
     unless Application.get_env(:alaja, :__conf_loaded__) do
       load_from_disk()
       Application.put_env(:alaja, :__conf_loaded__, true)
     end
+
+    :ok
   end
 
   defp load_from_disk do
