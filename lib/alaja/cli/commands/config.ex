@@ -4,7 +4,7 @@ defmodule Alaja.CLI.Commands.Config do
   """
 
   alias Alaja.Components.Header
-  alias Alaja.Config
+  alias Alaja.{Config, Theme}
 
   # Only keys that Alaja itself owns and persists.
   @config_keys [:color_depth, :theme_active]
@@ -107,7 +107,6 @@ defmodule Alaja.CLI.Commands.Config do
 
   defp init_config do
     config_path = Path.expand("~/.config/alaja")
-    themes_path = Path.expand("~/.config/alaja/themes")
 
     IO.write("  Creating #{config_path} ... ")
 
@@ -116,22 +115,21 @@ defmodule Alaja.CLI.Commands.Config do
       {:error, r} -> IO.puts("\e[38;2;245;101;101m✗ #{inspect(r)}\e[0m")
     end
 
-    IO.write("  Creating #{themes_path} ... ")
+    # Install all built-in theme templates from Pote.Theme.Templates.
+    # Each template has the full set of colour keys (primary, secondary,
+    # ternary, quaternary, success, warning, error, info, debug, happy,
+    # sad, gradient_1..6, menu, alert, critical, no_color, background).
+    # Using Alaja.Theme.install_template/1 ensures the JSON written to
+    # disk is in the format Pote.Theme's resolver expects (flat [r,g,b]
+    # arrays, not the legacy {"rgb": [r,g,b]} wrapper).
+    Enum.each(Theme.templates(), fn name ->
+      IO.write("  Writing #{name}.json ... ")
 
-    case File.mkdir_p(themes_path) do
-      :ok -> IO.puts("\e[38;2;72;187;120m✓\e[0m")
-      {:error, r} -> IO.puts("\e[38;2;245;101;101m✗ #{inspect(r)}\e[0m")
-    end
-
-    themes = [
-      {"default.json", default_theme()},
-      {"dracula.json", dracula_theme()},
-      {"monokai.json", monokai_theme()},
-      {"nord.json", nord_theme()},
-      {"light.json", light_theme()}
-    ]
-
-    write_themes(themes, themes_path)
+      case Theme.install_template(name) do
+        :ok -> IO.puts("\e[38;2;72;187;120m✓\e[0m")
+        {:error, reason} -> IO.puts("\e[38;2;245;101;101m✗ #{inspect(reason)}\e[0m")
+      end
+    end)
 
     config_file = Path.join(config_path, "alaja.conf")
 
@@ -152,51 +150,21 @@ defmodule Alaja.CLI.Commands.Config do
     IO.puts("\n  \e[38;2;72;187;120mConfiguration initialized at #{config_path}\e[0m\n")
   end
 
-  defp write_themes(themes, themes_path) do
-    Enum.each(themes, fn {name, content} ->
-      path = Path.join(themes_path, name)
-      unless File.exists?(path), do: write_theme_file(path, name, content)
-    end)
-  end
-
-  defp write_theme_file(path, name, content) do
-    IO.write("  Writing #{name} ... ")
-
-    case File.write(path, content) do
-      :ok -> IO.puts("\e[38;2;72;187;120m✓\e[0m")
-      {:error, r} -> IO.puts("\e[38;2;245;101;101m✗ #{inspect(r)}\e[0m")
-    end
-  end
-
   defp list_themes do
-    themes_path = Path.expand("~/.config/alaja/themes")
+    themes = Theme.list()
 
-    if File.exists?(themes_path) do
-      case File.ls(themes_path) do
-        {:ok, files} -> handle_theme_files(files)
-        {:error, r} -> IO.puts("  Error reading themes: #{inspect(r)}")
-      end
-    else
-      IO.puts("  Themes directory not found. Run \e[38;2;0;180;216malaja config init\e[0m first.")
-    end
-  end
-
-  defp handle_theme_files(files) do
-    json = Enum.filter(files, &String.ends_with?(&1, ".json"))
-
-    if json == [] do
+    if themes == [] do
       IO.puts("  No themes found. Run \e[38;2;0;180;216malaja config init\e[0m first.")
     else
-      show_themes(json)
+      show_themes(themes)
     end
   end
 
-  defp show_themes(files) do
+  defp show_themes(themes) do
     IO.puts("\n  \e[38;2;0;180;216mAvailable themes:\e[0m")
     active = to_string(Config.get(:theme_active))
 
-    Enum.each(files, fn f ->
-      name = String.replace(f, ".json", "")
+    Enum.each(themes, fn name ->
       marker = if name == active, do: " \e[38;2;72;187;120m← active\e[0m", else: ""
       IO.puts("    • #{name}#{marker}")
     end)
@@ -205,10 +173,11 @@ defmodule Alaja.CLI.Commands.Config do
   end
 
   defp set_theme(name) do
-    theme_file = Path.join(Path.expand("~/.config/alaja/themes"), "#{name}.json")
-
-    if File.exists?(theme_file) do
-      apply_theme(name)
+    # Validate the theme exists in storage before activating. This is the
+    # single source of truth — Alaja.Theme.list/0 reads the JSON files
+    # written by Alaja.Theme.install_template/1.
+    if name in Theme.list() do
+      :ok = Theme.activate(name)
       Config.set(:theme_active, name)
       IO.puts("  \e[38;2;72;187;120m✓\e[0m Theme set to '#{name}'")
     else
@@ -216,18 +185,6 @@ defmodule Alaja.CLI.Commands.Config do
         :stderr,
         "  Theme '#{name}' not found. Run 'alaja config theme list' to see available."
       )
-    end
-  end
-
-  defp apply_theme(name) do
-    case Config.load_theme(name) do
-      {:ok, theme_data} ->
-        colors = Map.get(theme_data, "colors", %{})
-        Application.put_env(:alaja, :theme_colors, colors)
-
-      {:error, _} ->
-        IO.puts(:stderr, "Error: theme '#{name}' not found or invalid")
-        System.halt(1)
     end
   end
 
@@ -267,93 +224,5 @@ defmodule Alaja.CLI.Commands.Config do
       alaja config theme list
       alaja config --show
     """)
-  end
-
-  # ---------------------------------------------------------------------------
-  # Theme JSON templates
-  # ---------------------------------------------------------------------------
-
-  defp default_theme,
-    do:
-      theme_json("default", "Default dark theme with cyan/blue accents", %{
-        primary: [0, 180, 216],
-        secondary: [58, 171, 163],
-        ternary: [255, 128, 0],
-        quaternary: [155, 66, 226],
-        no_color: [248, 248, 242],
-        background: [40, 44, 52],
-        success: [72, 187, 120],
-        warning: [237, 137, 54],
-        error: [245, 101, 101],
-        info: [66, 153, 225]
-      })
-
-  defp dracula_theme,
-    do:
-      theme_json("dracula", "Dracula color palette", %{
-        primary: [189, 147, 249],
-        secondary: [68, 71, 90],
-        ternary: [255, 184, 108],
-        quaternary: [255, 121, 198],
-        no_color: [248, 248, 242],
-        background: [40, 42, 54],
-        success: [80, 250, 123],
-        warning: [241, 250, 140],
-        error: [255, 85, 85],
-        info: [139, 233, 253]
-      })
-
-  defp monokai_theme,
-    do:
-      theme_json("monokai", "Monokai color palette", %{
-        primary: [166, 226, 46],
-        secondary: [102, 217, 239],
-        ternary: [253, 151, 31],
-        quaternary: [174, 129, 255],
-        no_color: [248, 248, 242],
-        background: [39, 40, 34],
-        success: [166, 226, 46],
-        warning: [230, 219, 116],
-        error: [249, 38, 114],
-        info: [102, 217, 239]
-      })
-
-  defp nord_theme,
-    do:
-      theme_json("nord", "Arctic, north-bluish color palette", %{
-        primary: [136, 192, 208],
-        secondary: [76, 86, 106],
-        ternary: [143, 188, 187],
-        quaternary: [94, 129, 172],
-        no_color: [236, 239, 244],
-        background: [46, 52, 64],
-        success: [163, 190, 140],
-        warning: [235, 203, 139],
-        error: [191, 97, 106],
-        info: [129, 161, 193]
-      })
-
-  defp light_theme,
-    do:
-      theme_json("light", "Clean light color palette", %{
-        primary: [52, 144, 220],
-        secondary: [113, 128, 150],
-        ternary: [237, 137, 54],
-        quaternary: [159, 122, 234],
-        no_color: [45, 55, 72],
-        background: [247, 250, 252],
-        success: [56, 161, 105],
-        warning: [214, 158, 46],
-        error: [229, 62, 62],
-        info: [49, 130, 206]
-      })
-
-  defp theme_json(name, desc, colors) do
-    colors_map =
-      Enum.map_join(colors, ",\n        ", fn {k, [r, g, b]} ->
-        "\"#{k}\": {\"rgb\": [#{r}, #{g}, #{b}]}"
-      end)
-
-    "{\n  \"name\": \"#{name}\",\n  \"version\": \"1.0.0\",\n  \"description\": \"#{desc}\",\n  \"colors\": {\n        #{colors_map}\n  },\n  \"effects\": {\n    \"border_style\": \"rounded\"\n  }\n}"
   end
 end
