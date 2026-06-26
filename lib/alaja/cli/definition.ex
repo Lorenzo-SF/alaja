@@ -186,6 +186,16 @@ defmodule Alaja.CLI.Definition do
 
       @doc "Runs the CLI with the given arguments."
       def main(args) do
+        # Escripts don't auto-start the application the way `mix run`
+        # does. We must explicitly start the consumer's OTP application
+        # so that `Application.start/2` runs — which is where the
+        # consumer's config-loading and theme-resolver registration
+        # happen (e.g. Alaja.Application.start/2 calls
+        # Alaja.Config.ensure_loaded/0 BEFORE Theme.register_with_pote/0).
+        # Without this, every escript sees `:theme_active` as nil in
+        # Application env, breaking `theme:<key>` lookups.
+        Application.ensure_all_started(@otp_app)
+
         dispatch_main(args)
       end
 
