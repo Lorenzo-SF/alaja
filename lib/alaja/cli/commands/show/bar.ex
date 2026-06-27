@@ -1,12 +1,11 @@
 defmodule Alaja.CLI.Commands.Show.Bar do
   @moduledoc "`alaja bar` — Display progress bars."
 
+  alias Alaja.Buffer
   alias Alaja.CLI.GlobalOpts
   alias Alaja.Components.Bar, as: BarComp
   alias Alaja.Components.{Header, Separator, Table}
-
   alias Alaja.Printer
-  alias Alaja.Buffer
   @spec run([String.t()]) :: :ok | no_return()
   def run(args) do
     {global, rest} = GlobalOpts.parse(args)
@@ -43,7 +42,7 @@ defmodule Alaja.CLI.Commands.Show.Bar do
 
         _ ->
           IO.puts(:stderr, "Error: value must be an integer, got '#{value_str}'")
-          System.halt(1)
+          exit({:shutdown, 1})
       end
 
     max = Keyword.get(opts, :max, 100)

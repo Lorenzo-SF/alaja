@@ -470,6 +470,7 @@ defmodule Alaja.Buffer do
   # Removes trailing space characters from a binary that may contain
   # ANSI escape sequences. Used to clean up the final row.
   defp trim_trailing_visible(""), do: ""
+
   defp trim_trailing_visible(binary) do
     # Strip trailing spaces. ANSI escapes don't contain raw spaces
     # so this is safe — the last visible char on the last row is always
@@ -554,7 +555,7 @@ defmodule Alaja.Buffer do
     do_overlay(dest, src, x_offset, y_offset, 0)
   end
 
-  defp do_overlay(dest, _src, _x_offset, _y_offset, y) when y >= _src.height do
+  defp do_overlay(dest, src, _x_offset, _y_offset, y) when y >= src.height do
     dest
   end
 
@@ -576,6 +577,8 @@ defmodule Alaja.Buffer do
     end
   end
 
+  defp do_overlay_row(dest, _src, _x_offset, _dest_y, _x, _src_y), do: dest
+
   defp put_cell(%__MODULE__{} = buffer, x, y, %Cell{} = cell) do
     if valid_coord?(buffer, x, y) do
       index = y * buffer.width + x
@@ -584,9 +587,6 @@ defmodule Alaja.Buffer do
       buffer
     end
   end
-
-  defp do_overlay_row(dest, _src, _x_offset, _dest_y, _x, _src_y), do: dest
-
 
   defp extract_row(cells, start, count) do
     Enum.reduce(0..(count - 1), [], fn offset, acc ->
@@ -706,7 +706,8 @@ defmodule Alaja.Buffer do
       buf = Alaja.Buffer.new(10, 5)
       Alaja.Buffer.crop(buf, 2, 1, 5, 3)  # 5 cols x 3 rows starting at (2,1)
   """
-  @spec crop(t(), non_neg_integer(), non_neg_integer(), non_neg_integer(), non_neg_integer()) :: t()
+  @spec crop(t(), non_neg_integer(), non_neg_integer(), non_neg_integer(), non_neg_integer()) ::
+          t()
   def crop(%__MODULE__{} = buffer, x, y, w, h) do
     x = max(0, min(x, buffer.width))
     y = max(0, min(y, buffer.height))
