@@ -103,8 +103,8 @@ defmodule Alaja.Components.Table do
 
   """
 
-  alias Alaja.Structures.ChunkText
   alias Alaja.{Buffer, Cell}
+  alias Alaja.Structures.ChunkText
 
   # Regex para strip ANSI sequences
   @ansi_regex ~r/\x1b\[[0-9;]*m/
@@ -305,18 +305,17 @@ defmodule Alaja.Components.Table do
     sep_count = max(n_cols - 1, 0)
 
     inner_w =
-      Enum.sum(column_widths) + (padding * 2) * n_cols + sep_count
+      Enum.sum(column_widths) + padding * 2 * n_cols + sep_count
 
     total_w = inner_w + 2
     # height = top border + header + sep + rows + bottom border
     has_header = headers != []
     n_rows = length(rows)
-    total_h = 1 + (if has_header, do: 2, else: 0) + n_rows + 1
+    total_h = 1 + if(has_header, do: 2, else: 0) + n_rows + 1
 
     buffer = Buffer.new(total_w, total_h)
     buffer = draw_top_border(buffer, b, inner_w, border_color)
 
-    next_y = 1
     {buffer, next_y} =
       if has_header do
         buffer = draw_row(buffer, 1, headers, column_widths, b, header_color, padding)
@@ -340,7 +339,15 @@ defmodule Alaja.Components.Table do
   end
 
   defp draw_bottom_border(buffer, b, inner_w, fg) do
-    fill_border_row(buffer, buffer.height - 1, inner_w, b.bottom_left, b.horizontal, b.bottom_right, fg)
+    fill_border_row(
+      buffer,
+      buffer.height - 1,
+      inner_w,
+      b.bottom_left,
+      b.horizontal,
+      b.bottom_right,
+      fg
+    )
   end
 
   defp draw_separator(buffer, y, inner_w, b, fg) do
@@ -431,18 +438,14 @@ defmodule Alaja.Components.Table do
     end
   end
 
-  defp visible_length(text) do
-    text |> String.replace(~r/\x1b\[[0-9;]*m/, "") |> String.length()
-  end
-
   defp resolve_color(nil), do: nil
 
   defp resolve_color(color) when is_tuple(color), do: color
 
   defp resolve_color(color) when is_atom(color) do
     case Pote.Orchestrator.to_rgb(color) do
-      nil -> nil
-      rgb -> rgb
+      {:ok, rgb} -> rgb
+      _ -> nil
     end
   end
 

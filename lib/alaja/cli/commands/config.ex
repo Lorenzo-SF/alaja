@@ -38,7 +38,7 @@ defmodule Alaja.CLI.Commands.Config do
   defp dispatch_action(_) do
     IO.puts(:stderr, "alaja config: unknown action")
     help()
-    System.halt(1)
+    exit({:shutdown, 1})
   end
 
   defp show_config do

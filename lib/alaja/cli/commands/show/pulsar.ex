@@ -89,7 +89,7 @@ defmodule Alaja.CLI.Commands.Show.Pulsar do
 
       {:error, error_msg} ->
         IO.puts(:stderr, "Error: #{error_msg}")
-        System.halt(1)
+        exit({:shutdown, 1})
     end
   end
 
@@ -132,7 +132,7 @@ defmodule Alaja.CLI.Commands.Show.Pulsar do
 
   defp parse_direction(other) do
     IO.puts(:stderr, "Error: --direction must be 'in' or 'out', got '#{other}'")
-    System.halt(1)
+    exit({:shutdown, 1})
   end
 
   defp parse_content_type("text"), do: :text
@@ -140,7 +140,7 @@ defmodule Alaja.CLI.Commands.Show.Pulsar do
 
   defp parse_content_type(other) do
     IO.puts(:stderr, "Error: --content-type must be 'text' or 'image', got '#{other}'")
-    System.halt(1)
+    exit({:shutdown, 1})
   end
 
   defp print_verbose_frames(text, pulsar_opts) do
@@ -207,12 +207,12 @@ defmodule Alaja.CLI.Commands.Show.Pulsar do
 
     if is_nil(image_path) or image_path == "" do
       IO.puts(:stderr, "Error: --image-path is required when using --content-type image")
-      System.halt(1)
+      exit({:shutdown, 1})
     end
 
     if not File.exists?(image_path) do
       IO.puts(:stderr, "Error: Image file not found: #{image_path}")
-      System.halt(1)
+      exit({:shutdown, 1})
     end
 
     try do

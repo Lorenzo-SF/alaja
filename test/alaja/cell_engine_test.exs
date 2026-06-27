@@ -308,7 +308,8 @@ defmodule Alaja.CellEngineTest do
     end
 
     test "wraps a Buffer with a border" do
-      inner = Box.render("inner") # 6x3
+      # 6x3
+      inner = Box.render("inner")
       outer = Box.render(inner, border: :double, padding: 1)
 
       assert %Buffer{} = outer
