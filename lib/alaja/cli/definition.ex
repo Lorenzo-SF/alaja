@@ -52,6 +52,8 @@ defmodule Alaja.CLI.Definition do
       import Alaja.CLI.Definition, only: [command: 3, subcommand: 3, flag: 3, argument: 3, run: 1]
       Module.register_attribute(__MODULE__, :commands, accumulate: true)
       Module.register_attribute(__MODULE__, :otp_app, accumulate: false)
+      @subcommand_children []
+      @subcommand_depth 0
       @otp_app unquote(otp_app)
       @halt_on_error Keyword.get(unquote(opts), :halt_on_error, false)
       @before_compile Alaja.CLI.Definition
@@ -72,7 +74,12 @@ defmodule Alaja.CLI.Definition do
         subcommands: %{}
       }
       unquote(block)
-      @commands @current_command
+
+      if @subcommand_depth > 0 do
+        @subcommand_children [@current_command | @subcommand_children]
+      else
+        @commands @current_command
+      end
     end
   end
 
@@ -88,7 +95,12 @@ defmodule Alaja.CLI.Definition do
         subcommands: %{},
         run: unquote(run_handler)
       }
-      @commands @current_command
+
+      if @subcommand_depth > 0 do
+        @subcommand_children [@current_command | @subcommand_children]
+      else
+        @commands @current_command
+      end
     end
   end
 
@@ -96,15 +108,24 @@ defmodule Alaja.CLI.Definition do
   @spec subcommand(String.t(), String.t(), do: Macro.t()) :: Macro.t()
   defmacro subcommand(name, description, do: block) do
     quote do
-      @current_command %{
+      @subcommand_depth @subcommand_depth + 1
+
+      unquote(block)
+
+      @subcommand_depth @subcommand_depth - 1
+      children = @subcommand_children |> Enum.reverse()
+      @subcommand_children []
+
+      parent = %{
         name: unquote(name),
         description: unquote(description),
         flags: [],
         arguments: [],
-        subcommands: %{}
+        subcommands: Map.new(children, &{&1.name, &1}),
+        run: nil
       }
-      unquote(block)
-      @commands @current_command
+
+      @commands parent
     end
   end
 
@@ -186,24 +207,17 @@ defmodule Alaja.CLI.Definition do
 
       @doc "Runs the CLI with the given arguments."
       def main(args) do
-        # Escripts don't auto-start the application the way `mix run`
-        # does. We must explicitly start the consumer's OTP application
-        # so that `Application.start/2` runs — which is where the
-        # consumer's config-loading and theme-resolver registration
-        # happen (e.g. Alaja.Application.start/2 calls
-        # Alaja.Config.ensure_loaded/0 BEFORE Theme.register_with_pote/0).
-        # Without this, every escript sees `:theme_active` as nil in
-        # Application env, breaking `theme:<key>` lookups.
-        Application.ensure_all_started(@otp_app)
-
         dispatch_main(args)
       end
 
       defp dispatch_main(args) do
+        Application.ensure_all_started(:alaja)
         result = Alaja.CLI.Definition.dispatch(@commands |> Enum.reverse(), args)
+
         if match?({:error, _}, result) and @halt_on_error do
           System.halt(1)
         end
+
         result
       end
     end

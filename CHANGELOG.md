@@ -7,42 +7,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [0.3.8] - 2026-06-27
-
-### Changed
-- Bumped `pote` to v0.3.0 in `mix.exs` and `mix.lock`. The v0.2.0 tag
-  pointed to a SHA without the `Pote.Theme` heredable system, so
-  `mix deps.get` would re-pin to that SHA and `Alaja.Theme` would fail
-  to compile with `module Pote.Theme is not loaded`. v0.3.0 of pote
-  explicitly tags the release that includes `Pote.Theme`.
-
-## [0.3.7] - 2026-06-27
+## [0.3.9] - 2026-06-27
 
 ### Fixed
-- **BUG**: Escripts (built with `mix gen` + batamanta) never auto-started
-  the consumer's OTP application. This meant `Alaja.Application.start/2`
-  never ran, which meant `Config.ensure_loaded/0` never ran, which meant
-  `:theme_active` was nil in Application env when Pote's theme resolver
-  was registered. As a result, every escript saw the default theme's
-  colours regardless of `alaja.conf`.
-  Repro:
-    ```
-    alaja config theme set dracula  # writes alaja.conf
-    alaja separator --color "theme:ternary"  # always default colours
-    ```
-  v0.3.6 fixed this for `mix run`-based invocations (which DO auto-start
-  the app), but escripts bypass that.
-  Fix: `Alaja.CLI.Definition.main/1` now calls
-  `Application.ensure_all_started(@otp_app)` before dispatching. This
-  ensures `Application.start/2` runs (which does config-load +
-  resolver-register in the right order).
-  Verified escript flow:
-    ```
-    alaja config theme set dracula
-    alaja separator --color "theme:ternary"  # 255,184,108 (dracula) ✓
-    alaja config theme set nord
-    alaja separator --color "theme:ternary"  # 235,203,139 (nord)    ✓
-    ```
+- **BUG**: `dispatch_main/1` never started the OTP application, so
+  `Theme.register_with_pote/0` was never invoked in escript mode,
+  leaving the theme resolver stack empty on every fresh process and
+  causing all `"theme:xxxx"` lookups to fall back to Pote's hardcoded
+  defaults regardless of the persisted theme.
+- **BUG**: `subcommand` DSL macro produced flat `@commands` entries
+  with `subcommands: %{}` — inner `command` macros accumulated at the
+  top level instead of being nested under the parent, making the
+  documented `subcommand`/`command` pattern non-functional.
+- **BUG**: 14 `System.halt(1)` calls in library-accessible paths
+  killed the entire BEAM when used as a library; replaced with
+  `exit({:shutdown, 1})`.
+- **BUG**: `Json.render/2` produced non-deterministic key order for
+  maps; keys are now sorted recursively via `Jason.OrderedObject`.
+- **BUG**: Division by zero in `Pulsar.render_frame/3` when
+  `pulse_chars: []` was passed.
+- **LINT**: All 7 compiler warnings eliminated (unused variables,
+  ungrouped function clauses, never-match patterns, dead code).
+- **LINT**: All Credo `--strict` issues resolved (cyclomatic complexity,
+  alias ordering, `cond` → `if`, implicit `try`/`catch`).
 
 ## [0.3.6] - 2026-06-27
 
@@ -276,6 +263,7 @@ returns iodata. Pagination remains in `Table.print/2`.
 ### Added
 - Initial open source release: DSL, components, rendering, syntax highlighting, ANSI utilities.
 
+[v0.3.9]: https://github.com/Lorenzo-SF/alaja/releases/tag/v0.3.9
 [1.0.0]: https://hex.pm/packages/alaja/1.0.0
 
 [0.2.0]: https://github.com/Lorenzo-SF/alaja/releases/tag/v0.2.0

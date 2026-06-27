@@ -172,7 +172,7 @@ defmodule Alaja.Components.Box do
     end)
   end
 
-  defp overlay_content(buffer, content, b, fg, padding) do
+  defp overlay_content(buffer, content, b, fg, _padding) do
     # Side borders at x=0 and x=total_w-1
     buffer =
       Enum.reduce(1..(buffer.height - 2), buffer, fn y, buf ->

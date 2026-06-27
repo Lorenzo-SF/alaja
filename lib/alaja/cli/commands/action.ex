@@ -52,12 +52,12 @@ defmodule Alaja.CLI.Commands.Action do
 
           {:error, error} ->
             IO.puts(:stderr, "Error: invalid JSON: #{error}")
-            System.halt(1)
+            exit({:shutdown, 1})
         end
 
       {:error, reason} ->
         IO.puts(:stderr, "Error: #{reason}")
-        System.halt(1)
+        exit({:shutdown, 1})
     end
   end
 
@@ -122,7 +122,7 @@ defmodule Alaja.CLI.Commands.Action do
 
   defp process_data(_data, _global) do
     IO.puts(:stderr, "Error: expected a JSON object or object with 'actions' array")
-    System.halt(1)
+    exit({:shutdown, 1})
   end
 
   defp execute_action(action, verbose, quiet) do
@@ -134,7 +134,7 @@ defmodule Alaja.CLI.Commands.Action do
     else
       if cmd == "action" do
         IO.puts(:stderr, "  Error: recursive 'action' calls are not allowed")
-        System.halt(1)
+        exit({:shutdown, 1})
       end
 
       full_args = build_args(cmd, args, verbose, quiet)

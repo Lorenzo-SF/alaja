@@ -1,11 +1,11 @@
 defmodule Alaja.CLI.Commands.Show.Breadcrumbs do
   @moduledoc "`alaja breadcrumbs` — Display navigation breadcrumbs."
 
+  alias Alaja.Buffer
   alias Alaja.CLI.GlobalOpts
   alias Alaja.Components.Breadcrumbs, as: BCComp
   alias Alaja.Components.{Header, Separator, Table}
   alias Alaja.Printer
-  alias Alaja.Buffer
   @spec run([String.t()]) :: :ok | no_return()
   def run(args) do
     {global, rest} = GlobalOpts.parse(args)
