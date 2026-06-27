@@ -45,12 +45,10 @@ defmodule Alaja.CLI.GlobalOpts do
   """
   @spec parse([String.t()]) :: {t(), [String.t()]}
   def parse(args) do
-    try do
-      {global_opts, rest} = extract_globals(args, %__MODULE__{})
-      {global_opts, rest}
-    catch
-      :invalid_global -> System.halt(1)
-    end
+    {global_opts, rest} = extract_globals(args, %__MODULE__{})
+    {global_opts, rest}
+  catch
+    :invalid_global -> exit({:shutdown, 1})
   end
 
   defp extract_globals([], acc), do: {acc, []}

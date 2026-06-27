@@ -92,12 +92,10 @@ defmodule Alaja.Syntax do
   # --- Elixir tokenizer ---
 
   defp tokenize_elixir(line) do
-    cond do
-      String.starts_with?(String.trim_leading(line), "#") ->
-        [{:comment, line}]
-
-      true ->
-        tokenize_elixir_parts(line, [])
+    if String.starts_with?(String.trim_leading(line), "#") do
+      [{:comment, line}]
+    else
+      tokenize_elixir_parts(line, [])
     end
   end
 
@@ -108,41 +106,32 @@ defmodule Alaja.Syntax do
 
     {type, text} =
       case token do
-        "" ->
-          {:plain, rest}
-
-        text ->
-          cond do
-            String.starts_with?(text, "\"") ->
-              {:string, text}
-
-            String.starts_with?(text, ":") and not String.starts_with?(text, "::") ->
-              {:atom, text}
-
-            String.starts_with?(text, "#") ->
-              {:comment, text}
-
-            text in @elixir_keywords ->
-              {:keyword, text}
-
-            Regex.match?(~r/^[A-Z]/, text) and String.contains?(text, ".") ->
-              {:module, text}
-
-            Regex.match?(~r/^-?\d+(\.\d+)?$/, text) ->
-              {:number, text}
-
-            true ->
-              {:plain, text}
-          end
+        "" -> {:plain, rest}
+        text -> classify_token(text)
       end
 
-    # Guard against infinite loops if the regex matched but did not consume.
     if rest == "" or rest == line do
       Enum.reverse([{type, text} | acc])
     else
       tokenize_elixir_parts(rest, [{type, text} | acc])
     end
   end
+
+  defp classify_token(text) do
+    cond do
+      String.starts_with?(text, "\"") -> {:string, text}
+      atom_token?(text) -> {:atom, text}
+      String.starts_with?(text, "#") -> {:comment, text}
+      text in @elixir_keywords -> {:keyword, text}
+      module_token?(text) -> {:module, text}
+      number_token?(text) -> {:number, text}
+      true -> {:plain, text}
+    end
+  end
+
+  defp atom_token?(text), do: String.starts_with?(text, ":") and not String.starts_with?(text, "::")
+  defp module_token?(text), do: Regex.match?(~r/^[A-Z]/, text) and String.contains?(text, ".")
+  defp number_token?(text), do: Regex.match?(~r/^-?\d+(\.\d+)?$/, text)
 
   defp take_next_token(line) do
     case Regex.run(

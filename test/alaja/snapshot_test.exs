@@ -27,7 +27,9 @@ defmodule Alaja.SnapshotTest do
     File.read!(path)
   end
 
-  defp to_binary(%Alaja.Buffer{} = buffer), do: Alaja.Buffer.to_iodata(buffer) |> IO.iodata_to_binary()
+  defp to_binary(%Alaja.Buffer{} = buffer),
+    do: Alaja.Buffer.to_iodata(buffer) |> IO.iodata_to_binary()
+
   defp to_binary(other) when is_list(other) or is_binary(other), do: IO.iodata_to_binary(other)
 
   describe "Separator snapshots" do

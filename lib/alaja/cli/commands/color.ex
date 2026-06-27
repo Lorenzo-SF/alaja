@@ -174,7 +174,7 @@ defmodule Alaja.CLI.Commands.Color do
 
       {:error, msg} ->
         IO.puts(:stderr, "Error: #{msg}")
-        System.halt(1)
+        exit({:shutdown, 1})
     end
   end
 
