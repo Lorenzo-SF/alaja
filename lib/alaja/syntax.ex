@@ -129,7 +129,9 @@ defmodule Alaja.Syntax do
     end
   end
 
-  defp atom_token?(text), do: String.starts_with?(text, ":") and not String.starts_with?(text, "::")
+  defp atom_token?(text),
+    do: String.starts_with?(text, ":") and not String.starts_with?(text, "::")
+
   defp module_token?(text), do: Regex.match?(~r/^[A-Z]/, text) and String.contains?(text, ".")
   defp number_token?(text), do: Regex.match?(~r/^-?\d+(\.\d+)?$/, text)
 
