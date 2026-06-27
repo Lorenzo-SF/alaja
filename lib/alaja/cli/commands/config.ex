@@ -141,7 +141,13 @@ defmodule Alaja.CLI.Commands.Config do
         "theme_active" => "default"
       }
 
-      case File.write(config_file, Jason.encode!(default, pretty: true)) do
+      config_json =
+        case Jason.encode(default, pretty: true) do
+          {:ok, json} -> json
+          {:error, _} -> "{}"
+        end
+
+      case File.write(config_file, config_json) do
         :ok -> IO.puts("\e[38;2;72;187;120m✓\e[0m")
         {:error, r} -> IO.puts("\e[38;2;245;101;101m✗ #{inspect(r)}\e[0m")
       end

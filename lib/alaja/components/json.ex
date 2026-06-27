@@ -46,7 +46,13 @@ defmodule Alaja.Components.Json do
     indent = Keyword.get(opts, :indent, 2)
     colors = build_colors(opts)
 
-    text = data |> sort_keys() |> Jason.encode!(pretty: true, indent: indent)
+    sorted = sort_keys(data)
+
+    text =
+      case Jason.encode(sorted, pretty: true, indent: indent) do
+        {:ok, encoded} -> encoded
+        {:error, _} -> "{}"
+      end
 
     lines = String.split(text, "\n")
     total_h = length(lines)
