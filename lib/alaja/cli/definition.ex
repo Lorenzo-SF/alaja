@@ -193,7 +193,18 @@ defmodule Alaja.CLI.Definition do
 
   @doc false
   @spec __before_compile__(Macro.Env.t()) :: Macro.t()
-  defmacro __before_compile__(_env) do
+  defmacro __before_compile__(env) do
+    halt_on_error = Module.get_attribute(env.module, :halt_on_error) || false
+
+    halt_block =
+      if halt_on_error do
+        quote do
+          if match?({:error, _}, result) do
+            System.halt(1)
+          end
+        end
+      end
+
     quote do
       @doc false
       def __commands__ do
@@ -214,9 +225,7 @@ defmodule Alaja.CLI.Definition do
         Application.ensure_all_started(:alaja)
         result = Alaja.CLI.Definition.dispatch(@commands |> Enum.reverse(), args)
 
-        if match?({:error, _}, result) and @halt_on_error do
-          System.halt(1)
-        end
+        unquote(halt_block)
 
         result
       end
@@ -228,6 +237,7 @@ defmodule Alaja.CLI.Definition do
   alias Alaja.CLI.ErrorHandler
 
   @doc false
+  @spec dispatch([map()], [String.t()]) :: {:error, atom()} | term()
   def dispatch(commands, args) do
     dispatch(commands, args, [])
   end
