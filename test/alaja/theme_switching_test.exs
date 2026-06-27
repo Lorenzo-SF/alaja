@@ -28,7 +28,9 @@ defmodule Alaja.ThemeSwitchingTest do
 
   setup do
     # Use a sandboxed themes dir so we don't trample the user's real config.
-    sandbox = Path.join(System.tmp_dir!(), "alaja-theme-test-#{System.unique_integer([:positive])}")
+    sandbox =
+      Path.join(System.tmp_dir!(), "alaja-theme-test-#{System.unique_integer([:positive])}")
+
     File.mkdir_p!(sandbox)
     System.put_env("ALAJA_THEMES_PATH", sandbox)
 
@@ -117,16 +119,28 @@ defmodule Alaja.ThemeSwitchingTest do
 
     test "every colour key (debug, happy, sad, gradient_1..6) is theme-aware" do
       Theme.activate("default")
-      default_colors = Enum.into(~w(debug happy sad gradient_1 gradient_2 gradient_3 gradient_4 gradient_5 gradient_6), %{}, fn k ->
-        {:ok, c} = Pote.parse("theme:#{k}")
-        {k, c}
-      end)
+
+      default_colors =
+        Enum.into(
+          ~w(debug happy sad gradient_1 gradient_2 gradient_3 gradient_4 gradient_5 gradient_6),
+          %{},
+          fn k ->
+            {:ok, c} = Pote.parse("theme:#{k}")
+            {k, c}
+          end
+        )
 
       Theme.activate("dracula")
-      dracula_colors = Enum.into(~w(debug happy sad gradient_1 gradient_2 gradient_3 gradient_4 gradient_5 gradient_6), %{}, fn k ->
-        {:ok, c} = Pote.parse("theme:#{k}")
-        {k, c}
-      end)
+
+      dracula_colors =
+        Enum.into(
+          ~w(debug happy sad gradient_1 gradient_2 gradient_3 gradient_4 gradient_5 gradient_6),
+          %{},
+          fn k ->
+            {:ok, c} = Pote.parse("theme:#{k}")
+            {k, c}
+          end
+        )
 
       # At least some keys should differ between themes — otherwise the
       # resolver is falling back to a hardcoded default palette.
@@ -200,39 +214,29 @@ defmodule Alaja.ThemeSwitchingTest do
     # in app env.
 
     test "persisted theme_active is honoured in this process" do
+      # Persist dracula to the sandboxed config first
+      Alaja.Config.set(:theme_active, "dracula")
+
       # Simulate the "process restart" effect: wipe Application env
       # (just like a new escript process would start with a fresh env)
-      # and write an alaja.conf with theme_active: dracula into a
-      # sandbox location pointed at by ALAJA_CONFIG_PATH.
+      # and re-run Config.ensure_loaded/0 to simulate what
+      # Application.start/2 now does.
       Application.delete_env(:alaja, :theme_active)
       Application.delete_env(:alaja, :__conf_loaded__)
 
-      sandbox_conf =
-        Path.join(System.tmp_dir!(), "alaja-conf-test-#{System.unique_integer([:positive])}.conf")
+      # Re-load from disk. This is what Application.start/2 does at boot.
+      :ok = Alaja.Config.ensure_loaded()
 
-      File.write!(sandbox_conf, ~s({"theme_active": "dracula"}))
+      # Without anyone calling Alaja.Theme.activate/1, the resolver should
+      # now see the persisted theme from alaja.conf.
+      assert Application.get_env(:alaja, :theme_active) == "dracula",
+             "Application.get_env(:alaja, :theme_active) must be \"dracula\" after Config.ensure_loaded"
 
-      original = System.get_env("ALAJA_CONFIG_PATH")
-      System.put_env("ALAJA_CONFIG_PATH", sandbox_conf)
+      {:ok, parsed} = Pote.parse("theme:ternary")
 
-      try do
-        # Re-load from disk. This is what Application.start/2 does at boot.
-        :ok = Alaja.Config.ensure_loaded()
-
-        # Without anyone calling Alaja.Theme.activate/1, the resolver should
-        # now see the persisted theme from alaja.conf.
-        assert Application.get_env(:alaja, :theme_active) == "dracula",
-               "Application.get_env(:alaja, :theme_active) must be \"dracula\" after Config.ensure_loaded"
-
-        {:ok, parsed} = Pote.parse("theme:ternary")
-
-        # dracula.ternary = {255, 184, 108} (golden value)
-        assert parsed == {255, 184, 108},
-               "theme:ternary must resolve to dracula's {255, 184, 108}; got: #{inspect(parsed)}"
-      after
-        if original, do: System.put_env("ALAJA_CONFIG_PATH", original), else: System.delete_env("ALAJA_CONFIG_PATH")
-        File.rm!(sandbox_conf)
-      end
+      # dracula.ternary = {255, 184, 108} (golden value)
+      assert parsed == {255, 184, 108},
+             "theme:ternary must resolve to dracula's {255, 184, 108}; got: #{inspect(parsed)}"
     end
 
     test "Config.ensure_loaded/0 is callable as a public function" do
@@ -243,13 +247,19 @@ defmodule Alaja.ThemeSwitchingTest do
 
     test "Application.start/2 source order is config-load-then-resolver-register" do
       source = File.read!("lib/alaja/application.ex")
-      ensure_idx = source |> String.split("Config.ensure_loaded()") |> List.first() |> String.length()
-      register_idx = source |> String.split("Theme.register_with_pote()") |> List.first() |> String.length()
+
+      ensure_idx =
+        source |> String.split("Config.ensure_loaded()") |> List.first() |> String.length()
+
+      register_idx =
+        source |> String.split("Theme.register_with_pote()") |> List.first() |> String.length()
 
       assert ensure_idx > 0,
              "Config.ensure_loaded() must be called in Alaja.Application.start/2"
+
       assert register_idx > 0,
              "Theme.register_with_pote() must be called in Alaja.Application.start/2"
+
       assert ensure_idx < register_idx,
              "Config.ensure_loaded() must be called BEFORE Theme.register_with_pote()"
     end

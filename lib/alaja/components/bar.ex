@@ -106,6 +106,7 @@ defmodule Alaja.Components.Bar do
     |> Enum.with_index()
     |> Enum.reduce(buffer, fn {char, idx}, buf ->
       target_x = x + idx
+
       if target_x < buffer.width do
         Buffer.update_cell(buf, target_x, y, Cell.new(char, nil))
       else

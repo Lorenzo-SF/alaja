@@ -40,7 +40,15 @@ defmodule Alaja.Components.Pulsar do
   def render_frame(text, frame, opts \\ []) do
     width = Keyword.get(opts, :width, @default_width)
     height = Keyword.get(opts, :height, @default_height)
-    pulse_chars = Keyword.get(opts, :pulse_chars, @default_pulse_chars)
+
+    pulse_chars =
+      opts
+      |> Keyword.get(:pulse_chars, @default_pulse_chars)
+      |> then(fn
+        [] -> @default_pulse_chars
+        chars -> chars
+      end)
+
     colors = Keyword.get(opts, :colors, @default_colors)
     direction = Keyword.get(opts, :direction, :out)
     content_type = Keyword.get(opts, :content_type, :text)
@@ -231,7 +239,15 @@ defmodule Alaja.Components.Pulsar do
   def render_frame_pixels(image_path, frame, opts \\ []) do
     width = Keyword.get(opts, :width, @default_width)
     height = Keyword.get(opts, :height, @default_height)
-    pulse_chars = Keyword.get(opts, :pulse_chars, @default_pulse_chars)
+
+    pulse_chars =
+      opts
+      |> Keyword.get(:pulse_chars, @default_pulse_chars)
+      |> then(fn
+        [] -> @default_pulse_chars
+        chars -> chars
+      end)
+
     colors = Keyword.get(opts, :colors, @default_colors)
     direction = Keyword.get(opts, :direction, :out)
     content_x = Keyword.get(opts, :content_position_x, nil)

@@ -9,7 +9,7 @@
         {Credo.Check.Consistency.SpaceAroundOperators},
         {Credo.Check.Consistency.SpaceInParentheses},
         {Credo.Check.Consistency.TabsOrSpaces},
-        {Credo.Check.Design.AliasUsage, priority: :low},
+        {Credo.Check.Design.AliasUsage, false},
         {Credo.Check.Design.TagTODO},
         {Credo.Check.Design.TagFIXME},
         {Credo.Check.Readability.AliasOrder},

@@ -46,7 +46,7 @@ defmodule Alaja.Components.Json do
     indent = Keyword.get(opts, :indent, 2)
     colors = build_colors(opts)
 
-    text = Jason.encode!(data, pretty: true, indent: indent)
+    text = data |> sort_keys() |> Jason.encode!(pretty: true, indent: indent)
 
     lines = String.split(text, "\n")
     total_h = length(lines)
@@ -81,14 +81,12 @@ defmodule Alaja.Components.Json do
       |> Enum.reduce({:normal, x, buffer}, fn {char, idx}, {state, cx, buf} ->
         target_x = cx + idx
 
-        cond do
-          target_x >= buf.width ->
-            {state, cx, buf}
-
-          true ->
-            {new_state, color} = next_state(state, char, line, idx, colors)
-            cell = Cell.new(char, color)
-            {new_state, cx, Buffer.update_cell(buf, target_x, y, cell)}
+        if target_x >= buf.width do
+          {state, cx, buf}
+        else
+          {new_state, color} = next_state(state, char, line, idx, colors)
+          cell = Cell.new(char, color)
+          {new_state, cx, Buffer.update_cell(buf, target_x, y, cell)}
         end
       end)
 
@@ -114,39 +112,52 @@ defmodule Alaja.Components.Json do
 
   defp next_state(:normal, char, line, idx, colors) do
     cond do
-      # Start of a string
       char == ~s(") ->
         {:string, colors.string}
 
-      # Numbers (multi-char tokens like 1.5, -3, 1e5)
       char in ~w(0 1 2 3 4 5 6 7 8 9 . - + e E) ->
         {:normal, colors.number}
 
-      # Punctuation
       char in ~w({ } [ ] , :) ->
         {:normal, colors.punctuation}
 
-      # Whitespace
-      char in ~w( \t) ->
+      char in [" ", "\t"] ->
         {:normal, nil}
 
-      # Keywords — enter keyword state, colour all chars
       true ->
-        cond do
-          match_keyword(line, idx, "true") -> {{:keyword, colors.boolean, 4}, colors.boolean}
-          match_keyword(line, idx, "false") -> {{:keyword, colors.boolean, 5}, colors.boolean}
-          match_keyword(line, idx, "null") -> {{:keyword, colors.null, 4}, colors.null}
-          true -> {:normal, nil}
-        end
+        match_keyword_state(line, idx, colors)
     end
   end
+
+  defp match_keyword_state(line, idx, colors) do
+    cond do
+      match_keyword(line, idx, "true") -> {{:keyword, colors.boolean, 4}, colors.boolean}
+      match_keyword(line, idx, "false") -> {{:keyword, colors.boolean, 5}, colors.boolean}
+      match_keyword(line, idx, "null") -> {{:keyword, colors.null, 4}, colors.null}
+      true -> {:normal, nil}
+    end
+  end
+
+  defp sort_keys(map) when is_map(map) do
+    map
+    |> Enum.sort_by(fn {k, _} -> to_string(k) end)
+    |> Enum.map(fn {k, v} -> {k, sort_keys(v)} end)
+    |> Jason.OrderedObject.new()
+  end
+
+  defp sort_keys(list) when is_list(list), do: Enum.map(list, &sort_keys/1)
+  defp sort_keys(value), do: value
 
   defp match_keyword(line, idx, word) do
     len = String.length(word)
 
     cond do
-      String.length(line) < idx + len -> false
-      String.slice(line, idx, len) != word -> false
+      String.length(line) < idx + len ->
+        false
+
+      String.slice(line, idx, len) != word ->
+        false
+
       true ->
         next_char_pos = idx + len
 

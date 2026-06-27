@@ -14,10 +14,10 @@ defmodule Alaja.Printer do
       Alaja.Printer.print("Loading...", raw: true, x: 10, y: 5)
   """
 
+  alias Alaja.Buffer
   alias Alaja.Components.Box
   alias Alaja.Printer.Basics
   alias Alaja.Structures.{ChunkText, MessageInfo}
-  alias Alaja.Buffer
 
   @ansi_regex ~r/\x1b\[[0-9;]*m/
 
@@ -229,7 +229,7 @@ defmodule Alaja.Printer do
   defp apply_box(text, opts) do
     # When input was a Buffer, we already applied Box at the Buffer level
     # in the Buffer clause. Skip here to avoid double-wrapping.
-  if Keyword.get(opts, :box, false) and not Keyword.get(opts, :_box_applied, false) do
+    if Keyword.get(opts, :box, false) and not Keyword.get(opts, :_box_applied, false) do
       box_opts =
         []
         |> maybe_add(:title, Keyword.get(opts, :box_title))
@@ -370,8 +370,14 @@ defmodule Alaja.Printer do
     # x/y option. This lets layouts compose: a Table rendered with
     # `with_offset(t, 5, 0)` and a Box next to it can both be printed
     # to the same terminal row without overwriting each other.
-    x = (buffer.offset_x || 0) + Keyword.get(opts, :"pos-x", Keyword.get(opts, :pos_x, Keyword.get(opts, :x, 0)))
-    y = (buffer.offset_y || 0) + Keyword.get(opts, :"pos-y", Keyword.get(opts, :pos_y, Keyword.get(opts, :y, 0)))
+    x =
+      (buffer.offset_x || 0) +
+        Keyword.get(opts, :"pos-x", Keyword.get(opts, :pos_x, Keyword.get(opts, :x, 0)))
+
+    y =
+      (buffer.offset_y || 0) +
+        Keyword.get(opts, :"pos-y", Keyword.get(opts, :pos_y, Keyword.get(opts, :y, 0)))
+
     clear_line = Keyword.get(opts, :clear_line, true)
 
     output =
