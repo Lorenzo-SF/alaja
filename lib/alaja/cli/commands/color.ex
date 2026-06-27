@@ -129,8 +129,9 @@ defmodule Alaja.CLI.Commands.Color do
   end
 
   defp extract_rgb(%{"rgb" => [r, g, b]}), do: {r, g, b}
-  defp extract_rgb(%{}) when is_map(%{}), do: nil
+  defp extract_rgb(%{}), do: nil
   defp extract_rgb({r, g, b}), do: {r, g, b}
+  defp extract_rgb([r, g, b]), do: {r, g, b}
   defp extract_rgb(_), do: nil
 
   defp format_color_row(name, rgb, columns) do
