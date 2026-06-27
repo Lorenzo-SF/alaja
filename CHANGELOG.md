@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.10] - 2026-06-27
+
+### Fixed
+- **LINT**: `__before_compile__/1` macro no longer generates dead `if` block
+  when `@halt_on_error` is `false`, eliminating a compiler warning about a
+  conditional that always evaluates to `dynamic(false)`.
+- **LINT**: `dispatch/2` now has a proper `@spec` so external consumers
+  get a known return type instead of `dynamic()`, preventing type-checker
+  warnings when pattern-matching the result.
+
 ## [0.3.9] - 2026-06-27
 
 ### Fixed
@@ -263,6 +273,7 @@ returns iodata. Pagination remains in `Table.print/2`.
 ### Added
 - Initial open source release: DSL, components, rendering, syntax highlighting, ANSI utilities.
 
+[v0.3.10]: https://github.com/Lorenzo-SF/alaja/releases/tag/v0.3.10
 [v0.3.9]: https://github.com/Lorenzo-SF/alaja/releases/tag/v0.3.9
 [1.0.0]: https://hex.pm/packages/alaja/1.0.0
 
