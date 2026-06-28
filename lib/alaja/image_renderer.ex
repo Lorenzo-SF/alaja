@@ -322,8 +322,9 @@ defmodule Alaja.ImageRenderer do
 
   defp try_convert_fallback(path, target_w, target_h) do
     if System.find_executable("convert") do
+      safe_path = if String.starts_with?(path, "-"), do: "./#{path}", else: path
       tmp = Path.expand("/tmp/alaja_ascii_#{:erlang.unique_integer([:positive])}.png")
-      cmd = ["convert", path, "-resize", "#{target_w}x#{target_h}>", tmp]
+      cmd = ["convert", safe_path, "-resize", "#{target_w}x#{target_h}>", tmp]
 
       case System.cmd(hd(cmd), tl(cmd), stderr_to_stdout: true) do
         {_, 0} ->
