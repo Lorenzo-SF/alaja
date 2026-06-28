@@ -200,7 +200,11 @@ defmodule Alaja.CLI.Commands.Color do
 
   defp output_raw_json(rgb) do
     data = build_color_data(rgb)
-    IO.puts(Jason.encode!(data, pretty: true))
+
+    case Jason.encode(data, pretty: true) do
+      {:ok, json} -> IO.puts(json)
+      {:error, _} -> IO.puts("{}")
+    end
   end
 
   defp build_color_analysis(rgb, opts) do
