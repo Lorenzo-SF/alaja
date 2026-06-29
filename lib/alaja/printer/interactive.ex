@@ -52,22 +52,115 @@ defmodule Alaja.Printer.Interactive do
   @doc """
   Question with predefined options.
 
-  Returns the value associated with the selected option,
-  or `:error` if the answer doesn't match any option.
+  The options list can take three shapes:
+
+    1. `[{label, value}, ...]` with string labels — the user types
+       the label (or a prefix of it, case-insensitive).
+    2. `[{label, value}, ...]` where value is an atom — the user can
+       type the atom name (e.g. `:llm` → `llm`).
+    3. A 1-based index (`1`, `2`, `3`) typed by the user.
+
+  Before reading the answer, the function lists the options under the
+  prompt so the user always knows what they can type. The `:default`
+  option chooses a pre-selected index that gets used if the user
+  just presses Enter.
+
+  Returns the `value` for the selected option, or `:error` if the
+  input does not match anything.
 
   ## Examples
 
       iex> question_with_options("Choose:", [{"Yes", :yes}, {"No", :no}])
       :yes
 
+      iex> question_with_options("Continue?", [{\"Y\", :yes}, {\"N\", :no}], default: 1)
+      :yes
+
   """
   @spec question_with_options(String.t(), list(), keyword()) :: any() | :error
   def question_with_options(text, options, opts \\ []) do
-    answer = question(text, opts)
+    default_index = Keyword.get(opts, :default)
+    numbered = options_with_indexes(options)
 
-    case Enum.find(options, fn {txt, _} -> txt == answer end) do
+    prompt =
+      [text, "", "  " <> Enum.map_join(numbered, "\n  ", fn {idx, lbl, _} -> "#{idx}. #{lbl}" end)]
+      |> Enum.join("\n")
+
+    answer =
+      question(
+        prompt,
+        Keyword.put_new(opts, :color, Keyword.get(opts, :color, :white))
+      )
+
+    pick_answer(answer, numbered, default_index)
+  end
+
+  # Split [{label, value}] into a list of {1-based-index, label, value}.
+  defp options_with_indexes(options) do
+    options
+    |> Enum.with_index(1)
+    |> Enum.map(fn {{label, value}, idx} -> {idx, label, value} end)
+  end
+
+  defp pick_answer("", options, default_index) when is_integer(default_index) do
+    case Enum.find(options, fn {idx, _, _} -> idx == default_index end) do
       nil -> :error
-      {_txt, val} -> val
+      {_, _, val} -> val
+    end
+  end
+
+  defp pick_answer("", _options, _default) do
+    # No default and empty input → treat as cancel.
+    :error
+  end
+
+  defp pick_answer(answer, options, _default) do
+    stripped = answer |> String.trim() |> String.downcase()
+
+    # 1) index match (e.g. "1", "2")
+    idx = case Integer.parse(stripped) do
+      {n, ""} when n > 0 and n <= length(options) -> n
+      _ -> nil
+    end
+
+    cond do
+      idx ->
+        {_, _, val} = Enum.find(options, fn {i, _, _} -> i == idx end)
+        val
+
+      # 2) exact label match (case-insensitive)
+      Enum.any?(options, fn {_, lbl, _} -> String.downcase(lbl) == stripped end) ->
+        {_, _, val} = Enum.find(options, fn {_, lbl, _} -> String.downcase(lbl) == stripped end)
+        val
+
+      # 3) label prefix (case-insensitive)
+      Enum.any?(options, fn {_, lbl, _} -> String.starts_with?(String.downcase(lbl), stripped) end) ->
+        {_, _, val} =
+          Enum.find(options, fn {_, lbl, _} ->
+            String.starts_with?(String.downcase(lbl), stripped)
+          end)
+
+        val
+
+      # 4) atom name match (value |> Atom.to_string() |> downcase)
+      Enum.any?(options, fn {_, _, val} ->
+        case val do
+          a when is_atom(a) -> String.downcase(Atom.to_string(a)) == stripped
+          _ -> false
+        end
+      end) ->
+        {_, _, val} =
+          Enum.find(options, fn {_, _, v} ->
+            case v do
+              a when is_atom(a) -> String.downcase(Atom.to_string(a)) == stripped
+              _ -> false
+            end
+          end)
+
+        val
+
+      true ->
+        :error
     end
   end
 
@@ -76,9 +169,9 @@ defmodule Alaja.Printer.Interactive do
 
   Returns `:yes` or `:no`.
 
-  ## Options
-
-  - `:default` - Default answer if user presses Enter (default: :no)
+  Accepts `y`, `yes`, `n`, `no`, plus the index `1` for yes and `2`
+  for no. The `:default` option (`:yes` or `:no`) is used when the
+  user just presses Enter.
 
   ## Examples
 
@@ -86,21 +179,28 @@ defmodule Alaja.Printer.Interactive do
       :yes
 
       iex> yesno("Are you sure?", default: :yes)
-      :no
+      :yes
 
   """
   @spec yesno(String.t(), keyword()) :: :yes | :no
   def yesno(text, opts \\ []) do
-    default = Keyword.get(opts, :default, :no)
+    yes_default = Keyword.get(opts, :default, :no) == :yes
 
     result =
-      question_with_options(text, [{"Y", :yes}, {"y", :yes}, {"N", :no}, {"n", :no}], opts)
+      question_with_options(
+        text,
+        if(yes_default,
+          do: [{"Y", :yes}, {"N", :no}],
+          else: [{"Y", :yes}, {"N", :no}]
+        ),
+        Keyword.put(opts, :default, if(yes_default, do: 1, else: 2))
+      )
 
     case result do
       :yes -> :yes
       :no -> :no
-      :error -> default
-      _ -> default
+      :error -> if(yes_default, do: :yes, else: :no)
+      _ -> if(yes_default, do: :yes, else: :no)
     end
   end
 
