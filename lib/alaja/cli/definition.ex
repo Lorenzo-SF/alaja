@@ -222,7 +222,15 @@ defmodule Alaja.CLI.Definition do
       end
 
       defp dispatch_main(args) do
+        # Ensure both :alaja (for the rendering stack) and the host
+        # OTP application (the one declared with `use Alaja.CLI.Definition,
+        # otp_app: :my_app`) are up before any command runs. Without
+        # this, escript releases that ship with `include_erts: false`
+        # report "could not lookup Ecto repo" or similar because their
+        # supervisor tree never started.
         Application.ensure_all_started(:alaja)
+        Application.ensure_all_started(__otp_app__())
+
         result = Alaja.CLI.Definition.dispatch(@commands |> Enum.reverse(), args)
 
         unquote(halt_block)
