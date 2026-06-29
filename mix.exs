@@ -130,7 +130,10 @@ defmodule Alaja.MixProject do
 
   defp deps do
     [
-      {:pote, github: "Lorenzo-SF/pote"},
+      # Pinning to a tag froze us to a stale pote v0.2.0 (no Pote.Theme)
+      # and the same happened with candil v0.2.0 (no Provider struct).
+      # We track `main` so consumers always see the latest API surface.
+      {:pote, github: "Lorenzo-SF/pote", branch: "main"},
       {:jason, "~> 1.4"},
       {:credo, "~> 1.7", only: [:dev, :test], runtime: false},
       {:dialyxir, "~> 1.4", only: [:dev, :test], runtime: false},

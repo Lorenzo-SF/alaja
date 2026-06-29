@@ -7,6 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- **`question_with_options/3`** — the function only matched the user's
+  input against the full display label. In practice, typing `1`, `llm`
+  or just `Yes` returned `:error` and the wizard dead-ended (this is
+  exactly what `delfos setup` hit in production). The function now:
+  1. Always lists the options under the prompt with a 1-based index.
+  2. Matches, in order: integer index (`1`, `2`), exact label
+     (case-insensitive), label prefix (case-insensitive), atom name
+     (`llm`, `db`), or `:error`.
+  3. New `:default` kwarg chooses a 1-based default index used when
+     the user just presses Enter.
+  `yesno/2` is rewritten on top of `question_with_options/3`. Now
+  `Y` / `N` / `1` / `2` / empty all behave correctly with `:default`
+  mapped to the corresponding index.
+
+### Changed
+- `mix.exs` pins `pote` to `branch: "main"` rather than a frozen
+  tag. Pinning to a tag (e.g. pote v0.2.0) hid Pote.Theme from
+  every consumer until we manually bumped the SHA. Tracking `main`
+  is a faster feedback loop.
+
 ## [0.3.10] - 2026-06-27
 
 ### Fixed
