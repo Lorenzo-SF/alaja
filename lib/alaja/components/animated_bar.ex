@@ -1,4 +1,6 @@
 defmodule Alaja.Components.AnimatedBar do
+  alias Alaja.Buffer
+
   @moduledoc """
   Animated bar component with embedded animation in the filled portion.
 
@@ -21,7 +23,7 @@ defmodule Alaja.Components.AnimatedBar do
   @wave_frames ["░", "▒", "▓", "█", "▓", "▒"]
 
   @doc """
-  Renders a single frame of the animated bar.
+  Renders a single frame of the animated bar as an `Alaja.Buffer.t/0`.
 
   ## Options
 
@@ -35,7 +37,7 @@ defmodule Alaja.Components.AnimatedBar do
   - `:label` — optional label text before the bar
   - `:show_percent` — show percentage at end (default: true)
   """
-  @spec render_frame(number(), number(), non_neg_integer(), keyword()) :: iodata()
+  @spec render_frame(number(), number(), non_neg_integer(), keyword()) :: Buffer.t()
   def render_frame(value, max, position, opts \\ []) do
     animation = Keyword.get(opts, :animation, :spinner)
     width = Keyword.get(opts, :width, 40)
@@ -43,17 +45,62 @@ defmodule Alaja.Components.AnimatedBar do
     empty_char = Keyword.get(opts, :empty_char, "░")
     show_percent = Keyword.get(opts, :show_percent, true)
     label = Keyword.get(opts, :label)
+    filled_color = Keyword.get(opts, :filled_color)
+    empty_color = Keyword.get(opts, :empty_color)
 
     ratio = if max > 0, do: min(max(value / max, 0.0), 1.0), else: 0.0
     filled_count = round(ratio * width)
     empty_count = width - filled_count
 
-    filled_part = animate_filled(filled_count, position, animation, filled_char, opts)
+    filled_part =
+      animate_filled(filled_count, position, animation, filled_char, opts)
 
     percent_str = if show_percent, do: " #{round(ratio * 100)}%", else: ""
     label_str = if label, do: "#{label} ", else: ""
 
-    [label_str, "[", filled_part, String.duplicate(empty_char, empty_count), "]", percent_str]
+    # Buffer plan: one row, with the following pieces in order
+    #   label | "[" | filled_part | empty_portion | "]" | percent_str
+    # Empty portion is the same as the original animate_filled fallback path
+    # for non-spacer animations; for compatibility we mirror the previous
+    # empty_char behavior.
+    empty_portion = String.duplicate(empty_char, empty_count)
+
+    buffer =
+      Buffer.new(
+        String.length(label_str) + 1 + width + 1 + String.length(percent_str),
+        1
+      )
+
+    # Position cursor manually for each piece; we re-use Buffer.write_string/4
+    # which is the canonical way to write styled strings into a Buffer.
+    buffer = write_piece(buffer, 0, 0, label_str)
+    offset = String.length(label_str)
+    buffer = write_piece(buffer, offset, 0, "[")
+    offset = offset + 1
+    {buffer, offset} = write_iodata_colored(buffer, offset, 0, filled_part, filled_color)
+    {buffer, offset} = write_piece_with_offset(buffer, offset, 0, empty_portion)
+    buffer = write_piece(buffer, offset, 0, "]")
+    offset = offset + 1
+    write_piece(buffer, offset, 0, percent_str)
+  end
+
+  # ---------------------------------------------------------------------------
+  # Internal: write a plain string into a Buffer
+  # ---------------------------------------------------------------------------
+
+  defp write_piece(buffer, x, y, text, _fg \\ nil) do
+    Alaja.Buffer.write_string(buffer, x, y, text)
+  end
+
+  defp write_piece_with_offset(buffer, x, y, text) do
+    buf = Alaja.Buffer.write_string(buffer, x, y, text)
+    {buf, x + String.length(text)}
+  end
+
+  defp write_iodata_colored(buffer, x, y, iodata, _fg) do
+    text = IO.iodata_to_binary(iodata)
+    buf = Alaja.Buffer.write_string(buffer, x, y, text)
+    {buf, x + String.length(text)}
   end
 
   @doc """
