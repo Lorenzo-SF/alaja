@@ -23,6 +23,7 @@ defmodule Alaja.CLI.Commands.Show.AnimatedBar do
           empty_color: :string,
           animation_color: :string,
           speed: :integer,
+          duration: :integer,
           show_percent: :boolean,
           kitt_width: :integer
         ]
@@ -56,6 +57,8 @@ defmodule Alaja.CLI.Commands.Show.AnimatedBar do
   defp render(value, opts, global) do
     max = Keyword.get(opts, :max, 100)
     speed = Keyword.get(opts, :speed, 100)
+    duration = Keyword.get(opts, :duration)
+    max_frames = compute_max_frames(duration, speed)
 
     bar_opts =
       [
@@ -69,13 +72,18 @@ defmodule Alaja.CLI.Commands.Show.AnimatedBar do
         animation_color: parse_color(Keyword.get(opts, :animation_color)),
         show_percent: Keyword.get(opts, :show_percent, true),
         kitt_width: Keyword.get(opts, :kitt_width, 3),
-        speed: speed
+        speed: speed,
+        max_frames: max_frames
       ]
       |> Enum.reject(fn {_, v} -> is_nil(v) end)
 
     if global.verbose do
       Enum.each(0..19, fn f ->
-        frame = ABComp.render_frame(value, max, f, bar_opts) |> IO.iodata_to_binary()
+        frame =
+          ABComp.render_frame(value, max, f, bar_opts)
+          |> Alaja.Buffer.to_iodata()
+          |> IO.iodata_to_binary()
+
         IO.puts(frame)
       end)
     else
@@ -86,11 +94,15 @@ defmodule Alaja.CLI.Commands.Show.AnimatedBar do
   defp run_animated(value, max, bar_opts, global) do
     box_height = if global.box, do: 3, else: 1
     speed = Keyword.get(bar_opts, :speed, 100)
+    max_frames = Keyword.get(bar_opts, :max_frames, 100_000)
 
-    frames = Stream.iterate(0, &(&1 + 1))
+    frames = Stream.iterate(0, &(&1 + 1)) |> Stream.take(max_frames)
 
     Enum.each(frames, fn position ->
-      frame = ABComp.render_frame(value, max, position, bar_opts) |> IO.iodata_to_binary()
+      frame =
+        ABComp.render_frame(value, max, position, bar_opts)
+        |> Alaja.Buffer.to_iodata()
+        |> IO.iodata_to_binary()
 
       wrapped =
         if global.box do
@@ -100,7 +112,9 @@ defmodule Alaja.CLI.Commands.Show.AnimatedBar do
             |> maybe_add(:border, global.box_border)
             |> maybe_add(:border_color, global.box_color)
 
-          Box.render(frame, box_opts) |> IO.iodata_to_binary()
+          Box.render(frame, box_opts)
+          |> Alaja.Buffer.to_iodata()
+          |> IO.iodata_to_binary()
         else
           frame
         end
@@ -126,6 +140,19 @@ defmodule Alaja.CLI.Commands.Show.AnimatedBar do
   defp parse_type("wave"), do: :wave
   defp parse_type("rainbow"), do: :rainbow
   defp parse_type(_), do: :spinner
+
+  # `--duration N` (ms) implies max_frames = ceil(duration / speed).
+  # When no duration is set we return 100_000 to preserve the original
+  # "animation runs forever" behaviour while still capping runaway loops
+  # (the smoke tests pass `--duration 500` to terminate cleanly).
+  defp compute_max_frames(nil, _speed), do: 100_000
+
+  defp compute_max_frames(duration_ms, speed)
+       when is_integer(duration_ms) and duration_ms > 0 do
+    max(1, div(duration_ms + speed - 1, speed))
+  end
+
+  defp compute_max_frames(_, _), do: 100_000
 
   defp parse_color(nil), do: nil
 
