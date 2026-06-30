@@ -89,7 +89,9 @@ defmodule Alaja.CLI.Smoke.ComponentsReturnBufferTest do
         align: :left
       }
 
-      assert function_exported?(Alaja.Components.Message, :render, 1),
+      Code.ensure_loaded(Alaja.Components.Message)
+
+      assert :render in (Alaja.Components.Message.module_info(:exports) |> Keyword.keys()),
              "Alaja.Components.Message.render/1 is missing — must be created"
 
       result = Alaja.Components.Message.render(msg)
