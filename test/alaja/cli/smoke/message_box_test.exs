@@ -17,7 +17,7 @@ defmodule Alaja.CLI.Smoke.MessageBoxTest do
   Bug: box becomes too wide because Box.render is given the flattened
   ANSI string and counts escape codes as characters.
   """
-  use Alaja.CLI.Smoke.Case, async: false
+  use Alaja.SmokeCase, async: false
 
   @test_name "message_box_test.exs::rounded box hugs content"
 

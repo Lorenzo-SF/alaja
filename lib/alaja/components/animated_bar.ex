@@ -46,7 +46,7 @@ defmodule Alaja.Components.AnimatedBar do
     show_percent = Keyword.get(opts, :show_percent, true)
     label = Keyword.get(opts, :label)
     filled_color = Keyword.get(opts, :filled_color)
-    empty_color = Keyword.get(opts, :empty_color)
+    _empty_color = Keyword.get(opts, :empty_color)
 
     ratio = if max > 0, do: min(max(value / max, 0.0), 1.0), else: 0.0
     filled_count = round(ratio * width)
