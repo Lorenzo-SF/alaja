@@ -108,7 +108,13 @@ defmodule Alaja.CLI.Commands.Show.AnimatedBar do
       if position == 0 do
         IO.write(wrapped)
       else
-        IO.write("\e[#{box_height}A\e[K#{wrapped}")
+        # Move cursor up box_height lines, then clear from cursor to end of
+        # screen. The original code used \e[K which only clears the current
+        # line; when the frame is taller than 1 line (e.g. with --box, which
+        # adds a top and bottom border), previous-frame leftovers were
+        # left behind. Using \e[J ensures everything below the moved cursor
+        # is wiped clean.
+        IO.write("\e[#{box_height}A\e[J#{wrapped}")
       end
 
       Process.sleep(speed)

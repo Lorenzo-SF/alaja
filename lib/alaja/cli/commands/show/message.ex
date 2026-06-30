@@ -273,8 +273,10 @@ defmodule Alaja.CLI.Commands.Show.Message do
   end
 
   defp wrap_with_box(%MessageInfo{} = msg, %{box: true} = global) do
-    rendered = msg.chunks |> Enum.map_join("", &ChunkText.render/1)
-    Box.render(rendered, box_opts(global))
+    # Render the MessageInfo to a Buffer (Cell engine) and hand it to Box.
+    # This keeps width measurements accurate regardless of ANSI codes.
+    inner = Alaja.Components.Message.render(msg)
+    Box.render(inner, box_opts(global))
   end
 
   defp wrap_with_box(msg, _global), do: msg
