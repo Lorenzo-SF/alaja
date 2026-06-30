@@ -64,9 +64,11 @@ defmodule Alaja.Wizard.Renderers do
   #   Age
   #     30
   def stacked(%Wizard{} = w) do
-    chunks = Enum.map(w.fields, fn f ->
-      ["#{f.label}", "  #{render_value(f.value, f.default, f.type)}", ""]
-    end)
+    chunks =
+      Enum.map(w.fields, fn f ->
+        ["#{f.label}", "  #{render_value(f.value, f.default, f.type)}", ""]
+      end)
+
     # Strip the trailing empty line of the last chunk for a tighter layout.
     lines = chunks |> List.flatten() |> Enum.reverse() |> tl() |> Enum.reverse()
     write_lines(lines)

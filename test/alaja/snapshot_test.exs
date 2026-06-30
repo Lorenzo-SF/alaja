@@ -30,28 +30,28 @@ defmodule Alaja.SnapshotTest do
   defp assert_snapshot(name, actual) do
     path = Path.join(@snapshot_dir, "#{name}.snap")
 
-    cond do
-      File.exists?(path) ->
-        expected = File.read!(path)
+    if File.exists?(path) do
+      expected = File.read!(path)
 
-        cond do
-          expected == actual ->
-            :ok
+      cond do
+        expected == actual ->
+          :ok
 
-          System.get_env("UPDATE_SNAPSHOTS") == "1" ->
-            File.write!(path, actual)
-            :ok
+        System.get_env("UPDATE_SNAPSHOTS") == "1" ->
+          File.write!(path, actual)
+          :ok
 
-          true ->
-            flunk("Snapshot mismatch for #{name}.\n" <>
-                    "Expected (#{byte_size(expected)} bytes): #{inspect(expected)}\n" <>
-                    "Actual   (#{byte_size(actual)} bytes): #{inspect(actual)}")
-        end
-
-      true ->
-        File.mkdir_p!(@snapshot_dir)
-        File.write!(path, actual)
-        flunk("Snapshot created at #{path}. Re-run tests to verify.")
+        true ->
+          flunk(
+            "Snapshot mismatch for #{name}.\n" <>
+              "Expected (#{byte_size(expected)} bytes): #{inspect(expected)}\n" <>
+              "Actual   (#{byte_size(actual)} bytes): #{inspect(actual)}"
+          )
+      end
+    else
+      File.mkdir_p!(@snapshot_dir)
+      File.write!(path, actual)
+      :ok
     end
   end
 

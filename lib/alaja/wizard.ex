@@ -29,7 +29,7 @@ defmodule Alaja.Wizard do
   options.
   """
 
-  alias Alaja.{Buffer, Cell}
+  alias Alaja.Buffer
 
   @type field_type :: :string | :integer | :float | :boolean | :enum | :path | :url
   @type field :: %{

@@ -66,8 +66,8 @@ defmodule Alaja.ConfigTest do
     end
 
     test "returns {:ok, rgb} for a key present in the active theme" do
-      assert {:ok, {189, 147, 249}} = Config.lookup_theme_color("primary")
-      assert {:ok, {255, 184, 108}} = Config.lookup_theme_color("ternary")
+      assert {:ok, {189, 147, 249}} = Config.lookup_theme_color("theme:primary")
+      assert {:ok, {255, 184, 108}} = Config.lookup_theme_color("theme:ternary")
     end
 
     test "returns :error for a key not in the active theme" do
@@ -78,7 +78,10 @@ defmodule Alaja.ConfigTest do
   describe "load!/1 + ALAJAX_* env vars" do
     setup do
       tmp_dir =
-        Path.join(System.tmp_dir!(), "alaja_config_load_test_#{:erlang.unique_integer([:positive])}")
+        Path.join(
+          System.tmp_dir!(),
+          "alaja_config_load_test_#{:erlang.unique_integer([:positive])}"
+        )
 
       File.mkdir_p!(tmp_dir)
       wipe_load_state!()
@@ -108,7 +111,10 @@ defmodule Alaja.ConfigTest do
 
       path = Path.join(tmp_dir, "alaja.conf")
 
-      File.write!(path, Jason.encode!(%{"color_depth" => "xterm256", "theme_active" => "midnight"}))
+      File.write!(
+        path,
+        Jason.encode!(%{"color_depth" => "xterm256", "theme_active" => "midnight"})
+      )
 
       # skip_env: deterministic file-only behaviour regardless of any
       # BEAM-global env state leaked from concurrent tests.

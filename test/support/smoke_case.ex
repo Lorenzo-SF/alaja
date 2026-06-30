@@ -89,8 +89,8 @@ defmodule Alaja.SmokeCase do
         "--eval",
         "Alaja.CLI.main(System.argv())",
         "--"
-      ]
-      ++ args
+      ] ++
+        args
 
     base_opts = [cd: project_root, env: full_env, stderr_to_stdout: true]
     cmd_opts = if stdin == nil, do: base_opts, else: Keyword.put(base_opts, :stdin, stdin)
@@ -132,28 +132,26 @@ defmodule Alaja.SmokeCase do
     filter = Keyword.get(opts, :filter, & &1)
     actual = filter.(normalized_actual)
 
-    cond do
-      File.exists?(snapshot_path) ->
-        expected = File.read!(snapshot_path) |> normalize()
+    if File.exists?(snapshot_path) do
+      expected = File.read!(snapshot_path) |> normalize()
 
-        cond do
-          actual == expected ->
-            :ok
+      cond do
+        actual == expected ->
+          :ok
 
-          System.get_env("UPDATE_SNAPSHOTS") == "1" ->
-            File.mkdir_p!(Path.dirname(snapshot_path))
-            File.write!(snapshot_path, normalized_actual)
-            :ok
+        System.get_env("UPDATE_SNAPSHOTS") == "1" ->
+          File.mkdir_p!(Path.dirname(snapshot_path))
+          File.write!(snapshot_path, normalized_actual)
+          :ok
 
-          true ->
-            write_diff(snapshot_path, expected, actual)
-            raise snapshot_mismatch_message(snapshot_path, expected, actual)
-        end
-
-      true ->
-        File.mkdir_p!(Path.dirname(snapshot_path))
-        File.write!(snapshot_path, normalized_actual)
-        raise "Snapshot created at #{snapshot_path}. Re-run tests to verify."
+        true ->
+          write_diff(snapshot_path, expected, actual)
+          raise snapshot_mismatch_message(snapshot_path, expected, actual)
+      end
+    else
+      File.mkdir_p!(Path.dirname(snapshot_path))
+      File.write!(snapshot_path, normalized_actual)
+      raise "Snapshot created at #{snapshot_path}. Re-run tests to verify."
     end
   end
 
@@ -183,6 +181,7 @@ defmodule Alaja.SmokeCase do
     # launched from. We resolve via the file system link to handle
     # both symlinked workspaces and direct checkouts uniformly.
     deps_dir = Application.app_dir(:alaja)
+
     deps_dir
     |> Path.expand()
     |> Path.absname()
@@ -191,10 +190,14 @@ defmodule Alaja.SmokeCase do
       # we find a directory containing a `mix.exs` whose `app:` matches
       # `:alaja`. Two levels is enough in our setup.
       path
-      |> Path.dirname()            # .../lib/alaja  ->  .../lib
-      |> Path.dirname()            # .../lib        ->  .../test
-      |> Path.dirname()            # .../test       ->  .../_build
-      |> Path.dirname()            # .../_build     ->  project root
+      # .../lib/alaja  ->  .../lib
+      |> Path.dirname()
+      # .../lib        ->  .../test
+      |> Path.dirname()
+      # .../test       ->  .../_build
+      |> Path.dirname()
+      # .../_build     ->  project root
+      |> Path.dirname()
     end)
   end
 
@@ -211,11 +214,11 @@ defmodule Alaja.SmokeCase do
     truncated =
       diff_bin = IO.iodata_to_binary(diff)
 
-      if String.length(diff_bin) > max_len do
-        String.slice(diff_bin, 0, max_len) <> "\n... [truncated]"
-      else
-        diff_bin
-      end
+    if String.length(diff_bin) > max_len do
+      String.slice(diff_bin, 0, max_len) <> "\n... [truncated]"
+    else
+      diff_bin
+    end
 
     IO.puts("\n=== SNAPSHOT DIFF ===")
     IO.puts(truncated)
@@ -227,13 +230,14 @@ defmodule Alaja.SmokeCase do
     b_lines = String.split(b, "\n")
     max_lines = max(length(a_lines), length(b_lines))
 
-    for i <- 0..(min(max_lines - 1, 50)) do
+    for i <- 0..min(max_lines - 1, 50) do
       a_line = Enum.at(a_lines, i) || ""
       b_line = Enum.at(b_lines, i) || ""
 
-      cond do
-        a_line == b_line -> "#{i}:  #{a_line}"
-        true -> "#{i}: -#{a_line}\n#{i}: +#{b_line}"
+      if a_line == b_line do
+        "#{i}:  #{a_line}"
+      else
+        "#{i}: -#{a_line}\n#{i}: +#{b_line}"
       end
     end
   end
