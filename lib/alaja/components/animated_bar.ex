@@ -123,7 +123,10 @@ defmodule Alaja.Components.AnimatedBar do
     stream
     |> Stream.take(max_iterations)
     |> Enum.each(fn position ->
-      frame = render_frame(value, max, position, opts) |> IO.iodata_to_binary()
+      frame =
+        render_frame(value, max, position, opts)
+        |> Buffer.to_iodata()
+        |> IO.iodata_to_binary()
 
       if verbose do
         IO.puts(frame)
