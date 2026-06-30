@@ -15,13 +15,15 @@ defmodule Alaja.CLI.Smoke.ImageAsciiTest do
   @test_name "image_ascii_test.exs::ascii art renders"
 
   setup do
-    # Create a tiny test PNG (4x4 solid color)
+    # Create a tiny test PNG (2x2 with 4 colors)
     test_png = Path.join(System.tmp_dir!(), "alaja_smoke_test.png")
 
     if not File.exists?(test_png) do
-      # Write a minimal 1x1 PNG using Alaja's own generator
-      # The user can also provide any valid PNG via --path
-      {:ok, png_bin} = Alaja.ImageRenderer.generate_png(1, 1, [{255, 100, 50}])
+      pixels = [
+        [{255, 100, 50}, {100, 200, 30}],
+        [{50, 50, 200}, {255, 255, 0}]
+      ]
+      png_bin = Alaja.ImageRenderer.generate_png(pixels, 2, 2)
       File.write!(test_png, png_bin)
     end
 
