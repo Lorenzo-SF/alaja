@@ -75,12 +75,11 @@ defmodule Alaja.CLI.Commands.Show.Image do
 
   defp parse_ascii_style(nil), do: nil
 
-  defp parse_ascii_style(s) do
-    case Alaja.Helpers.safe_string_to_atom(s) do
-      {:ok, atom} -> atom
-      {:error, _} -> nil
-    end
-  end
+  defp parse_ascii_style("blocks"), do: :blocks
+  defp parse_ascii_style("detailed"), do: :detailed
+  defp parse_ascii_style("simple"), do: :simple
+  defp parse_ascii_style("braille"), do: :braille
+  defp parse_ascii_style(_), do: nil
 
   @dialyzer {:nowarn_function, {:render, 3}}
   defp render(path, opts, global) do

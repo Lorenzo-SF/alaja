@@ -42,11 +42,31 @@ defmodule Alaja.SmokeCase do
 
   @doc """
   Runs an alaja CLI command as a subprocess and returns the stripped output.
+
+  Internally shells out to:
+      mix run --no-start --eval "Alaja.CLI.main(System.argv())" -- <args>
+
+  `--no-start` avoids re-booting the OTP applications while still loading
+  the host project's compiled artifacts (including `Alaja.*` modules).
+
+  ## Options
+
+    - `:timeout` — wall-clock timeout in ms (default 30_000)
+    - `:stdin` — payload to feed via stdin, or `nil` (default) to skip piping
+    - `:env` — additional environment variables to add
+
+  ## Note
+
+  On Elixir 1.19+ `System.cmd/3` rejects `stdin: ""` with `ArgumentError`,
+  so we omit the `:stdin` key entirely when no payload is provided. We
+  also wrap the call in `Task.async` so we get a `%Task{}` that we can
+  control with `Task.yield/2` (Elixir 1.19's stricter type checking
+  rejects treating a plain `{stdout, stderr, code}` tuple as a Task).
   """
   @spec run_cli([String.t()], keyword()) :: {String.t(), String.t(), non_neg_integer()}
   def run_cli(args, opts \\ []) do
     timeout = Keyword.get(opts, :timeout, 30_000)
-    stdin = Keyword.get(opts, :stdin, "")
+    stdin = Keyword.get(opts, :stdin)
     env = Keyword.get(opts, :env, [])
 
     project_root = alaja_project_root()
@@ -61,17 +81,27 @@ defmodule Alaja.SmokeCase do
       |> Kernel.++(env)
 
     cmd_args =
-      ["run", "--no-mix-exs", "-e", "Alaja.CLI.main(System.argv())", "--"] ++ args
+      [
+        "run",
+        "--no-start",
+        "--no-deps-check",
+        "--no-compile",
+        "--eval",
+        "Alaja.CLI.main(System.argv())",
+        "--"
+      ]
+      ++ args
 
-    task = System.cmd("elixir", cmd_args, [
-      cd: project_root,
-      env: full_env,
-      stderr_to_stdout: true,
-      stdin: stdin
-    ])
+    base_opts = [cd: project_root, env: full_env, stderr_to_stdout: true]
+    cmd_opts = if stdin == nil, do: base_opts, else: Keyword.put(base_opts, :stdin, stdin)
+
+    task = Task.async(fn -> System.cmd("mix", cmd_args, cmd_opts) end)
 
     case Task.yield(task, timeout) || Task.shutdown(task) do
-      {:ok, result} -> result
+      # Elixir 1.19's `System.cmd/3` returns a 2-tuple `{output, exit_status}`
+      # when `stderr_to_stdout: true` is set (the second tuple element is
+      # collapsed since stderr is already merged into stdout).
+      {:ok, {combined, exit_code}} -> {combined, "", exit_code}
       {:exit, reason} -> raise "CLI crashed: #{inspect(reason)}"
       nil -> raise "CLI timed out after #{timeout}ms"
     end
@@ -146,13 +176,29 @@ defmodule Alaja.SmokeCase do
   # ---------------------------------------------------------------------------
 
   defp alaja_project_root do
-    Application.app_dir(:alaja, "..")
+    # `_build/test/lib/alaja/ebin` is loaded as the alaja app dir; the
+    # project root is two segments up regardless of the cwd mix was
+    # launched from. We resolve via the file system link to handle
+    # both symlinked workspaces and direct checkouts uniformly.
+    deps_dir = Application.app_dir(:alaja)
+    deps_dir
     |> Path.expand()
     |> Path.absname()
+    |> then(fn path ->
+      # path looks like `<root>/_build/test/lib/alaja`. Walk up until
+      # we find a directory containing a `mix.exs` whose `app:` matches
+      # `:alaja`. Two levels is enough in our setup.
+      path
+      |> Path.dirname()            # .../lib/alaja  ->  .../lib
+      |> Path.dirname()            # .../lib        ->  .../test
+      |> Path.dirname()            # .../test       ->  .../_build
+      |> Path.dirname()            # .../_build     ->  project root
+    end)
   end
 
   defp write_diff(_path, expected, actual) do
-    if File.identical?(expected, actual), do: :ok
+    # Compare as binaries (the strings have been normalised upstream, so == is enough).
+    if expected == actual, do: :ok
 
     diff =
       ["--- expected", "+++ actual", ""]
