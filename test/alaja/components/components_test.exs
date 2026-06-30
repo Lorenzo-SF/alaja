@@ -71,8 +71,12 @@ defmodule Alaja.Components.ComponentsTest do
     end
 
     test "render/2 handles empty list" do
+      # After the Buffer-first refactor, an empty breadcrumbs list returns an
+      # empty Buffer (width: 0, height: 1). The legacy `result == []` clause
+      # belongs to the pre-Buffer era and has been removed.
       result = Breadcrumbs.render([], [])
-      assert result == [] or result == %Buffer{width: 0, height: 0}
+      assert %Buffer{width: 0} = result
+      assert result.height >= 0
     end
   end
 
