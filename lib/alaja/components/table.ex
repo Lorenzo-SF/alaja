@@ -219,35 +219,43 @@ defmodule Alaja.Components.Table do
   end
 
   @doc """
-  Renders a table to iodata without printing.
+  Renders a table to an `Alaja.Buffer.t/0` without printing.
+
+  This is the Cell-engine render. Returns a composable `Buffer` that
+  can be overlaid on other buffers or passed to `Alaja.Components.Box`.
+
+  See `render_buffer/2` for the implementation.
   """
-  @spec render(list() | keyword(), keyword()) :: iodata()
+  @spec render(list() | keyword(), keyword()) :: Buffer.t()
   def render(data, opts \\ [])
 
-  def render([headers | rows], opts) when is_list(headers) do
-    render_with_headers(headers, rows, opts)
-  end
-
-  def render([], _opts), do: []
-
   def render(data, opts) do
-    # Handle keyword list format: headers: [...], rows: [...], border_color: ...
-    # Extract headers and rows, remaining keys become options
-    headers = Keyword.get(data, :headers)
-    rows = Keyword.get(data, :rows, [])
-    table_opts = Keyword.drop(data, [:headers, :rows])
-    merged_opts = Keyword.merge(opts, table_opts)
-    render_with_headers(headers, rows, merged_opts)
+    render_buffer(data, opts)
   end
 
-  defp render_with_headers(headers, rows, opts) do
+  # Legacy iodata path retained for backward compat with callers that
+  # need a string. Use `render/2` (Buffer) for new code.
+  @doc false
+  @spec render_iodata(list() | keyword(), keyword()) :: String.t()
+  def render_iodata(data, opts \\ []) do
+    {headers, rows} = extract_headers_rows(data)
+    merged_opts = Keyword.merge(opts, extract_table_opts(data))
     {headers, rows} = normalize_data(headers, rows)
     column_widths = calculate_column_widths([headers | rows])
-    config = build_config(opts, column_widths)
+    config = build_config(merged_opts, column_widths)
 
-    rendered = build_table_string(headers, rows, column_widths, config, opts)
+    rendered = build_table_string(headers, rows, column_widths, config, merged_opts)
     IO.iodata_to_binary(rendered)
   end
+
+  defp extract_headers_rows([headers | rows]) when is_list(headers), do: {headers, rows}
+  defp extract_headers_rows(_), do: {[], []}
+
+  defp extract_table_opts(data) when is_list(data) and not is_tuple(hd(data)) do
+    Keyword.take(data, [:border_color, :border_effects, :padding, :table_align, :table_border])
+  end
+
+  defp extract_table_opts(data), do: Keyword.drop(data, [:headers, :rows])
 
   # ---------------------------------------------------------------------------
   # Cell engine (v0.3.0)
