@@ -10,7 +10,7 @@ defmodule Alaja.CLI.Smoke.ImageAsciiTest do
   Bug: nothing prints because ImageRenderer.resize_pixels returns numbers
   (not {r,g,b} tuples) which breaks render_pixel/5.
   """
-  use Alaja.CLI.Smoke.Case, async: false
+  use Alaja.SmokeCase, async: false
 
   @test_name "image_ascii_test.exs::ascii art renders"
 
