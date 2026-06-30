@@ -29,7 +29,8 @@ defmodule Alaja.Syntax do
       })
   """
 
-  alias Alaja.Syntax.{Engine, Language, Renderer}
+  alias Alaja.{Buffer, Cell}
+  alias Alaja.Syntax.{Engine, Language, Renderer, Theme}
 
   @type language ::
           :elixir
@@ -110,6 +111,96 @@ defmodule Alaja.Syntax do
       {:ok, lang} -> Renderer.render_ansi(tokens, lang)
       :error -> highlight_content(content, language) |> Enum.map_join(fn {_, t} -> t end)
     end
+  end
+
+  @doc """
+  Highlights source code and returns an `Alaja.Buffer.t/0`.
+
+  This is the Buffer-first canonical render. Each token becomes one
+  cell per visible character with the resolved fg colour from the
+  language/theme chain. Effects (`:bold`, `:italic`, ...) are stored
+  on the cell but currently not visually distinct in the buffer — use
+  `highlight_ansi/2` for full effect rendering.
+
+  ## Options
+
+    - `:theme` — overrides the global syntax theme (default: `Theme.default()`)
+    - `:max_width` — wraps long lines; pass `false` to disable wrapping
+
+  ## Examples
+
+      buf = Alaja.Syntax.highlight_buffer("defmodule Foo do end", :elixir)
+      Alaja.Printer.print_raw(buf)
+  """
+  @spec highlight_buffer(String.t(), language(), keyword()) :: Buffer.t()
+  def highlight_buffer(content, language, opts \\ []) do
+    theme = Keyword.get(opts, :theme) || Theme.default()
+
+    # Built-in tokenizers (`:elixir`, `:json`, `:markdown`) split on '\n'
+    # internally and never emit it as a token. We must split the content
+    # into lines ourselves to preserve the visual layout.
+    content_lines = String.split(content, "\n")
+    tokens_by_line = Enum.map(content_lines, &tokenize(&1, language))
+
+    resolved_lines =
+      Enum.map(tokens_by_line, fn line_tokens ->
+        Enum.map(line_tokens, &resolve_token(&1, language, theme))
+      end)
+
+    height = max(length(resolved_lines), 1)
+    width = resolved_lines |> Enum.map(&line_visible_width/1) |> Enum.max(fn -> 0 end)
+
+    buffer = Buffer.new(width, height)
+
+    resolved_lines
+    |> Enum.with_index()
+    |> Enum.reduce(buffer, fn {line, y}, buf -> write_line(buf, y, line) end)
+  end
+
+  defp resolve_token({type, text}, language, theme) do
+    color =
+      case get_language(language) do
+        {:ok, lang} ->
+          {color_atom, _effects} = Theme.resolve(type, lang.colors, theme)
+          color_to_rgb(color_atom)
+
+        :error ->
+          color_to_rgb(color_for_atom(type))
+      end
+
+    {color, text}
+  end
+
+  defp write_fragment(buf, text, col, y, color) do
+    text
+    |> String.graphemes()
+    |> Enum.with_index()
+    |> Enum.reduce(buf, fn {char, idx}, b ->
+      target_x = col + idx
+
+      if target_x < b.width do
+        Buffer.update_cell(b, target_x, y, Cell.new(char, color))
+      else
+        b
+      end
+    end)
+  end
+
+  defp line_visible_width(line) do
+    Enum.reduce(line, 0, fn {_color, text}, acc -> acc + String.length(text) end)
+  end
+
+  defp write_line(buffer, y, line) do
+    # Each fragment `{color, text}` occupies consecutive cells starting
+    # at the running column. We track the column across fragments so
+    # successive fragments don't overwrite each other.
+    {final, _} =
+      Enum.reduce(line, {buffer, 0}, fn {color, text}, {buf, col} ->
+        new_buf = write_fragment(buf, text, col, y, color)
+        {new_buf, col + String.length(text)}
+      end)
+
+    final
   end
 
   @doc """
@@ -287,350 +378,195 @@ defmodule Alaja.Syntax do
   defp color_for(:plain), do: "white"
   defp color_for(_), do: "white"
 
+  # Atom name used by the buffer pipeline (same atoms as color_for/1 above).
+  defp color_for_atom(:keyword), do: :blue
+  defp color_for_atom(:string), do: :green
+  defp color_for_atom(:comment), do: :gray
+  defp color_for_atom(:number), do: :cyan
+  defp color_for_atom(:operator), do: :white
+  defp color_for_atom(:atom), do: :yellow
+  defp color_for_atom(:module), do: :magenta
+  defp color_for_atom(:plain), do: :white
+  defp color_for_atom(_), do: :white
+
+  # Map ANSI/SGR colour names (atoms or strings) to RGB tuples.
+  # The 16-colour palette is what the buffer pipeline uses — bright
+  # variants get the half-bright form (255/85 split). Unknown atoms
+  # fall back to white.
+  @ansi_16_colors %{
+    black: {0, 0, 0},
+    red: {170, 0, 0},
+    green: {0, 170, 0},
+    yellow: {170, 85, 0},
+    blue: {0, 0, 170},
+    magenta: {170, 0, 170},
+    cyan: {0, 170, 170},
+    white: {170, 170, 170},
+    default: {255, 255, 255},
+    bright_black: {85, 85, 85},
+    gray: {85, 85, 85},
+    grey: {85, 85, 85},
+    bright_red: {255, 85, 85},
+    bright_green: {85, 255, 85},
+    bright_yellow: {255, 255, 85},
+    bright_blue: {85, 85, 255},
+    bright_magenta: {255, 85, 255},
+    bright_cyan: {85, 255, 255},
+    bright_white: {255, 255, 255}
+  }
+
+  defp color_to_rgb(atom) when is_atom(atom) do
+    Map.get(@ansi_16_colors, atom, {255, 255, 255})
+  end
+
+  defp color_to_rgb(string) when is_binary(string) do
+    atom =
+      try do
+        String.to_existing_atom(string)
+      rescue
+        ArgumentError -> :white
+      end
+
+    color_to_rgb(atom)
+  end
+
+  defp color_to_rgb({r, g, b}) when is_integer(r) and is_integer(g) and is_integer(b) do
+    {r, g, b}
+  end
+
   # ── Language detection (from file extension) ─────────────────────────
+
+  @language_map %{
+    ".ex" => :elixir,
+    ".exs" => :elixir,
+    ".erl" => :erlang,
+    ".hrl" => :erlang,
+    ".json" => :json,
+    ".md" => :markdown,
+    ".py" => :python,
+    ".ts" => :typescript,
+    ".tsx" => :typescript,
+    ".rs" => :rust,
+    ".go" => :go,
+    ".java" => :java,
+    ".rb" => :ruby,
+    ".js" => :javascript,
+    ".jsx" => :javascript,
+    ".mjs" => :javascript,
+    ".cjs" => :javascript,
+    ".c" => :c,
+    ".h" => :c,
+    ".cpp" => :cpp,
+    ".cxx" => :cpp,
+    ".cc" => :cpp,
+    ".hpp" => :cpp,
+    ".cs" => :csharp,
+    ".kt" => :kotlin,
+    ".kts" => :kotlin,
+    ".swift" => :swift,
+    ".scala" => :scala,
+    ".dart" => :dart,
+    ".php" => :php,
+    ".phtml" => :php,
+    ".pl" => :perl,
+    ".pm" => :perl,
+    ".r" => :r,
+    ".jl" => :julia,
+    ".lua" => :lua,
+    ".hs" => :haskell,
+    ".lhs" => :haskell,
+    ".clj" => :clojure,
+    ".cljs" => :clojure,
+    ".cljc" => :clojure,
+    ".ml" => :ocaml,
+    ".mli" => :ocaml,
+    ".sh" => :bash,
+    ".bash" => :bash,
+    ".zsh" => :bash,
+    ".ps1" => :powershell,
+    ".psm1" => :powershell,
+    ".sql" => :sql,
+    ".graphql" => :graphql,
+    ".gql" => :graphql,
+    ".html" => :html,
+    ".htm" => :html,
+    ".css" => :css,
+    ".yaml" => :yaml,
+    ".yml" => :yaml,
+    ".toml" => :toml,
+    ".zig" => :zig,
+    ".nim" => :nim,
+    ".cr" => :crystal,
+    ".d" => :dlang,
+    ".f" => :fortran,
+    ".f90" => :fortran,
+    ".f95" => :fortran,
+    ".ada" => :ada,
+    ".adb" => :ada,
+    ".ads" => :ada,
+    ".pas" => :pascal,
+    ".pp" => :pascal,
+    ".pro" => :prolog,
+    ".rkt" => :racket,
+    ".lisp" => :lisp,
+    ".cl" => :lisp,
+    ".el" => :lisp,
+    ".sol" => :solidity,
+    ".tf" => :terraform,
+    ".hcl" => :terraform,
+    ".gleam" => :gleam,
+    ".purs" => :purescript,
+    ".ha" => :hare,
+    ".odin" => :odin,
+    ".v" => :vlang,
+    ".wat" => :wat,
+    ".wast" => :wat,
+    ".bf" => :brainfuck,
+    ".coffee" => :coffeescript,
+    ".xml" => :xml,
+    ".svg" => :xml,
+    ".xsd" => :xml,
+    ".xsl" => :xml,
+    ".tex" => :tex,
+    ".sty" => :tex,
+    ".cls" => :tex,
+    ".ltx" => :tex,
+    ".m" => :matlab,
+    ".groovy" => :groovy,
+    ".gvy" => :groovy,
+    ".gradle" => :gradle,
+    ".gradle.kts" => :gradle,
+    ".hx" => :haxe,
+    ".hxs" => :haxe,
+    ".hxp" => :haxe,
+    ".st" => :smalltalk,
+    ".tcl" => :tcl,
+    ".mm" => :objc,
+    ".vue" => :vue,
+    ".svelte" => :svelte,
+    ".applescript" => :applescript,
+    ".scpt" => :applescript
+  }
 
   @doc "Detects language atom from file path extension."
   @spec detect_language(String.t()) :: atom()
   def detect_language(path) do
-    case Path.extname(path) do
-      ".ex" ->
-        :elixir
-
-      ".exs" ->
-        :elixir
-
-      ".erl" ->
-        :erlang
-
-      ".hrl" ->
-        :erlang
-
-      ".json" ->
-        :json
-
-      ".md" ->
-        :markdown
-
-      ".py" ->
-        :python
-
-      ".ts" ->
-        :typescript
-
-      ".tsx" ->
-        :typescript
-
-      ".rs" ->
-        :rust
-
-      ".go" ->
-        :go
-
-      ".java" ->
-        :java
-
-      ".rb" ->
-        :ruby
-
-      ".js" ->
-        :javascript
-
-      ".jsx" ->
-        :javascript
-
-      ".mjs" ->
-        :javascript
-
-      ".cjs" ->
-        :javascript
-
-      ".c" ->
-        :c
-
-      ".h" ->
-        :c
-
-      ".cpp" ->
-        :cpp
-
-      ".cxx" ->
-        :cpp
-
-      ".cc" ->
-        :cpp
-
-      ".hpp" ->
-        :cpp
-
-      ".cs" ->
-        :csharp
-
-      ".kt" ->
-        :kotlin
-
-      ".kts" ->
-        :kotlin
-
-      ".swift" ->
-        :swift
-
-      ".scala" ->
-        :scala
-
-      ".dart" ->
-        :dart
-
-      ".php" ->
-        :php
-
-      ".phtml" ->
-        :php
-
-      ".pl" ->
-        :perl
-
-      ".pm" ->
-        :perl
-
-      ".r" ->
-        :r
-
-      ".jl" ->
-        :julia
-
-      ".lua" ->
-        :lua
-
-      ".hs" ->
-        :haskell
-
-      ".lhs" ->
-        :haskell
-
-      ".clj" ->
-        :clojure
-
-      ".cljs" ->
-        :clojure
-
-      ".cljc" ->
-        :clojure
-
-      ".ml" ->
-        :ocaml
-
-      ".mli" ->
-        :ocaml
-
-      ".sh" ->
-        :bash
-
-      ".bash" ->
-        :bash
-
-      ".zsh" ->
-        :bash
-
-      ".ps1" ->
-        :powershell
-
-      ".psm1" ->
-        :powershell
-
-      ".sql" ->
-        :sql
-
-      ".graphql" ->
-        :graphql
-
-      ".gql" ->
-        :graphql
-
-      ".html" ->
-        :html
-
-      ".htm" ->
-        :html
-
-      ".css" ->
-        :css
-
-      ".yaml" ->
-        :yaml
-
-      ".yml" ->
-        :yaml
-
-      ".toml" ->
-        :toml
-
-      ".zig" ->
-        :zig
-
-      ".nim" ->
-        :nim
-
-      ".cr" ->
-        :crystal
-
-      ".d" ->
-        :dlang
-
-      ".f" ->
-        :fortran
-
-      ".f90" ->
-        :fortran
-
-      ".f95" ->
-        :fortran
-
-      ".ada" ->
-        :ada
-
-      ".adb" ->
-        :ada
-
-      ".ads" ->
-        :ada
-
-      ".pas" ->
-        :pascal
-
-      ".pp" ->
-        :pascal
-
-      ".pro" ->
-        :prolog
-
-      ".rkt" ->
-        :racket
-
-      ".lisp" ->
-        :lisp
-
-      ".cl" ->
-        :lisp
-
-      ".el" ->
-        :lisp
-
-      ".sol" ->
-        :solidity
-
-      ".tf" ->
-        :terraform
-
-      ".hcl" ->
-        :terraform
-
-      ".gleam" ->
-        :gleam
-
-      ".purs" ->
-        :purescript
-
-      ".ha" ->
-        :hare
-
-      ".odin" ->
-        :odin
-
-      ".v" ->
-        :vlang
-
-      ".wat" ->
-        :wat
-
-      ".wast" ->
-        :wat
-
-      ".bf" ->
-        :brainfuck
-
-      ".coffee" ->
-        :coffeescript
-
-      ".xml" ->
-        :xml
-
-      ".svg" ->
-        :xml
-
-      ".xsd" ->
-        :xml
-
-      ".xsl" ->
-        :xml
-
-      ".tex" ->
-        :tex
-
-      ".sty" ->
-        :tex
-
-      ".cls" ->
-        :tex
-
-      ".ltx" ->
-        :tex
-
-      ".m" ->
-        :matlab
-
-      ".groovy" ->
-        :groovy
-
-      ".gvy" ->
-        :groovy
-
-      ".gradle" ->
-        :gradle
-
-      ".gradle.kts" ->
-        :gradle
-
-      ".hx" ->
-        :haxe
-
-      ".hxs" ->
-        :haxe
-
-      ".hxp" ->
-        :haxe
-
-      ".st" ->
-        :smalltalk
-
-      ".tcl" ->
-        :tcl
-
-      ".mm" ->
-        :objc
-
-      ".vue" ->
-        :vue
-
-      ".svelte" ->
-        :svelte
-
-      ".applescript" ->
-        :applescript
-
-      ".scpt" ->
-        :applescript
-
-      "" ->
-        case Path.basename(path) do
-          "Dockerfile" -> :dockerfile
-          "Makefile" -> :makefile
-          "makefile" -> :makefile
-          "GNUmakefile" -> :makefile
-          _ -> :text
-        end
-
-      _ ->
-        :text
+    ext = Path.extname(path)
+
+    if ext == "" do
+      detect_basename_language(path)
+    else
+      Map.get(@language_map, ext, :text)
+    end
+  end
+
+  defp detect_basename_language(path) do
+    case Path.basename(path) do
+      "Dockerfile" -> :dockerfile
+      "Makefile" -> :makefile
+      "makefile" -> :makefile
+      "GNUmakefile" -> :makefile
+      _ -> :text
     end
   end
 end

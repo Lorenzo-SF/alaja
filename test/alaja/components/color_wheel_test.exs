@@ -1,7 +1,7 @@
 defmodule Alaja.Components.ColorWheelTest do
   use ExUnit.Case, async: true
 
-  alias Alaja.Components.ColorWheel
+  alias Alaja.{Buffer, Components.ColorWheel}
 
   describe "compute_harmony/2" do
     test "returns complementary colors" do
@@ -174,6 +174,79 @@ defmodule Alaja.Components.ColorWheelTest do
 
       assert String.contains?(output, "rgb(255,0,0)")
       assert String.contains?(output, "rgb(0,255,0)")
+    end
+  end
+
+  describe "render/2 canonical Buffer-first API" do
+    test "returns Buffer.t() with default radius" do
+      assert %Buffer{} = buf = ColorWheel.render([{255, 0, 0}, {0, 255, 0}])
+      # Default radius 10 -> 4*10+1 = 41 cells wide, 10 cells tall
+      assert buf.width == 41
+      assert buf.height == 10
+    end
+
+    test "returns Buffer.t() with custom radius" do
+      assert %Buffer{} = buf = ColorWheel.render([], radius: 5)
+      assert buf.width == 4 * 5 + 1
+      assert buf.height == 5
+    end
+
+    test "embeds harmony label in centre row when :harmony is set" do
+      assert %Buffer{} = buf = ColorWheel.render([{255, 0, 0}], harmony: :triad)
+      binary = Buffer.to_iodata(buf) |> IO.iodata_to_binary()
+      # The label is " TRÍADA " — in the centre of the wheel.
+      assert binary =~ "TRÍADA"
+    end
+
+    test "no label when :harmony is nil" do
+      assert %Buffer{} = buf = ColorWheel.render([{255, 0, 0}])
+      binary = Buffer.to_iodata(buf) |> IO.iodata_to_binary()
+      refute binary =~ "TRÍADA"
+      refute binary =~ "TRIADA"
+    end
+
+    test "uses :harmony_angles override when provided" do
+      assert %Buffer{} =
+               buf =
+               ColorWheel.render(
+                 [{255, 0, 0}, {0, 255, 0}, {0, 0, 255}],
+                 harmony_angles: [0, 120, 240],
+                 harmony: :triad
+               )
+
+      # Just verify it renders without crash; the angle override is used
+      # internally for the marker positions.
+      assert buf.width > 0
+      assert buf.height > 0
+    end
+  end
+
+  describe "render_for_terminal/2" do
+    test "returns tagged tuple {tag, payload}" do
+      result = ColorWheel.render_for_terminal([{255, 0, 0}, {0, 255, 0}, {0, 0, 255}])
+      assert match?({:image, _}, result) or match?({:ascii, _}, result)
+    end
+
+    test "returns {:ascii, %Buffer{}} when terminal does not support images" do
+      # In a non-TTY sandbox the ImageTerminal detection falls back to :ascii.
+      case ColorWheel.render_for_terminal([{255, 0, 0}]) do
+        {:ascii, %Buffer{} = buf} ->
+          assert buf.width > 0
+          assert buf.height > 0
+
+        {:image, _} ->
+          # Some terminals (Kitty, iTerm2) advertise image support via env
+          # vars even in headless shells. Skip the shape check in that case.
+          :ok
+      end
+    end
+
+    test "render_png_wheel/2 still returns iodata (image path)" do
+      # The PNG path is always available; in a sandbox without a real TTY
+      # the terminal protocol is :ascii and the function returns []. We
+      # only assert the function is callable and returns a list (iodata).
+      result = ColorWheel.render_png_wheel([{255, 0, 0}])
+      assert is_list(result)
     end
   end
 

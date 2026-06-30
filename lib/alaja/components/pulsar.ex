@@ -36,7 +36,7 @@ defmodule Alaja.Components.Pulsar do
 
   Returns iodata representing the current frame.
   """
-  @spec render_frame(String.t(), non_neg_integer(), keyword()) :: iodata()
+  @spec render_frame(String.t(), non_neg_integer(), keyword()) :: Buffer.t()
   def render_frame(text, frame, opts \\ []) do
     width = Keyword.get(opts, :width, @default_width)
     height = Keyword.get(opts, :height, @default_height)
@@ -219,6 +219,12 @@ defmodule Alaja.Components.Pulsar do
   end
 
   defp render_buffer(buffer) do
+    buffer
+  end
+
+  @doc false
+  @deprecated "Use render_buffer/1 directly. Kept for backward compat."
+  def render_buffer_iodata(buffer) do
     for y <- 0..(buffer.height - 1) do
       for x <- 0..(buffer.width - 1) do
         Cell.to_ansi(Buffer.get(buffer, x, y))

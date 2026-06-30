@@ -14,16 +14,24 @@ defmodule Alaja.Components.Json do
   becomes one row; multi-line JSON (objects, arrays) become multi-row
   buffers. Each character is placed with the colour matching its
   JSON token type.
+
+  ## Theme integration (v2.0.0+)
+
+  When no `:key_color` / `:string_color` / etc. are supplied, the
+  defaults are `theme:quaternary`, `theme:success`, `theme:info`,
+  `theme:ternary`, `theme:sad`, `theme:no_color` — they resolve
+  through `Pote.Orchestrator.parse_color/1` so the active theme
+  picks them up. Pass an RGB tuple, hex string, or atom to override.
   """
 
   alias Alaja.{Buffer, Cell}
 
-  @key_color {86, 182, 194}
-  @string_color {152, 195, 121}
-  @number_color {209, 154, 102}
-  @boolean_color {198, 120, 221}
-  @null_color {128, 128, 128}
-  @punctuation_color {180, 180, 180}
+  @key_color "theme:quaternary"
+  @string_color "theme:success"
+  @number_color "theme:info"
+  @boolean_color "theme:ternary"
+  @null_color "theme:sad"
+  @punctuation_color "theme:no_color"
 
   @doc """
   Prints JSON to stdout with syntax highlighting.
@@ -67,14 +75,32 @@ defmodule Alaja.Components.Json do
 
   defp build_colors(opts) do
     %{
-      key: Keyword.get(opts, :key_color, @key_color),
-      string: Keyword.get(opts, :string_color, @string_color),
-      number: Keyword.get(opts, :number_color, @number_color),
-      boolean: Keyword.get(opts, :boolean_color, @boolean_color),
-      null: Keyword.get(opts, :null_color, @null_color),
-      punctuation: Keyword.get(opts, :punctuation_color, @punctuation_color)
+      key: resolve_color(Keyword.get(opts, :key_color, @key_color)),
+      string: resolve_color(Keyword.get(opts, :string_color, @string_color)),
+      number: resolve_color(Keyword.get(opts, :number_color, @number_color)),
+      boolean: resolve_color(Keyword.get(opts, :boolean_color, @boolean_color)),
+      null: resolve_color(Keyword.get(opts, :null_color, @null_color)),
+      punctuation: resolve_color(Keyword.get(opts, :punctuation_color, @punctuation_color))
     }
   end
+
+  # Resolve a color spec to an RGB tuple. Accepts:
+  #   * an RGB tuple `{r, g, b}` — returned as-is
+  #   * a string ("theme:primary", "#FF0000", "red", ...) — parsed via Pote
+  #   * `nil` — returned as nil (no colour)
+  defp resolve_color({r, g, b} = rgb)
+       when is_integer(r) and is_integer(g) and is_integer(b),
+       do: rgb
+
+  defp resolve_color(s) when is_binary(s) do
+    case Pote.Orchestrator.parse_color(s) do
+      {:ok, rgb} -> rgb
+      _ -> nil
+    end
+  end
+
+  defp resolve_color(nil), do: nil
+  defp resolve_color(_), do: nil
 
   # Tokenizer-based writer. Walks the line char by char, identifying
   # tokens and writing coloured cells. Strings are tracked across the
