@@ -10,7 +10,7 @@ defmodule Alaja.CLI.Smoke.AnimatedBarKittTest do
   Bug: frames print on the same lines, mixing with shell prompt because
   the cursor escape only clears the current line.
   """
-  use Alaja.CLI.Smoke.Case, async: false
+  use Alaja.SmokeCase, async: false
 
   @test_name "animated_bar_kitt_test.exs::kitt animation"
 

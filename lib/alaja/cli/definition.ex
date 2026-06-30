@@ -221,6 +221,23 @@ defmodule Alaja.CLI.Definition do
         dispatch_main(args)
       end
 
+      @doc """
+      Runs a single command without re-starting the application stack.
+
+      This is the in-process execution path used by `alaja action` for
+      batch execution. It assumes the application is already running, so
+      it skips `Application.ensure_all_started/1`. Use `main/1` for the
+      top-level entry point and `exec/1` for child invocations.
+
+      ## Example
+
+          Alaja.CLI.exec(["message", "--text", "Hello"])
+      """
+      @spec exec([String.t()]) :: term()
+      def exec(args) do
+        Alaja.CLI.Definition.dispatch(@commands |> Enum.reverse(), args)
+      end
+
       defp dispatch_main(args) do
         # Ensure both :alaja (for the rendering stack) and the host
         # OTP application (the one declared with `use Alaja.CLI.Definition,

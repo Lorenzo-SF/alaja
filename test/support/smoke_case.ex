@@ -1,4 +1,4 @@
-defmodule Alaja.CLI.Smoke.Case do
+defmodule Alaja.SmokeCase do
   @moduledoc """
   Base case for smoke tests.
 
@@ -29,17 +29,19 @@ defmodule Alaja.CLI.Smoke.Case do
   - Interactive prompts (use direct component tests for those)
   """
 
-  use ExUnit.Case, async: false
+  defmacro __using__(opts) do
+    quote do
+      use ExUnit.Case, unquote(opts)
+      import ExUnit.Assertions
+      import Alaja.SmokeCase
+    end
+  end
+
+  @ansi_csi_regex ~r/\x1b\[[0-9;]*[a-zA-Z]/
+  @ansi_osc_regex ~r/\x1b\][^\x07]*\x07/
 
   @doc """
   Runs an alaja CLI command as a subprocess and returns the stripped output.
-
-  ## Options
-
-    * `:timeout` — max ms to wait (default 30_000)
-    * `:stdin` — string piped to stdin
-    * `:env` — extra environment variables
-
   """
   @spec run_cli([String.t()], keyword()) :: {String.t(), String.t(), non_neg_integer()}
   def run_cli(args, opts \\ []) do
@@ -70,25 +72,19 @@ defmodule Alaja.CLI.Smoke.Case do
 
     case Task.yield(task, timeout) || Task.shutdown(task) do
       {:ok, result} -> result
-      {:exit, reason} -> flunk("CLI crashed: #{inspect(reason)}")
-      nil -> flunk("CLI timed out after #{timeout}ms")
+      {:exit, reason} -> raise "CLI crashed: #{inspect(reason)}"
+      nil -> raise "CLI timed out after #{timeout}ms"
     end
   end
 
   @doc """
   Strips ANSI escape codes from output and normalizes whitespace.
-
-  Removes:
-    - All CSI sequences (`\e[...m`, `\e[...H`, `\e[K`, `\e[J`, etc.)
-    - OSC sequences (`\e]...`)
-    - Trailing whitespace per line
-    - Carriage returns (`\r`)
   """
   @spec normalize(String.t()) :: String.t()
   def normalize(output) do
     output
-    |> String.replace(~r/\e\[[0-9;?]*[ -/]*[@-~]/, "")
-    |> String.replace(~r/\e\][^\e]*\e\\/, "")
+    |> String.replace(@ansi_csi_regex, "")
+    |> String.replace(@ansi_osc_regex, "")
     |> String.replace("\r", "")
     |> String.split("\n")
     |> Enum.map(&String.trim_trailing/1)
@@ -98,16 +94,6 @@ defmodule Alaja.CLI.Smoke.Case do
 
   @doc """
   Compares actual output to committed snapshot.
-
-  On mismatch:
-    - Shows diff (first 1000 chars)
-    - In CI without UPDATE_SNAPSHOTS: fails
-    - Locally with `mix alaja.snapshot --confirm`: updates
-
-  ## Options
-
-    * `:snapshot` — override snapshot name (default: based on test name)
-    * `:filter` — fn to filter the actual output before comparison (rare)
   """
   @spec assert_snapshot(String.t(), String.t(), keyword()) :: :ok
   def assert_snapshot(test_name, actual_output, opts \\ []) do
@@ -124,7 +110,7 @@ defmodule Alaja.CLI.Smoke.Case do
           :ok
         else
           write_diff(snapshot_path, expected, actual)
-          flunk(snapshot_mismatch_message(snapshot_path, expected, actual))
+          raise snapshot_mismatch_message(snapshot_path, expected, actual)
         end
 
       System.get_env("UPDATE_SNAPSHOTS") == "1" ->
@@ -133,10 +119,9 @@ defmodule Alaja.CLI.Smoke.Case do
         :ok
 
       true ->
-        # No snapshot, no env var — write first run
         File.mkdir_p!(Path.dirname(snapshot_path))
         File.write!(snapshot_path, normalized_actual)
-        flunk("Snapshot created at #{snapshot_path}. Re-run tests to verify.")
+        raise "Snapshot created at #{snapshot_path}. Re-run tests to verify."
     end
   end
 
@@ -146,7 +131,16 @@ defmodule Alaja.CLI.Smoke.Case do
   @spec snapshot_path(String.t(), String.t() | nil) :: String.t()
   def snapshot_path(test_name, override \\ nil) do
     relative = override || Macro.underscore(test_name)
-    Path.join([alaja_project_root(), "test", "alaja", "cli", "smoke", "snapshots", "#{relative}.exs.snap"])
+
+    Path.join([
+      alaja_project_root(),
+      "test",
+      "alaja",
+      "cli",
+      "smoke",
+      "snapshots",
+      "#{relative}.exs.snap"
+    ])
   end
 
   # ---------------------------------------------------------------------------
@@ -161,14 +155,11 @@ defmodule Alaja.CLI.Smoke.Case do
     if File.identical?(expected, actual), do: :ok
 
     diff =
-      [
-        "--- expected",
-        "+++ actual",
-        ""
-      ]
+      ["--- expected", "+++ actual", ""]
       |> Enum.concat(naive_diff(expected, actual))
 
     max_len = 4000
+
     truncated =
       if String.length(diff) > max_len do
         String.slice(diff, 0, max_len) <> "\n... [truncated]"
@@ -182,7 +173,6 @@ defmodule Alaja.CLI.Smoke.Case do
   end
 
   defp naive_diff(a, b) do
-    # Just show the actual vs expected side by side, simple approach
     a_lines = String.split(a, "\n")
     b_lines = String.split(b, "\n")
     max_lines = max(length(a_lines), length(b_lines))

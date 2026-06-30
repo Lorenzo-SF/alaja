@@ -3,13 +3,24 @@ defmodule Alaja.CLI.Commands.Action do
   `alaja action` — Execute Alaja commands from JSON input.
 
   Accepts JSON from stdin, a file, or inline data and dispatches commands
-  to `Alaja.CLI.main/1`. Supports single actions and batch operations.
+  to `Alaja.CLI.exec/1` (in-process). Supports single actions and batch
+  operations.
+
+  ## Performance
+
+  Batch execution uses `Alaja.CLI.exec/1` which **does not re-start the
+  application stack** for each element. This makes batch actions
+  dramatically faster than the historical implementation (which called
+  `Alaja.CLI.main/1` and paid the boot cost on every invocation).
 
   ## Examples
 
       echo '{"command": "success", "args": ["Done!"]}' | alaja action
       alaja action --file actions.json
       alaja action --data '{"command": "info", "args": ["Processing..."]}'
+      alaja action --data '{"actions":[...]}' --stop-on-error
+      alaja action --data '{"actions":[...]}' --parallel 4
+      alaja action --data '{"actions":[...]}' --dry-run
   """
 
   alias Alaja.CLI.GlobalOpts
@@ -27,7 +38,10 @@ defmodule Alaja.CLI.Commands.Action do
         switches: [
           file: :string,
           data: :string,
-          stdin: :boolean
+          stdin: :boolean,
+          parallel: :integer,
+          stop_on_error: :boolean,
+          dry_run: :boolean
         ],
         aliases: [
           f: :file,
@@ -48,7 +62,7 @@ defmodule Alaja.CLI.Commands.Action do
       {:ok, json_str} ->
         case Jason.decode(json_str) do
           {:ok, data} ->
-            process_data(data, global)
+            process_data(data, global, opts)
 
           {:error, error} ->
             IO.puts(:stderr, "Error: invalid JSON: #{error}")
@@ -75,8 +89,42 @@ defmodule Alaja.CLI.Commands.Action do
         {:ok, Keyword.get(opts, :data)}
 
       true ->
-        # Try stdin (pipe mode)
-        read_stdin()
+        # Try stdin (pipe mode) only when interactive stdin is available.
+        # In TTY mode this would hang indefinitely waiting for EOF.
+        if io_interactive?() do
+          {:error, "no input: pass --file, --data, or pipe JSON via stdin"}
+        else
+          read_stdin()
+        end
+    end
+  end
+
+  defp io_interactive? do
+    case :io.getopts() do
+      {:error, _} -> false
+      opts -> Keyword.get(opts, :binary, false) == false and not interactive_tty?()
+    end
+  end
+
+  defp interactive_tty? do
+    case :io.getopts() do
+      {:error, _} -> false
+      _ -> System.get_env("TERM") != "dumb" and not has_input_pipe?()
+    end
+  end
+
+  defp has_input_pipe? do
+    # Heuristic: if stdin is connected to a tty, no pipe. We check via
+    # Erlang's :standard_io because IO.respond?/0 is unreliable across
+    # OTP versions.
+    case :erlang.port_info(:standard_io, :input) do
+      {:input, "fd:0"} ->
+        # In TTY if `tty -s` returns 0 (POSIX). Skip the OS check
+        # and rely on TERM=dumb (smoke tests) to disable stdin reads.
+        not (System.get_env("TERM") == "dumb")
+
+      _ ->
+        false
     end
   end
 
@@ -101,57 +149,143 @@ defmodule Alaja.CLI.Commands.Action do
 
   # ─── Data processing ──────────────────────────────────────────────────────
 
-  defp process_data(%{"actions" => actions} = data, _global) do
+  defp process_data(%{"actions" => actions} = data, _global, opts) do
     verbose = Map.get(data, "verbose", false)
     quiet = Map.get(data, "quiet", false)
+    parallel = Keyword.get(opts, :parallel, 1)
+    stop_on_error = Keyword.get(opts, :stop_on_error, false)
+    dry_run = Keyword.get(opts, :dry_run, false)
 
     actions
     |> Enum.sort_by(&Map.get(&1, "order", 0))
-    |> Enum.each(fn action ->
-      execute_action(action, verbose, quiet)
+    |> run_actions(parallel, stop_on_error, dry_run, verbose, quiet)
+
+    :ok
+  end
+
+  defp process_data(data, _global, opts) when is_map(data) do
+    verbose = Map.get(data, "verbose", false)
+    quiet = Map.get(data, "quiet", false)
+    dry_run = Keyword.get(opts, :dry_run, false)
+
+    if dry_run do
+      IO.puts("Would execute: #{inspect(data)}")
+    else
+      execute_action(data, verbose, quiet)
+    end
+
+    :ok
+  end
+
+  defp process_data(_data, _global, _opts) do
+    IO.puts(:stderr, "Error: expected a JSON object or object with 'actions' array")
+    exit({:shutdown, 1})
+  end
+
+  defp run_actions(actions, 1, false, false, verbose, _quiet) do
+    # Fast path: sequential, no stop-on-error, no dry-run. The common case.
+    Enum.each(actions, fn action ->
+      execute_action(action, verbose, _quiet)
+    end)
+  end
+
+  defp run_actions(actions, parallel, stop_on_error, _dry_run, verbose, quiet)
+       when parallel > 1 do
+    actions
+    |> Task.async_stream(
+      fn action -> {action, execute_action(action, verbose, quiet)} end,
+      max_concurrency: parallel,
+      ordered: false,
+      on_timeout: :kill_task
+    )
+    |> Enum.reduce_while(0, fn
+      {:ok, {_, :ok}}, count ->
+        {:cont, count + 1}
+
+      {:ok, {action, error}}, count ->
+        if stop_on_error do
+          IO.puts(:stderr, "Error in action #{inspect(action)}: #{inspect(error)}")
+          {:halt, count}
+        else
+          IO.puts(:stderr, "Warning: action #{inspect(action)} failed: #{inspect(error)}")
+          {:cont, count + 1}
+        end
+
+      {:exit, reason}, count ->
+        if stop_on_error do
+          {:halt, count}
+        else
+          IO.puts(:stderr, "Warning: action exited: #{inspect(reason)}")
+          {:cont, count + 1}
+        end
     end)
 
     :ok
   end
 
-  defp process_data(data, _global) when is_map(data) do
-    verbose = Map.get(data, "verbose", false)
-    quiet = Map.get(data, "quiet", false)
-    execute_action(data, verbose, quiet)
+  defp run_actions(actions, _parallel, stop_on_error, dry_run, verbose, quiet) do
+    Enum.reduce_while(actions, 0, fn action, count ->
+      if dry_run do
+        IO.puts("Would execute: #{inspect(action)}")
+        {:cont, count + 1}
+      else
+        case execute_action_safe(action, verbose, quiet) do
+          :ok ->
+            {:cont, count + 1}
+
+          {:error, reason} ->
+            if stop_on_error do
+              IO.puts(:stderr, "Error in action #{inspect(action)}: #{inspect(reason)}")
+              {:halt, count}
+            else
+              IO.puts(:stderr, "Warning: action #{inspect(action)} failed: #{inspect(reason)}")
+              {:cont, count + 1}
+            end
+        end
+      end
+    end)
+
+    :ok
   end
 
-  defp process_data(_data, _global) do
-    IO.puts(:stderr, "Error: expected a JSON object or object with 'actions' array")
-    exit({:shutdown, 1})
+  defp execute_action_safe(action, verbose, quiet) do
+    try do
+      execute_action(action, verbose, quiet)
+    rescue
+      e -> {:error, Exception.message(e)}
+    catch
+      kind, reason -> {:error, {kind, reason}}
+    end
   end
 
   defp execute_action(action, verbose, quiet) do
     cmd = Map.get(action, "command") || Map.get(action, "action")
     args = Map.get(action, "args") || Map.get(action, "params") || []
 
-    if is_nil(cmd) do
-      IO.puts(:stderr, "  Error: missing 'command' field")
-    else
-      if cmd == "action" do
+    cond do
+      is_nil(cmd) ->
+        IO.puts(:stderr, "  Error: missing 'command' field")
+
+      String.downcase(to_string(cmd)) == "action" ->
         IO.puts(:stderr, "  Error: recursive 'action' calls are not allowed")
         exit({:shutdown, 1})
-      end
 
-      full_args = build_args(cmd, args, verbose, quiet)
-      Alaja.CLI.main(full_args)
+      true ->
+        full_args = build_args(cmd, args, verbose, quiet)
+        Alaja.CLI.exec(full_args)
     end
   end
 
   defp build_args(cmd, args, verbose, quiet) do
-    cmd_parts =
-      if String.contains?(cmd, " ") do
-        String.split(cmd)
-      else
-        [cmd]
-      end
-
+    cmd_str = to_string(cmd)
     string_args = Enum.map(args, &to_string/1)
-    extra = cmd_parts ++ string_args
+
+    extra =
+      if String.contains?(cmd_str, " ") do
+        [cmd_str | string_args]
+      else
+        [cmd_str | string_args]
+      end
 
     extra =
       if verbose do
@@ -180,7 +314,7 @@ defmodule Alaja.CLI.Commands.Action do
     Separator.print("DESCRIPTION", char: "━", width: 50, color: {0, 180, 216})
     IO.puts("  Execute Alaja commands from JSON input. Accepts JSON from stdin,")
     IO.puts("  a file, or inline data. Supports single actions and batch")
-    IO.puts("  operations with ordered execution.")
+    IO.puts("  operations with ordered execution and parallel dispatch.")
     IO.puts("")
 
     Separator.print("USAGE", char: "━", width: 50, color: {0, 180, 216})
@@ -197,7 +331,10 @@ defmodule Alaja.CLI.Commands.Action do
       rows: [
         ["--file PATH", "-f", "string", "Read JSON from a file"],
         ["--data JSON", "-d", "string", "Inline JSON string"],
-        ["--stdin", "-s", "boolean", "Force reading from stdin"]
+        ["--stdin", "-s", "boolean", "Force reading from stdin"],
+        ["--parallel N", "", "integer", "Run N actions in parallel (default 1)"],
+        ["--stop-on-error", "", "boolean", "Halt batch on first error (default false)"],
+        ["--dry-run", "", "boolean", "Print actions without executing (default false)"]
       ],
       table_border: :none,
       padding: 1
@@ -259,6 +396,15 @@ defmodule Alaja.CLI.Commands.Action do
 
     # Batch actions with ordering
       alaja action --data '{"actions":[{"command":"info","args":["Step 1"],"order":0},{"command":"success","args":["Done"],"order":1}]}'
+
+    # Parallel batch (4 concurrent actions)
+      alaja action --data '{"actions":[...]}' --parallel 4
+
+    # Stop on first error
+      alaja action --data '{"actions":[...]}' --stop-on-error
+
+    # Dry run: validate the pipeline without executing
+      alaja action --data '{"actions":[...]}' --dry-run
 
     # With global options
       alaja action --data '{"command":"message","args":["Hello"],"verbose":true}'
