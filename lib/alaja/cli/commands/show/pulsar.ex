@@ -145,7 +145,11 @@ defmodule Alaja.CLI.Commands.Show.Pulsar do
 
   defp print_verbose_frames(text, pulsar_opts) do
     Enum.each(0..19, fn frame ->
-      frame_output = Pulsar.render_frame(text, frame, pulsar_opts)
+      frame_output =
+        text
+        |> Pulsar.render_frame(frame, pulsar_opts)
+        |> Alaja.Buffer.to_iodata()
+
       IO.puts(frame_output)
       IO.puts("")
     end)
@@ -188,11 +192,36 @@ defmodule Alaja.CLI.Commands.Show.Pulsar do
       IO.write(Alaja.ANSI.hide_cursor())
     end
 
-    try do
-      animate_loop(text, pulsar_opts, global, 0, speed, box_height, left_pad, start_pos)
-    after
+    # Bail out early if the terminal cannot fit the pulsar — there's
+    # no point animating into a region that overflows, the cursor-up
+    # redraw would loop over already-overwritten lines and the
+    # animation would visibly stick.
+    {term_h, _term_w} =
+      case :io.rows() do
+        {:ok, h} -> {h, 80}
+        _ -> {24, 80}
+      end
+
+    {_, start_y} = start_pos
+
+    if start_y + box_height - 1 > term_h do
+      IO.write(
+        :stderr,
+        "alaja pulsar: not enough vertical space (#{start_y + box_height - 1} > #{term_h}); aborting\n"
+      )
+
       if global.raw do
         IO.write(Alaja.ANSI.show_cursor())
+      end
+
+      :ok
+    else
+      try do
+        animate_loop(text, pulsar_opts, global, 0, speed, box_height, left_pad, start_pos)
+      after
+        if global.raw do
+          IO.write(Alaja.ANSI.show_cursor())
+        end
       end
     end
   end
@@ -243,25 +272,39 @@ defmodule Alaja.CLI.Commands.Show.Pulsar do
     frame_output = Pulsar.render_frame(text, frame, pulsar_opts)
     output = wrap_if_boxed(frame_output, global)
 
-    # Apply left padding to each line
-    padded_output =
-      output
-      |> String.split("\n")
-      |> Enum.map_join("\n", fn line -> String.duplicate(" ", left_pad) <> line end)
-
     if global.raw do
       {start_x, start_y} = start_pos
 
+      # In raw mode position each row individually with ANSI cursor moves.
+      # Using \n between rows would reset the cursor to column 1, losing
+      # the start_x offset for every row after the first.
+      positioned =
+        output
+        |> IO.iodata_to_binary()
+        |> String.split("\n")
+        |> Enum.with_index()
+        |> Enum.map_join(fn {line, row} ->
+          Alaja.ANSI.move_to(start_x + left_pad, start_y + row) <> line
+        end)
+
       if frame == 0 do
-        IO.write([Alaja.ANSI.hide_cursor(), Alaja.ANSI.move_to(start_x, start_y), padded_output])
+        IO.write([Alaja.ANSI.hide_cursor(), positioned])
       else
         IO.write([
           Alaja.ANSI.move_to(start_x, start_y),
           Alaja.ANSI.clear_line_down(),
-          padded_output
+          positioned
         ])
       end
     else
+      # Non-raw mode: prepend left_pad spaces to each line for alignment.
+      # After \n the cursor is at column 1, so spaces correctly offset each row.
+      padded_output =
+        output
+        |> IO.iodata_to_binary()
+        |> String.split("\n")
+        |> Enum.map_join("\n", fn line -> String.duplicate(" ", left_pad) <> line end)
+
       if frame == 0 do
         # Save cursor position before writing
         IO.write([Alaja.ANSI.save_cursor(), padded_output])
@@ -305,10 +348,14 @@ defmodule Alaja.CLI.Commands.Show.Pulsar do
       |> maybe_add(:border, global.box_border)
       |> maybe_add(:border_color, global.box_color)
 
-    Box.render(frame_output, box_opts) |> IO.iodata_to_binary()
+    frame_output
+    |> Box.render(box_opts)
+    |> Alaja.Buffer.to_iodata()
   end
 
-  defp wrap_if_boxed(frame_output, _global), do: frame_output
+  defp wrap_if_boxed(frame_output, _global) do
+    Alaja.Buffer.to_iodata(frame_output)
+  end
 
   defp maybe_add(list, _key, nil), do: list
   defp maybe_add(list, key, value), do: Keyword.put(list, key, value)

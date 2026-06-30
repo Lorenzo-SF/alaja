@@ -1,5 +1,5 @@
 defmodule Alaja.ConfigTest do
-  use ExUnit.Case
+  use ExUnit.Case, async: false
 
   alias Alaja.Config
 
@@ -66,12 +66,128 @@ defmodule Alaja.ConfigTest do
     end
 
     test "returns {:ok, rgb} for a key present in the active theme" do
-      assert {:ok, {189, 147, 249}} = Config.lookup_theme_color("primary")
-      assert {:ok, {255, 184, 108}} = Config.lookup_theme_color("ternary")
+      assert {:ok, {189, 147, 249}} = Config.lookup_theme_color("theme:primary")
+      assert {:ok, {255, 184, 108}} = Config.lookup_theme_color("theme:ternary")
     end
 
     test "returns :error for a key not in the active theme" do
       assert :error = Config.lookup_theme_color("not_a_real_key")
     end
+  end
+
+  describe "load!/1 + ALAJAX_* env vars" do
+    setup do
+      tmp_dir =
+        Path.join(
+          System.tmp_dir!(),
+          "alaja_config_load_test_#{:erlang.unique_integer([:positive])}"
+        )
+
+      File.mkdir_p!(tmp_dir)
+      wipe_load_state!()
+
+      on_exit(fn ->
+        wipe_load_state!()
+        File.rm_rf!(tmp_dir)
+      end)
+
+      {:ok, tmp_dir: tmp_dir}
+    end
+
+    # Each test starts with a defensive wipe so that, if a concurrent test
+    # in another module has set ALAJA_* env vars between our setup and the
+    # body of this test, our explicit delete wins. This makes the tests
+    # robust against the cross-module env-var races that async: true
+    # enables by default.
+
+    test "returns :ok for a non-existent path", %{tmp_dir: tmp_dir} do
+      wipe_load_state!()
+      missing = Path.join(tmp_dir, "no-such-file.json")
+      assert :ok = Config.load!(missing)
+    end
+
+    test "loads JSON content into Application env", %{tmp_dir: tmp_dir} do
+      wipe_load_state!()
+
+      path = Path.join(tmp_dir, "alaja.conf")
+
+      File.write!(
+        path,
+        Jason.encode!(%{"color_depth" => "xterm256", "theme_active" => "midnight"})
+      )
+
+      # skip_env: deterministic file-only behaviour regardless of any
+      # BEAM-global env state leaked from concurrent tests.
+      Config.load!(path, skip_env: true)
+
+      assert Application.get_env(:alaja, :color_depth) == :xterm256
+      assert Application.get_env(:alaja, :theme_active) == "midnight"
+    end
+
+    test "swallows malformed JSON silently", %{tmp_dir: tmp_dir} do
+      wipe_load_state!()
+      path = Path.join(tmp_dir, "broken.json")
+      File.write!(path, "{not valid json")
+      assert :ok = Config.load!(path)
+    end
+
+    test "ALAJAX_COLOR_DEPTH overrides on-disk value", %{tmp_dir: tmp_dir} do
+      wipe_load_state!()
+
+      path = Path.join(tmp_dir, "alaja.conf")
+      File.write!(path, Jason.encode!(%{"color_depth" => "xterm256"}))
+
+      System.put_env("ALAJAX_COLOR_DEPTH", "ansi16")
+      Config.load!(path)
+
+      assert Application.get_env(:alaja, :color_depth) == :ansi16
+    end
+
+    test "ALAJAX_THEME_ACTIVE overrides on-disk value", %{tmp_dir: tmp_dir} do
+      wipe_load_state!()
+
+      path = Path.join(tmp_dir, "alaja.conf")
+      File.write!(path, Jason.encode!(%{"theme_active" => "midnight"}))
+
+      System.put_env("ALAJAX_THEME_ACTIVE", "oceanic-next")
+      Config.load!(path)
+
+      assert Application.get_env(:alaja, :theme_active) == "oceanic-next"
+    end
+
+    test "empty ALAJA_* env vars are ignored", %{tmp_dir: tmp_dir} do
+      wipe_load_state!()
+
+      path = Path.join(tmp_dir, "alaja.conf")
+      File.write!(path, Jason.encode!(%{"color_depth" => "truecolor"}))
+
+      System.put_env("ALAJAX_COLOR_DEPTH", "")
+      Config.load!(path)
+
+      assert Application.get_env(:alaja, :color_depth) == :truecolor
+    end
+
+    test "env vars apply even when the on-disk file is missing", %{tmp_dir: tmp_dir} do
+      wipe_load_state!()
+
+      missing = Path.join(tmp_dir, "no-such-file.json")
+      System.put_env("ALAJAX_COLOR_DEPTH", "xterm256")
+
+      Config.load!(missing)
+
+      assert Application.get_env(:alaja, :color_depth) == :xterm256
+    end
+  end
+
+  # Wipe the global state load!/1 and ensure_loaded/0 touch so concurrent
+  # tests cannot observe leaks.
+  defp wipe_load_state! do
+    for var <- ~w(ALAJAX_COLOR_DEPTH ALAJA_THEME_ACTIVE) do
+      System.delete_env(var)
+    end
+
+    Application.delete_env(:alaja, :__conf_loaded__)
+    Application.delete_env(:alaja, :color_depth)
+    Application.delete_env(:alaja, :theme_active)
   end
 end

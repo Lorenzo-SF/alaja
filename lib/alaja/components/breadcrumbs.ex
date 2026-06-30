@@ -41,8 +41,8 @@ defmodule Alaja.Components.Breadcrumbs do
 
   Returns `[]` for an empty list (legacy compat with the iodata API).
   """
-  @spec render([String.t()], keyword()) :: Buffer.t() | []
-  def render([], _opts), do: []
+  @spec render([String.t()], keyword()) :: Buffer.t()
+  def render([], _opts), do: Buffer.new(0, 1)
 
   def render(items, opts) do
     separator = Keyword.get(opts, :separator, @default_separator)
