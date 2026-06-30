@@ -6,6 +6,12 @@ defmodule Alaja.Config do
   kept in the Application environment for the lifetime of the process.
   `set/2` writes through to both the in-memory store and the conf file.
 
+  In addition to the JSON config file, environment variables prefixed
+  with `ALAJAX_` override persisted values at load time. The mapping is
+  mechanical: `ALAJAX_COLOR_DEPTH` overrides `:color_depth`,
+  `ALAJAX_THEME_ACTIVE` overrides `:theme_active`. This lets CI shells
+  and one-off scripts override the on-disk config without rewriting it.
+
   ## Usage
 
       Alaja.Config.get(:color_depth, :truecolor)
@@ -20,6 +26,13 @@ defmodule Alaja.Config do
 
   # Keys that are persisted to alaja.conf
   @persistent_keys [:color_depth, :theme_active]
+
+  # Mapping from `ALAJAX_*` env var name -> persistent key atom.
+  # Add new entries here when extending the persistent config surface.
+  @env_var_map %{
+    "ALAJAX_COLOR_DEPTH" => :color_depth,
+    "ALAJAX_THEME_ACTIVE" => :theme_active
+  }
 
   @doc "Gets a configuration value with fallback."
   @spec get(atom(), any()) :: any()
@@ -146,16 +159,40 @@ defmodule Alaja.Config do
   @spec ensure_loaded() :: :ok
   def ensure_loaded do
     unless Application.get_env(:alaja, :__conf_loaded__) do
-      load_from_disk()
+      load!(config_file_path())
       Application.put_env(:alaja, :__conf_loaded__, true)
     end
 
     :ok
   end
 
-  defp load_from_disk do
-    path = config_file_path()
+  @doc """
+  Loads configuration from `path` and overlays `ALAJAX_*` env vars.
 
+  The on-disk JSON content is parsed into a map and each key is
+  written to Application env. Env vars win over the file content:
+  for every `{"ALAJAX_X" => :foo}` mapping, if the env var is set
+  and non-empty, its value (cast through `cast_env_value/2`) is
+  written last and therefore wins.
+
+  Missing files, malformed JSON, and parse errors are all swallowed
+  silently — Config must never crash an escript at startup. Returns
+  `:ok` once the overlay has been applied.
+
+  ## Example
+
+      iex> Alaja.Config.load!("/path/that/does/not/exist.json")
+      :ok
+
+  """
+  @spec load!(String.t()) :: :ok
+  def load!(path) do
+    load_from_disk(path)
+    overlay_env_vars()
+    :ok
+  end
+
+  defp load_from_disk(path) do
     with true <- File.exists?(path),
          {:ok, content} <- File.read(path),
          {:ok, data} <- Jason.decode(content) do
@@ -163,6 +200,19 @@ defmodule Alaja.Config do
     else
       _ -> :ok
     end
+  end
+
+  # Overlay `ALAJAX_*` env vars on top of the loaded Application env.
+  # Walk the env_var_map and, for each entry whose env var is set and
+  # non-empty, write the cast value into Application env.
+  defp overlay_env_vars do
+    Enum.each(@env_var_map, fn {env_name, key} ->
+      case System.get_env(env_name) do
+        nil -> :ok
+        "" -> :ok
+        raw -> Application.put_env(:alaja, key, cast_value(key, raw))
+      end
+    end)
   end
 
   defp store_key_value({k, v}) do
