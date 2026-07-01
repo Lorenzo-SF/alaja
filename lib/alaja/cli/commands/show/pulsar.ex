@@ -192,11 +192,36 @@ defmodule Alaja.CLI.Commands.Show.Pulsar do
       IO.write(Alaja.ANSI.hide_cursor())
     end
 
-    try do
-      animate_loop(text, pulsar_opts, global, 0, speed, box_height, left_pad, start_pos)
-    after
+    # Bail out early if the terminal cannot fit the pulsar — there's
+    # no point animating into a region that overflows, the cursor-up
+    # redraw would loop over already-overwritten lines and the
+    # animation would visibly stick.
+    {term_h, _term_w} =
+      case :io.rows() do
+        {:ok, h} -> {h, 80}
+        _ -> {24, 80}
+      end
+
+    {_, start_y} = start_pos
+
+    if start_y + box_height - 1 > term_h do
+      IO.write(
+        :stderr,
+        "alaja pulsar: not enough vertical space (#{start_y + box_height - 1} > #{term_h}); aborting\n"
+      )
+
       if global.raw do
         IO.write(Alaja.ANSI.show_cursor())
+      end
+
+      :ok
+    else
+      try do
+        animate_loop(text, pulsar_opts, global, 0, speed, box_height, left_pad, start_pos)
+      after
+        if global.raw do
+          IO.write(Alaja.ANSI.show_cursor())
+        end
       end
     end
   end

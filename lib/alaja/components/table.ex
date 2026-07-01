@@ -296,124 +296,150 @@ defmodule Alaja.Components.Table do
     do_render_buffer(headers || [], rows, Keyword.merge(opts, table_opts))
   end
 
+  # Build the table as iodata (with ANSI escapes embedded), then walk
+  # each line and translate character-by-character into Buffer cells.
+  # ANSI escape sequences become cell fg colour metadata; plain
+  # characters become one cell each. This single path is the canonical
+  # implementation: it reuses build_table_string/5 for ALL formatting
+  # (per-cell colour, effects, align, header/row distinct rendering),
+  # so render/2 is feature-complete without a parallel implementation.
   defp do_render_buffer(headers, rows, opts) do
-    padding = Keyword.get(opts, :padding, 1)
-    border_style = Keyword.get(opts, :table_border, :normal)
-    border_color = resolve_color(Keyword.get(opts, :border_color))
-    header_color = resolve_color(Keyword.get(opts, :headers_color))
-    row_color = resolve_color(Keyword.get(opts, :rows_color))
-    b = get_border_chars(border_style, Keyword.get(opts, :table_border_custom))
-
     {headers, rows} = normalize_data(headers, rows)
-    data = if headers == [], do: rows, else: [headers | rows]
-    column_widths = calculate_column_widths(data)
+    column_widths = calculate_column_widths([headers | rows])
+    config = build_config(opts, column_widths)
 
-    # Total inner width = sum(column_widths) + padding*2 * n_cols + (n_cols - 1) separators
-    n_cols = length(column_widths)
-    sep_count = max(n_cols - 1, 0)
+    iodata = build_table_string(headers, rows, column_widths, config, opts)
 
-    inner_w =
-      Enum.sum(column_widths) + padding * 2 * n_cols + sep_count
+    # Each line is a list of strings/iodata. Split on '\n' terminators
+    # and translate each line into a Buffer row.
+    lines = split_iodata_lines(iodata)
+    iodata_to_buffer(lines)
+  end
 
-    total_w = inner_w + 2
-    # height = top border + header + sep + rows + bottom border
-    has_header = headers != []
-    n_rows = length(rows)
-    total_h = 1 + if(has_header, do: 2, else: 0) + n_rows + 1
+  # Walk the iodata, splitting into lines at every "\n". The iodata
+  # produced by build_table_string has "\n" as a bare atom (not nested
+  # in a string), so we can split without parsing.
+  defp split_iodata_lines(iodata) do
+    iodata
+    |> List.flatten()
+    |> Enum.chunk_by(&(&1 == "\n"))
+    |> Enum.reject(&(&1 == ["\n"]))
+    |> Enum.map(&Enum.join/1)
+  end
 
-    buffer = Buffer.new(total_w, total_h)
-    buffer = draw_top_border(buffer, b, inner_w, border_color)
+  # Translate an array of text lines (with embedded ANSI escapes) into
+  # a Buffer. Visible characters become one cell each with the current
+  # fg colour; ANSI sequences update the current fg but emit no cells.
+  defp iodata_to_buffer(lines) do
+    parsed = Enum.map(lines, &parse_line/1)
 
-    {buffer, next_y} =
-      if has_header do
-        buffer = draw_row(buffer, 1, headers, column_widths, b, header_color, padding)
-        {draw_separator(buffer, 2, inner_w, b, border_color), 3}
-      else
-        {buffer, 1}
-      end
+    width =
+      parsed
+      |> Enum.map(fn cells -> Enum.reduce(cells, 0, &Kernel.+/2) end)
+      |> Enum.max(fn -> 0 end)
 
-    buffer =
-      rows
+    height = length(parsed)
+    buffer = Buffer.new(width, height)
+
+    parsed
+    |> Enum.with_index()
+    |> Enum.reduce(buffer, fn {cells, y}, buf ->
+      cells
       |> Enum.with_index()
-      |> Enum.reduce(buffer, fn {row, i}, buf ->
-        draw_row(buf, next_y + i, row, column_widths, b, row_color, padding)
+      |> Enum.reduce({buf, 0}, fn {{char, fg}, _, {b, x}} ->
+        {Buffer.put(b, x, y, char, fg), x + 1}
       end)
-
-    draw_bottom_border(buffer, b, inner_w, border_color)
-  end
-
-  defp draw_top_border(buffer, b, inner_w, fg) do
-    fill_border_row(buffer, 0, inner_w, b.top_left, b.horizontal, b.top_right, fg)
-  end
-
-  defp draw_bottom_border(buffer, b, inner_w, fg) do
-    fill_border_row(
-      buffer,
-      buffer.height - 1,
-      inner_w,
-      b.bottom_left,
-      b.horizontal,
-      b.bottom_right,
-      fg
-    )
-  end
-
-  defp draw_separator(buffer, y, inner_w, b, fg) do
-    fill_border_row(buffer, y, inner_w, b.left_t, b.cross, b.right_t, fg)
-  end
-
-  defp fill_border_row(buffer, y, inner_w, left, mid, right, fg) do
-    # Layout: left + inner_w * mid + right = inner_w + 2 chars total
-    buffer
-    |> put_cell(0, y, left, fg)
-    |> fill_mid(1, y, inner_w, mid, fg)
-    |> put_cell(1 + inner_w, y, right, fg)
-  end
-
-  defp fill_mid(buffer, x, y, count, char, fg) do
-    Enum.reduce(0..(count - 1), buffer, fn offset, buf ->
-      put_cell(buf, x + offset, y, char, fg)
+      |> elem(0)
     end)
   end
 
-  defp draw_row(buffer, y, row, widths, b, color, padding) do
-    # Layout per row: | pad cell pad | pad cell pad | ...
-    buffer
-    |> put_cell(0, y, b.vertical, nil)
-
-    Enum.zip(Enum.with_index(widths), row)
-    |> Enum.reduce(buffer, fn {{w, i}, cell}, buf ->
-      # Left padding
-      buf = fill_chars(buf, 1 + sum_widths_before(widths, i), y, padding, " ", nil)
-      # Cell content (centered)
-      aligned = align_cell(cell, w, padding)
-      buf = put_cell_string(buf, 1 + sum_widths_before(widths, i) + padding, y, aligned, color)
-      # Right padding
-      buf = fill_chars(buf, 1 + sum_widths_before(widths, i) + padding + w, y, padding, " ", nil)
-      # Separator
-      buf =
-        if i < length(widths) - 1 do
-          put_cell(buf, 1 + sum_widths_before(widths, i + 1) - 1, y, b.vertical, nil)
-        else
-          buf
-        end
-
-      buf
-    end)
-    |> put_cell(buffer.width - 1, y, b.vertical, nil)
+  # Walk a line of mixed text + ANSI escapes, returning [{char, fg}].
+  # Fg is reset to nil on plain text or after a reset (\e[0m).
+  defp parse_line(line) when is_binary(line) do
+    {cells, _fg, _rest} = parse_chars(line, [], nil)
+    Enum.reverse(cells)
   end
 
-  defp sum_widths_before(widths, i) do
-    widths |> Enum.take(i) |> Enum.sum() |> Kernel.+(i * 2) |> Kernel.+(i)
+  defp parse_chars("", acc, fg), do: {acc, fg, ""}
+
+  defp parse_chars(<<"\e[0m", rest/binary>>, acc, fg) do
+    parse_chars(rest, acc, nil)
   end
 
-  defp fill_chars(buffer, x, y, count, char, fg) when count > 0 do
-    Enum.reduce(0..(count - 1), buffer, fn offset, buf ->
-      put_cell(buf, x + offset, y, char, fg)
-    end)
+  # True-colour fg: \e[38;2;R;G;Bm
+  defp parse_chars(<<"\e[38;2;", r::binary-8, ";", g::binary-8, ";", b::binary-8, "m", rest/binary>>, acc, _fg) do
+    case {Integer.parse(r), Integer.parse(g), Integer.parse(b)} do
+      {{ri, ""}, {gi, ""}, {bi, ""}} ->
+        parse_chars(rest, acc, {ri, gi, bi})
+
+      _ ->
+        parse_chars(rest, acc, _fg)
+    end
   end
 
-  defp fill_chars(buffer, _x, _y, 0, _char, _fg), do: buffer
+  # SGR reset / clear styles: \e[m
+  defp parse_chars(<<"\e[m", rest/binary>>, acc, fg) do
+    parse_chars(rest, acc, fg)
+  end
+
+  # Any other escape sequence: skip until 'm'.
+  defp parse_chars(<<"\e[", rest/binary>>, acc, fg) do
+    {skipped, after_rest} = skip_to_m(rest)
+    parse_chars(after_rest, acc, apply_sgr(acc, fg, skipped))
+  end
+
+  defp parse_chars(<<?\e, _::binary>>, acc, fg), do: {acc, fg, ""}
+
+  defp parse_chars(<<char::utf8, rest::binary>>, acc, fg) do
+    parse_chars(rest, [{<<char::utf8>>, fg} | acc], fg)
+  end
+
+  defp parse_chars(<<_, rest::binary>>, acc, fg) do
+    parse_chars(rest, acc, fg)
+  end
+
+  defp skip_to_m(<<";", rest::binary>>), do: {";", rest}
+  defp skip_to_m(<<";", _::binary, "m", rest::binary>>), do: {";m", rest}
+  defp skip_to_m(<<";", _::binary>> = rest), do: {";", rest}
+
+  defp skip_to_m(<<c, rest::binary>>) do
+    {skipped, after_rest} = skip_to_m(rest)
+    {<<c>> <> skipped, after_rest}
+  end
+
+  defp skip_to_m(""), do: {"", ""}
+
+  # Minimal SGR application — we only care about fg colour updates
+  # because the buffer pipeline doesn't carry effects (no italic/bold
+  # in cells yet). Other SGR codes are ignored.
+  defp apply_sgr(_acc, _fg, skipped) do
+    case parse_fg_sgr(skipped) do
+      nil -> nil
+      rgb -> rgb
+    end
+  end
+
+  defp parse_fg_sgr(skipped) do
+    # Look for "38;2;R;G;B" sequence inside the skipped bytes.
+    if String.starts_with?(skipped, "38;2;") do
+      rest = String.slice(skipped, 5, byte_size(skipped) - 5)
+      case String.split(rest, ";") do
+        [r, g, b] ->
+          with {ri, ""} <- Integer.parse(r),
+               {gi, ""} <- Integer.parse(g),
+               {bi, ""} <- Integer.parse(b) do
+            {ri, gi, bi}
+          else
+            _ -> nil
+          end
+
+        _ ->
+          nil
+      end
+    else
+      nil
+    end
+  end
 
   defp put_cell_string(buffer, x, y, string, fg) do
     string

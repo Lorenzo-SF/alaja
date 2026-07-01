@@ -103,12 +103,19 @@ defmodule Alaja.Components.Box do
   end
 
   defp prepare_content(content, padding) when is_binary(content) do
-    lines = String.split(content, "\n")
+    # Strip ANSI escapes before splitting lines so the visible width
+    # measurement (in prepare_lines/2) doesn't count the escape bytes
+    # as characters. Without this, gradient / coloured text gets a
+    # wildly oversized box because each \e[38;2;R;G;Bm adds ~16 chars
+    # to String.length/1's tally.
+    visible = strip_ansi(content)
+    lines = String.split(visible, "\n")
     prepare_lines(lines, padding)
   end
 
   defp prepare_content(content, padding) when is_list(content) do
-    prepare_lines(content, padding)
+    visible = Enum.map(content, &strip_ansi/1)
+    prepare_lines(visible, padding)
   end
 
   defp prepare_lines(lines, padding) do
@@ -137,6 +144,12 @@ defmodule Alaja.Components.Box do
     visible = String.length(text)
     padding_count = max(0, target_width - visible)
     text <> String.duplicate(" ", padding_count)
+  end
+
+  @ansi_regex ~r/\e\[[0-9;]*m/
+
+  defp strip_ansi(text) when is_binary(text) do
+    String.replace(text, @ansi_regex, "")
   end
 
   defp write_line(buffer, x, y, line) do
