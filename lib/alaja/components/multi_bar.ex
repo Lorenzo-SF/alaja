@@ -208,10 +208,10 @@ defmodule Alaja.Components.MultiBar do
       done: false
     }
 
-    # Hide cursor and save cursor position BEFORE rendering so refresh can come back here
+    # Hide cursor and render the initial table.
+    # line_count tracks how many terminal lines the table occupies,
+    # so refresh() can move the cursor back up and repaint in-place.
     IO.write(Alaja.ANSI.hide_cursor())
-    # DEC save cursor
-    IO.write("\e7")
 
     rendered = render_table(state)
     actual_lines = count_lines(rendered)
@@ -262,11 +262,11 @@ defmodule Alaja.Components.MultiBar do
   def handle_call(:done, _from, state) do
     state = %{state | done: true}
 
-    # Restore to where we were before the first render
-    IO.write("\e8")
-    # Clear the bar area
+    # Repaint the final state in-place, then advance past it
+    n = max(state.line_count - 1, 0)
+    IO.write("\r")
+    if n > 0, do: IO.write("\e[#{n}A")
     IO.write("\e[J")
-    # Print final state
     final = render_table(state)
     IO.write(final)
     IO.write(Alaja.ANSI.show_cursor())
@@ -362,11 +362,12 @@ defmodule Alaja.Components.MultiBar do
   # ── ANSI cursor helpers ─────────────────────────────────────────────────────
 
   defp refresh(state) do
-    # Restore to where we were before the first render
-    IO.write("\e8")
-    # Clear everything from there down (kills the old table)
+    # Go to column 0 of the current (last) line, move up to the first
+    # table line, clear everything from there down, then re-render.
+    n = max(state.line_count - 1, 0)
+    IO.write("\r")
+    if n > 0, do: IO.write("\e[#{n}A")
     IO.write("\e[J")
-    # Re-render the new table
     IO.write(render_table(state))
   end
 
