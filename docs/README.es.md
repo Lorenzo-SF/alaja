@@ -343,6 +343,7 @@ Alaja.CLI.Parser.parse_align("center")
 | `list`         | Lista estilizada con header opcional               |
 | `ask`          | Entrada de texto interactiva                       |
 | `menu`         | Menú de selección interactivo                      |
+| `multibar`     | Rastreador multi-tarea con barras paralelas        |
 | `yesno`        | Pregunta interactiva sí/no                         |
 
 **`Alaja.CLI.Commands.Config`** — Gestión de configuración:
@@ -367,6 +368,7 @@ Alaja.CLI.Parser.parse_align("center")
 | `Alaja.Components.Separator`   | Líneas horizontales con etiqueta centrada opcional  |
 | `Alaja.Components.Bar`         | Barras de progreso estáticas, degradados RGB        |
 | `Alaja.Components.AnimatedBar` | Barras animadas con GenServer (8 estilos)           |
+| `Alaja.Components.MultiBar`    | Barra multi-tarea con GenServer                     |
 | `Alaja.Components.Breadcrumbs` | Navegación tipo ruta con separador personalizable   |
 | `Alaja.Components.Box`         | Contenedores con bordes (5 estilos)                 |
 | `Alaja.Components.Json`        | JSON formateado con resaltado de sintaxis           |
