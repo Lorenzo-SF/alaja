@@ -175,6 +175,10 @@ defmodule Alaja.Config do
   and non-empty, its value (cast through `cast_env_value/2`) is
   written last and therefore wins.
 
+  Pass `skip_env: true` to skip the env var overlay — useful in
+  tests that need deterministic, file-only behaviour regardless of
+  the BEAM-wide env state.
+
   Missing files, malformed JSON, and parse errors are all swallowed
   silently — Config must never crash an escript at startup. Returns
   `:ok` once the overlay has been applied.
@@ -185,10 +189,14 @@ defmodule Alaja.Config do
       :ok
 
   """
-  @spec load!(String.t()) :: :ok
-  def load!(path) do
+  @spec load!(String.t(), keyword()) :: :ok
+  def load!(path, opts \\ []) do
     load_from_disk(path)
-    overlay_env_vars()
+
+    unless Keyword.get(opts, :skip_env, false) do
+      overlay_env_vars()
+    end
+
     :ok
   end
 
