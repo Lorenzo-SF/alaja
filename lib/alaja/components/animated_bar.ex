@@ -71,13 +71,13 @@ defmodule Alaja.Components.AnimatedBar do
         1
       )
 
-    # Position cursor manually for each piece; we re-use Buffer.write_string/4
-    # which is the canonical way to write styled strings into a Buffer.
+    # Write each piece as cells. animate_filled/5 returns [{char, fg}]
+    # tuples — no raw ANSI escapes — so we can Buffer.put/6 per cell.
     buffer = write_piece(buffer, 0, 0, label_str)
     offset = String.length(label_str)
     buffer = write_piece(buffer, offset, 0, "[")
     offset = offset + 1
-    {buffer, offset} = write_iodata_colored(buffer, offset, 0, filled_part, filled_color)
+    {buffer, offset} = write_cells(buffer, offset, 0, filled_part)
     {buffer, offset} = write_piece_with_offset(buffer, offset, 0, empty_portion)
     buffer = write_piece(buffer, offset, 0, "]")
     offset = offset + 1
@@ -97,10 +97,17 @@ defmodule Alaja.Components.AnimatedBar do
     {buf, x + String.length(text)}
   end
 
-  defp write_iodata_colored(buffer, x, y, iodata, _fg) do
-    text = IO.iodata_to_binary(iodata)
-    buf = Alaja.Buffer.write_string(buffer, x, y, text)
-    {buf, x + String.length(text)}
+  # Write a list of {char, fg} tuples into the buffer starting at (x, y).
+  # Each tuple becomes one Buffer cell with the given fg color (or nil
+  # for uncolored). Returns {buffer, next_x}.
+  defp write_cells(buffer, x, y, cells) do
+    Enum.reduce(cells, {buffer, x}, fn {char, fg}, {buf, cx} ->
+      if cx < buf.width do
+        {Buffer.put(buf, cx, y, char, fg), cx + 1}
+      else
+        {buf, cx + 1}
+      end
+    end)
   end
 
   @doc """
@@ -143,10 +150,15 @@ defmodule Alaja.Components.AnimatedBar do
   # ---------------------------------------------------------------------------
   # animate_filled/5 clauses — must be grouped together
   # ---------------------------------------------------------------------------
+  #
+  # Each clause returns a list of {char, fg} tuples — no raw ANSI escapes.
+  # The cells are written into the Buffer with proper fg colours, so the
+  # output survives Buffer.to_iodata/1's RLE pass without truncation.
 
-  defp animate_filled(count, position, :spinner, _char, _opts) do
+  defp animate_filled(count, position, :spinner, _char, opts) do
+    filled_color = Keyword.get(opts, :filled_color)
     frame = Enum.at(@spinner_frames, rem(position, length(@spinner_frames)))
-    String.duplicate(frame, count)
+    List.duplicate({frame, filled_color}, count)
   end
 
   defp animate_filled(count, position, :kitt, char, opts) do
@@ -156,18 +168,18 @@ defmodule Alaja.Components.AnimatedBar do
     {ar, ag, ab} = anim_color || filled_color || {0, 180, 216}
 
     if count == 0 do
-      ""
+      []
     else
       total = max(count, 1)
 
-      Enum.map_join(0..(count - 1), "", fn i ->
+      for i <- 0..(count - 1) do
         dist = abs(i - kitt_position(position, total, kitt_width))
         intensity = max(0.0, 1.0 - dist / kitt_width)
         r = round(ar * intensity)
         g = round(ag * intensity)
         b = round(ab * intensity)
-        Pote.Orchestrator.to_ansi({r, g, b}) <> char <> Alaja.ANSI.reset_attributes()
-      end)
+        {char, {r, g, b}}
+      end
     end
   end
 
@@ -176,7 +188,7 @@ defmodule Alaja.Components.AnimatedBar do
     frame_idx = rem(position, length(@pulse_frames))
     pulse_char = Enum.at(@pulse_frames, frame_idx)
 
-    color_ansi(filled_color) <> String.duplicate(pulse_char, count) <> reset()
+    List.duplicate({pulse_char, filled_color}, count)
   end
 
   defp animate_filled(count, position, :wave, _char, opts) do
@@ -184,13 +196,13 @@ defmodule Alaja.Components.AnimatedBar do
     wave_len = length(@wave_frames)
 
     if count == 0 do
-      ""
+      []
     else
-      Enum.map_join(0..(count - 1), "", fn i ->
+      for i <- 0..(count - 1) do
         wave_idx = rem(i + position, wave_len)
         wave_char = Enum.at(@wave_frames, wave_idx)
-        color_ansi(filled_color) <> wave_char <> reset()
-      end)
+        {wave_char, filled_color}
+      end
     end
   end
 
@@ -206,13 +218,12 @@ defmodule Alaja.Components.AnimatedBar do
     ]
 
     if count == 0 do
-      ""
+      []
     else
-      Enum.map_join(0..(count - 1), "", fn i ->
+      for i <- 0..(count - 1) do
         idx = rem(i + position, length(rainbow))
-        {r, g, b} = Enum.at(rainbow, idx)
-        Pote.Orchestrator.to_ansi({r, g, b}) <> char <> Alaja.ANSI.reset_attributes()
-      end)
+        {char, Enum.at(rainbow, idx)}
+      end
     end
   end
 
@@ -230,9 +241,4 @@ defmodule Alaja.Components.AnimatedBar do
     pos = rem(frame, cycle)
     if pos < range, do: pos, else: range * 2 - pos
   end
-
-  defp color_ansi(nil), do: ""
-  defp color_ansi({r, g, b}), do: Pote.Orchestrator.to_ansi({r, g, b})
-
-  defp reset, do: Alaja.ANSI.reset_attributes()
 end
