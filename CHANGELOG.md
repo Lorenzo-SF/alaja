@@ -7,23 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Added
-- **`alaja multibar`** — new CLI command for multi-task progress tracking with
-  parallel bars. Two modes: demo (animated simulation for `--duration` seconds)
-  and stdin (interactive pipe protocol with `progress`/`success`/`error`/`wait`/
-  `info`/`done` commands). Built on the new `Alaja.Components.MultiBar` GenServer
-  component.
-- **`Alaja.Components.MultiBar`** — GenServer-based multi-task progress bar
-  component. Supports 4 task states (`:running`, `:success`, `:error`, `:wait`),
-  per-task progress tracking, dynamic descriptions, and in-place ANSI repaint
-  via cursor-up positioning (`\r` + `\e[<n>A` + `\e[J`).
-
-### Fixed
-- **`Alaja.Components.MultiBar` repaint** — replaced fragile DEC SC/RC (`\e7`/`\e8`)
-  with cursor-up (`\r` + `\e[<line_count-1>A` + `\e[J`). The old approach caused
-  frames to accumulate on terminals that don't implement the DEC private save/
-  restore stack reliably (iTerm2, Terminal.app, Kitty, etc.).
-
 ## [2.0.0] - 2026-07-01
 
 This release marks a major API shift: alaja is now Buffer-first.
@@ -50,6 +33,15 @@ returns a tagged tuple) rather than the only option.
   `:url`, and `:color_list` flag types. `:integer` and `:float` no
   longer crash on garbage input — they fall back to the flag's
   default via `Integer.parse/1` and `Float.parse/1`.
+- **`alaja multibar`** — new CLI command for multi-task progress tracking with
+  parallel bars. Two modes: demo (animated simulation for `--duration` seconds)
+  and stdin (interactive pipe protocol with `progress`/`success`/`error`/`wait`/
+  `info`/`done` commands). Built on the new `Alaja.Components.MultiBar` GenServer
+  component.
+- **`Alaja.Components.MultiBar`** — GenServer-based multi-task progress bar
+  component. Supports 4 task states (`:running`, `:success`, `:error`, `:wait`),
+  per-task progress tracking, dynamic descriptions, and in-place ANSI repaint
+  via cursor-up positioning (`\r` + `\e[<n>A` + `\e[J`).
 
 ### Changed
 - **`Alaja.Components.ColorWheel`** exposes a canonical
@@ -77,6 +69,17 @@ returns a tagged tuple) rather than the only option.
 - **`Alaja.CLI.Definition.cast_flag_value(:integer, "abc", _)`** no
   longer raises ArgumentError. It returns the flag's default.
   Same for `:float`.
+- **`Alaja.Components.MultiBar` repaint** — replaced fragile DEC SC/RC (`\e7`/`\e8`)
+  with cursor-up (`\r` + `\e[<line_count-1>A` + `\e[J`). The old approach caused
+  frames to accumulate on terminals that don't implement the DEC private save/
+  restore stack reliably (iTerm2, Terminal.app, Kitty, etc.).
+- **BUG**: `alaja color <cualquercosa>` crashed with `ArgumentError: not an iodata term`
+  in `Printer.print_raw/2`. Root cause: `Alaja.Components.Table.render/2` was migrated
+  to return `Buffer.t/0` in commit 4cd539c but the CLI Color command still embedded the
+  Buffer inside an iolist. Fixed by applying `Buffer.to_iodata/1` in `build_color_analysis/3`
+  and the extras table block in `lib/alaja/cli/commands/color.ex` (matches the pattern in
+  `multi_bar.ex` and `show/bar.ex`).
+- **BUG**: `batamanta` dep version bumped from 1.5.1 to 1.6.0 (mix.lock updated).
 
 ### Migration
 - If you called `ColorWheel.render/2` (returning iodata), migrate to
