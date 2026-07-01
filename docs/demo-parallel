@@ -1,0 +1,146 @@
+#!/bin/bash
+# =============================================================================
+# demo-parallel — Simula 11 procesos en paralelo con alaja multibar
+# =============================================================================
+# Crea 11 workers que escriben comandos a un FIFO, simulando una build
+# paralela realista con progreso, waits, errores aleatorios y sleeps.
+#
+# Depende de: alaja (busca en PATH o en el mismo directorio)
+#
+# Uso:  demo-parallel [--duration N] [--title TITLE] [--border TYPE]
+#       demo-parallel                    # valores por defecto
+#       demo-parallel --duration 30      # más lento
+#       demo-parallel --border double    # borde doble
+# =============================================================================
+
+set -euo pipefail
+
+# ── Config ───────────────────────────────────────────────────────────────────
+DURATION=15
+TITLE="Parallel Build"
+BORDER="rounded"
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --duration) DURATION="$2";  shift 2 ;;
+    --title)    TITLE="$2";     shift 2 ;;
+    --border)   BORDER="$2";    shift 2 ;;
+    --help|-h)  sed -n '2,14p' "$0"; exit 0 ;;
+    *)          echo "error: argumento desconocido: $1"; exit 1 ;;
+  esac
+done
+
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+ALAJA="${ALAJA:-$(command -v alaja 2>/dev/null || echo "${SCRIPT_DIR}/alaja")}"
+
+# ── 11 tareas ────────────────────────────────────────────────────────────────
+TASKS="scan:File Scanner;parse:Log Parser;index:Search Index;embed:Embeddings;analyze:Data Analysis;render:Report Render;compress:Compression;upload:Cloud Upload;verify:Checksum Verify;deploy:Deploy Service;notify:Send Notification"
+
+# ── Limpieza al salir ────────────────────────────────────────────────────────
+CLEANUP_FIFO=""
+cleanup() {
+  [[ -n "$CLEANUP_FIFO" ]] && rm -f "$CLEANUP_FIFO"
+}
+trap cleanup EXIT INT TERM
+
+# ── rand <min> <max> — entero aleatorio en [min, max] ────────────────────────
+rand() { echo "$(( RANDOM % (($2 - $1 + 1)) + $1 ))"; }
+
+# ── frand <min> <max> — real aleatorio en [min, max) con 1 decimal ──────────
+frand() {
+  local min=$1 max=$2
+  local range=$(( (max - min) * 10 ))
+  local val=$(( RANDOM % range + min * 10 ))
+  local int_part=$(( val / 10 ))
+  local frac_part=$(( val % 10 ))
+  echo "${int_part}.${frac_part}"
+}
+
+# ── Worker: simula un proceso con progreso, sleeps y estado final ────────────
+# Escribe comandos al FIFO (heredado de la función) y decide al final
+# si el worker termina en éxito (80%) o error (20%).
+worker() {
+  local id=$1
+  local steps=$2
+
+  for ((i = 1; i <= steps; i++)); do
+    pct=$((i * 100 / steps))
+    echo "progress ${id} ${pct}"
+    sleep "$(frand 2 11)"  # 0.2s – 1.0s
+
+    # ~14% de los pasos intermedios entran en wait breve
+    if (( RANDOM % 7 == 0 )) && (( i < steps )); then
+      echo "wait ${id} resource-pending"
+      sleep "$(frand 3 19)"  # 0.3s – 1.8s
+      echo "progress ${id} ${pct}"
+    fi
+  done
+
+  # Decisión final: éxito (80%) o error (20%)
+  # NOTA: success/error usan mensajes sin espacios porque el parser de
+  # multibar hace split(" ", parts: 4) que no respeta comillas.
+  if (( RANDOM % 5 < 4 )); then
+    local elapsed=$(( RANDOM % 25 + 5 ))
+    echo "success ${id} done-in-${elapsed}s"
+  else
+    echo "error ${id} failed-after-${steps}-steps"
+  fi
+}
+
+# ── Validaciones ─────────────────────────────────────────────────────────────
+if ! [[ -x "$ALAJA" ]] && ! command -v "$ALAJA" &>/dev/null; then
+  echo "error: no se encuentra 'alaja' en PATH ni en $SCRIPT_DIR" >&2
+  echo "  ALAJA=/ruta/al/alaja demo-parallel" >&2
+  exit 1
+fi
+
+# ── Main ─────────────────────────────────────────────────────────────────────
+
+# Crear FIFO para comunicación workers → multibar
+CLEANUP_FIFO=$(mktemp -u /tmp/multibar-XXXXXX) || { echo "error: mktemp falló"; exit 1; }
+mkfifo "$CLEANUP_FIFO" || { echo "error: mkfifo falló"; exit 1; }
+
+echo ""
+echo "╔══════════════════════════════════════════════════════════════╗"
+echo "║   demo-parallel — 11 workers, simulando ≈${DURATION}s         ║"
+echo "╚══════════════════════════════════════════════════════════════╝"
+echo ""
+
+# Lanzar multibar en background conectado al FIFO
+"$ALAJA" multibar \
+  --tasks "$TASKS" \
+  --title "$TITLE" \
+  --border "$BORDER" \
+  --stdin < "$CLEANUP_FIFO" &
+MULTIBAR_PID=$!
+
+# Dar tiempo a que multibar arranque e inicialice su estado
+sleep 0.3
+
+# Lanzar 11 workers, cada uno con distinto número de pasos.
+# Cada worker redirige su stdout al FIFO para que multibar lo lea.
+worker scan     5 > "$CLEANUP_FIFO" &
+worker parse    8 > "$CLEANUP_FIFO" &
+worker index    6 > "$CLEANUP_FIFO" &
+worker embed    4 > "$CLEANUP_FIFO" &
+worker analyze  7 > "$CLEANUP_FIFO" &
+worker render   5 > "$CLEANUP_FIFO" &
+worker compress 10 > "$CLEANUP_FIFO" &
+worker upload   6 > "$CLEANUP_FIFO" &
+worker verify   7 > "$CLEANUP_FIFO" &
+worker deploy   4 > "$CLEANUP_FIFO" &
+worker notify   3 > "$CLEANUP_FIFO" &
+
+# Esperar a que todos los workers terminen
+wait
+
+# Cerrar el multibar
+echo "done" > "$CLEANUP_FIFO"
+
+# Esperar a que multibar termine
+wait "$MULTIBAR_PID" 2>/dev/null || true
+
+echo ""
+echo "╔══════════════════════════════════════════════════════════════╗"
+echo "║   Simulación completada                                    ║"
+echo "╚══════════════════════════════════════════════════════════════╝"
