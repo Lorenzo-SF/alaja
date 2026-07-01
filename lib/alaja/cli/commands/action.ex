@@ -182,80 +182,92 @@ defmodule Alaja.CLI.Commands.Action do
     exit({:shutdown, 1})
   end
 
-  defp run_actions(actions, 1, false, false, verbose, _quiet) do
+  defp run_actions(actions, 1, false, false, verbose, quiet) do
     # Fast path: sequential, no stop-on-error, no dry-run. The common case.
     Enum.each(actions, fn action ->
-      execute_action(action, verbose, _quiet)
+      execute_action(action, verbose, quiet)
     end)
   end
 
   defp run_actions(actions, parallel, stop_on_error, _dry_run, verbose, quiet)
        when parallel > 1 do
-    actions
-    |> Task.async_stream(
-      fn action -> {action, execute_action(action, verbose, quiet)} end,
-      max_concurrency: parallel,
-      ordered: false,
-      on_timeout: :kill_task
-    )
-    |> Enum.reduce_while(0, fn
-      {:ok, {_, :ok}}, count ->
-        {:cont, count + 1}
-
-      {:ok, {action, error}}, count ->
-        if stop_on_error do
-          IO.puts(:stderr, "Error in action #{inspect(action)}: #{inspect(error)}")
-          {:halt, count}
-        else
-          IO.puts(:stderr, "Warning: action #{inspect(action)} failed: #{inspect(error)}")
+    _ =
+      actions
+      |> Task.async_stream(
+        fn action -> {action, execute_action(action, verbose, quiet)} end,
+        max_concurrency: parallel,
+        ordered: false,
+        on_timeout: :kill_task
+      )
+      |> Enum.reduce_while(0, fn
+        {:ok, {_, :ok}}, count ->
           {:cont, count + 1}
-        end
 
-      {:exit, reason}, count ->
-        if stop_on_error do
-          {:halt, count}
-        else
-          IO.puts(:stderr, "Warning: action exited: #{inspect(reason)}")
-          {:cont, count + 1}
-        end
-    end)
+        {:ok, {action, error}}, count ->
+          handle_stream_error(action, error, stop_on_error, count)
+
+        {:exit, reason}, count ->
+          if stop_on_error do
+            {:halt, count}
+          else
+            IO.puts(:stderr, "Warning: action exited: #{inspect(reason)}")
+            {:cont, count + 1}
+          end
+      end)
 
     :ok
   end
 
   defp run_actions(actions, _parallel, stop_on_error, dry_run, verbose, quiet) do
-    Enum.reduce_while(actions, 0, fn action, count ->
-      if dry_run do
-        IO.puts("Would execute: #{inspect(action)}")
-        {:cont, count + 1}
-      else
-        case execute_action_safe(action, verbose, quiet) do
-          :ok ->
-            {:cont, count + 1}
-
-          {:error, reason} ->
-            if stop_on_error do
-              IO.puts(:stderr, "Error in action #{inspect(action)}: #{inspect(reason)}")
-              {:halt, count}
-            else
-              IO.puts(:stderr, "Warning: action #{inspect(action)} failed: #{inspect(reason)}")
-              {:cont, count + 1}
-            end
+    _ =
+      Enum.reduce_while(actions, 0, fn action, count ->
+        if dry_run do
+          IO.puts("Would execute: #{inspect(action)}")
+          {:cont, count + 1}
+        else
+          process_action_result(action, verbose, quiet, stop_on_error, count)
         end
-      end
-    end)
+      end)
 
     :ok
   end
 
-  defp execute_action_safe(action, verbose, quiet) do
-    try do
-      execute_action(action, verbose, quiet)
-    rescue
-      e -> {:error, Exception.message(e)}
-    catch
-      kind, reason -> {:error, {kind, reason}}
+  defp process_action_result(action, verbose, quiet, stop_on_error, count) do
+    case execute_action_safe(action, verbose, quiet) do
+      :ok ->
+        {:cont, count + 1}
+
+      {:error, reason} ->
+        handle_action_error(action, reason, stop_on_error, count)
     end
+  end
+
+  defp handle_stream_error(action, error, stop_on_error, count) do
+    if stop_on_error do
+      IO.puts(:stderr, "Error in action #{inspect(action)}: #{inspect(error)}")
+      {:halt, count}
+    else
+      IO.puts(:stderr, "Warning: action #{inspect(action)} failed: #{inspect(error)}")
+      {:cont, count + 1}
+    end
+  end
+
+  defp handle_action_error(action, reason, stop_on_error, count) do
+    if stop_on_error do
+      IO.puts(:stderr, "Error in action #{inspect(action)}: #{inspect(reason)}")
+      {:halt, count}
+    else
+      IO.puts(:stderr, "Warning: action #{inspect(action)} failed: #{inspect(reason)}")
+      {:cont, count + 1}
+    end
+  end
+
+  defp execute_action_safe(action, verbose, quiet) do
+    execute_action(action, verbose, quiet)
+  rescue
+    e -> {:error, Exception.message(e)}
+  catch
+    kind, reason -> {:error, {kind, reason}}
   end
 
   defp execute_action(action, verbose, quiet) do

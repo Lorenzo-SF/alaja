@@ -23,6 +23,7 @@ defmodule Alaja.CLI.Smoke.ImageAsciiTest do
         [{255, 100, 50}, {100, 200, 30}],
         [{50, 50, 200}, {255, 255, 0}]
       ]
+
       png_bin = Alaja.ImageRenderer.generate_png(pixels, 2, 2)
       File.write!(test_png, png_bin)
     end
@@ -34,10 +35,13 @@ defmodule Alaja.CLI.Smoke.ImageAsciiTest do
     {output, _stderr, exit_code} =
       run_cli([
         "image",
-        "--path", png_path,
+        "--path",
+        png_path,
         "--to-ascii-art",
-        "--ascii-style", "blocks",
-        "--width", "10",
+        "--ascii-style",
+        "blocks",
+        "--width",
+        "10",
         "--ascii-color"
       ])
 
@@ -53,10 +57,13 @@ defmodule Alaja.CLI.Smoke.ImageAsciiTest do
     {output, _stderr, exit_code} =
       run_cli([
         "image",
-        "--path", png_path,
+        "--path",
+        png_path,
         "--to-ascii-art",
-        "--ascii-style", "simple",
-        "--width", "8"
+        "--ascii-style",
+        "simple",
+        "--width",
+        "8"
       ])
 
     assert exit_code == 0, "CLI should not crash. Output:\n#{output}"
@@ -70,10 +77,13 @@ defmodule Alaja.CLI.Smoke.ImageAsciiTest do
     {output, _stderr, exit_code} =
       run_cli([
         "image",
-        "--path", png_path,
+        "--path",
+        png_path,
         "--to-ascii-art",
-        "--ascii-style", "detailed",
-        "--width", "16",
+        "--ascii-style",
+        "detailed",
+        "--width",
+        "16",
         "--ascii-color"
       ])
 

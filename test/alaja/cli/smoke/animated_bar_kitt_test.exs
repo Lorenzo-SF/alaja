@@ -21,9 +21,12 @@ defmodule Alaja.CLI.Smoke.AnimatedBarKittTest do
       run_cli([
         "animated-bar",
         "10",
-        "--type", "kitt",
-        "--animation-color", "red",
-        "--duration", "500"
+        "--type",
+        "kitt",
+        "--animation-color",
+        "red",
+        "--duration",
+        "500"
       ])
 
     assert exit_code == 0, "CLI should not crash. Output:\n#{output}"
@@ -36,11 +39,15 @@ defmodule Alaja.CLI.Smoke.AnimatedBarKittTest do
       run_cli([
         "animated-bar",
         "10",
-        "--type", "kitt",
-        "--animation-color", "cyan",
-        "--duration", "500",
+        "--type",
+        "kitt",
+        "--animation-color",
+        "cyan",
+        "--duration",
+        "500",
         "--box",
-        "--box-border", "rounded"
+        "--box-border",
+        "rounded"
       ])
 
     assert exit_code == 0, "CLI should not crash. Output:\n#{output}"

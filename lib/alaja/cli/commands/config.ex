@@ -108,20 +108,23 @@ defmodule Alaja.CLI.Commands.Config do
   defp init_config do
     config_path = Path.expand("~/.config/alaja")
 
+    mkdir_p!(config_path)
+    install_theme_templates()
+    write_default_config(config_path)
+
+    IO.puts("\n  \e[38;2;72;187;120mConfiguration initialized at #{config_path}\e[0m\n")
+  end
+
+  defp mkdir_p!(config_path) do
     IO.write("  Creating #{config_path} ... ")
 
     case File.mkdir_p(config_path) do
       :ok -> IO.puts("\e[38;2;72;187;120m✓\e[0m")
       {:error, r} -> IO.puts("\e[38;2;245;101;101m✗ #{inspect(r)}\e[0m")
     end
+  end
 
-    # Install all built-in theme templates from Pote.Theme.Templates.
-    # Each template has the full set of colour keys (primary, secondary,
-    # ternary, quaternary, success, warning, error, info, debug, happy,
-    # sad, gradient_1..6, menu, alert, critical, no_color, background).
-    # Using Alaja.Theme.install_template/1 ensures the JSON written to
-    # disk is in the format Pote.Theme's resolver expects (flat [r,g,b]
-    # arrays, not the legacy {"rgb": [r,g,b]} wrapper).
+  defp install_theme_templates do
     Enum.each(Theme.templates(), fn name ->
       IO.write("  Writing #{name}.json ... ")
 
@@ -130,7 +133,9 @@ defmodule Alaja.CLI.Commands.Config do
         {:error, reason} -> IO.puts("\e[38;2;245;101;101m✗ #{inspect(reason)}\e[0m")
       end
     end)
+  end
 
+  defp write_default_config(config_path) do
     config_file = Path.join(config_path, "alaja.conf")
 
     unless File.exists?(config_file) do
@@ -152,8 +157,6 @@ defmodule Alaja.CLI.Commands.Config do
         {:error, r} -> IO.puts("\e[38;2;245;101;101m✗ #{inspect(r)}\e[0m")
       end
     end
-
-    IO.puts("\n  \e[38;2;72;187;120mConfiguration initialized at #{config_path}\e[0m\n")
   end
 
   defp list_themes do
