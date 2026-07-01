@@ -18,12 +18,10 @@ defmodule Alaja.Wizard.Renderers do
   calling these directly.
   """
 
-  alias Alaja.{Buffer, Cell, Wizard}
+  alias Alaja.{Buffer, Wizard}
 
   # ANSI palette used by the boxed renderers for the borders.
   @border_fg {120, 120, 120}
-  @accent_fg {0, 180, 216}
-  @label_fg {170, 170, 170}
 
   # ─── :inline ─────────────────────────────────────────────────────────
   # `Name: alice, Age: 30, Subscribe: true`
@@ -175,7 +173,7 @@ defmodule Alaja.Wizard.Renderers do
 
   defp cell_at(%Buffer{} = b, x, y) do
     case Buffer.get(b, x, y) do
-      %Cell{char: ch} -> ch
+      %{char: ch} -> ch
       _ -> " "
     end
   end
