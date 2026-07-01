@@ -1,14 +1,22 @@
 # Alaja — Framework CLI declarativo y kit de renderizado para terminal en Elixir
 
-[![Hex version](https://img.shields.io/badge/hex-0.3.3-blue.svg)](https://hex.pm/packages/alaja)
-[![Version](https://img.shields.io/badge/version-0.3.3-blue.svg)](https://github.com/Lorenzo-SF/alaja)
+[![Hex version](https://img.shields.io/badge/hex-2.0.0-blue.svg)](https://hex.pm/packages/alaja)
+[![Version](https://img.shields.io/badge/version-2.0.0-blue.svg)](https://github.com/Lorenzo-SF/alaja)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
+
+<p align="center">
+  <img src="https://raw.githubusercontent.com/Lorenzo-SF/alaja/main/docs/batamantaman_alaja.png" width="400" alt="Alaja" />
+</p>
 
 Alaja es un framework CLI declarativo y kit de renderizado para terminal en
 Elixir. Define comandos con un DSL, valida flags, genera ayuda automática y
 renderiza salida de terminal enriquecida — tablas, headers, cajas, barras,
-breadcrumbs, resaltado de sintaxis JSON, degradados y prompts interactivos
-— todo con secuencias ANSI de color verdadero (24-bit).
+breadcrumbs, Wizard, multibar, resaltado de sintaxis JSON, degradados y
+prompts interactivos — todo con secuencias ANSI de color verdadero (24-bit).
+
+A partir de la versión 2.0.0, los componentes son Buffer-first: retornan
+`Alaja.Buffer.t()` en lugar de iodata o strings, permitiendo composición
+avanzada (overlays, apilados, recortes).
 
 Alaja es un framework CLI declarativo y kit de renderizado para terminal,
 publicado como librería independiente. Depende de
@@ -429,7 +437,7 @@ Alaja.Components.Breadcrumbs.print(["Inicio", "Proyectos", "Zaguan"])
 **JSON**:
 
 ```elixir
-Alaja.Components.Json.print(%{nombre: "Alaja", version: "0.3.3", deps: ["pote", "jason"]})
+Alaja.Components.Json.print(%{nombre: "Alaja", version: "2.0.0", deps: ["pote", "jason"]})
 ```
 
 **ColorWheel**:
@@ -627,8 +635,8 @@ Agrega `alaja` y `pote` a tu `mix.exs`:
 ```elixir
 def deps do
   [
-    {:alaja, path: "../alaja"},
-    {:pote, path: "../pote"}
+    {:alaja, "~> 2.0"},
+    {:pote, github: "Lorenzo-SF/pote", branch: "main"}
   ]
 end
 ```
@@ -636,6 +644,18 @@ end
 Luego ejecuta `mix deps.get`.
 
 ---
+
+> ## Nota sobre el historial
+>
+> El historial de git de este repositorio fue reseteado como parte de un
+> esfuerzo deliberado de limpieza. Los commits que puedes leer aquí describen
+> el codebase tal como existe hoy — no preservan la cronología original del
+> desarrollo.
+>
+> Cualquier cosa que valía la pena mantener del período anterior al reset fue
+> traspasada como releases etiquetados con entradas explícitas en el
+> `CHANGELOG.md`. Cualquier cosa no preservada es, por decisión del
+> responsable, ya no parte de la línea de desarrollo canónica.
 
 ## Licencia
 
