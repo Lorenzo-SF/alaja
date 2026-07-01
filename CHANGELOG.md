@@ -5,6 +5,25 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+- **`alaja multibar`** — new CLI command for multi-task progress tracking with
+  parallel bars. Two modes: demo (animated simulation for `--duration` seconds)
+  and stdin (interactive pipe protocol with `progress`/`success`/`error`/`wait`/
+  `info`/`done` commands). Built on the new `Alaja.Components.MultiBar` GenServer
+  component.
+- **`Alaja.Components.MultiBar`** — GenServer-based multi-task progress bar
+  component. Supports 4 task states (`:running`, `:success`, `:error`, `:wait`),
+  per-task progress tracking, dynamic descriptions, and in-place ANSI repaint
+  via cursor-up positioning (`\r` + `\e[<n>A` + `\e[J`).
+
+### Fixed
+- **`Alaja.Components.MultiBar` repaint** — replaced fragile DEC SC/RC (`\e7`/`\e8`)
+  with cursor-up (`\r` + `\e[<line_count-1>A` + `\e[J`). The old approach caused
+  frames to accumulate on terminals that don't implement the DEC private save/
+  restore stack reliably (iTerm2, Terminal.app, Kitty, etc.).
+
 ## [2.0.0] - 2026-07-01
 
 This release marks a major API shift: alaja is now Buffer-first.
