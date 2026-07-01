@@ -341,6 +341,7 @@ Alaja.CLI.Parser.parse_align("center")
 | `list`         | Styled list with optional header                   |
 | `ask`          | Interactive text input                             |
 | `menu`         | Interactive selection menu                         |
+| `multibar`     | Multi-task progress tracker with parallel bars     |
 | `yesno`        | Interactive yes/no question                        |
 
 **`Alaja.CLI.Commands.Config`** — Configuration management:
@@ -394,6 +395,7 @@ which feature they are embedding.
 | `Alaja.Components.Separator`   | Horizontal rules with optional centered label |
 | `Alaja.Components.Bar`         | Static progress bars, RGB gradients           |
 | `Alaja.Components.AnimatedBar` | GenServer-based animated bars (8 styles)      |
+| `Alaja.Components.MultiBar`    | GenServer-based multi-task progress bar        |
 | `Alaja.Components.Breadcrumbs` | Path navigation with customizable separator   |
 | `Alaja.Components.Box`         | Bordered containers (5 border styles)         |
 | `Alaja.Components.Json`        | Pretty-printed JSON with syntax highlighting  |
