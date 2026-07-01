@@ -54,14 +54,15 @@ defmodule Alaja.CLI.Commands.Show.Multibar do
           bar_width = Keyword.get(opts, :bar_width, @default_bar_width)
           bar_color = Parser.parse_color_opt(Keyword.get(opts, :bar_color))
 
-          multibar_opts = [
-            tasks: tasks,
-            title: title,
-            table_border: border,
-            bar_width: bar_width,
-            bar_color: bar_color
-          ]
-          |> Enum.reject(fn {_, v} -> is_nil(v) end)
+          multibar_opts =
+            [
+              tasks: tasks,
+              title: title,
+              table_border: border,
+              bar_width: bar_width,
+              bar_color: bar_color
+            ]
+            |> Enum.reject(fn {_, v} -> is_nil(v) end)
 
           if global.stdin or Keyword.get(opts, :stdin, false) do
             run_stdin_mode(multibar_opts, global)
@@ -81,13 +82,54 @@ defmodule Alaja.CLI.Commands.Show.Multibar do
   defp run_demo_mode(multibar_opts, _global, duration_sec) do
     duration_ms = duration_sec * 1000
     ticks = max(1, div(duration_ms, @tick_ms))
+    tasks = Keyword.get(multibar_opts, :tasks, [])
+
+    # Track per-task state: :running, :wait, :failed
+    task_state_map = Map.new(tasks, fn t -> {t.id, :running} end)
+    progress_map = Map.new(tasks, fn t -> {t.id, 0} end)
 
     case MultiBar.start_link(multibar_opts) do
       {:ok, pid} ->
         try do
-          demo_loop(pid, ticks, multibar_opts)
+          demo_loop(pid, ticks, multibar_opts, task_state_map, progress_map)
+
+          # Final pass: mark all still-running tasks as success
+          total = length(tasks)
+
+          failed =
+            Enum.count(tasks, fn t ->
+              case Process.get({:task_state, t.id}, :running) do
+                :failed -> true
+                _ -> false
+              end
+            end)
+
+          succeeded = total - failed
+
+          # Store summary data for after block
+          Process.put(:demo_summary, {failed, succeeded, total})
+
+          # Small delay so user can see final state
+          Process.sleep(@tick_ms * 2)
         after
           MultiBar.done(pid)
+
+          # Print summary after multibar is done
+          case Process.get(:demo_summary) do
+            {failed, succeeded, total} when failed == 0 ->
+              IO.puts("Demo completado: #{succeeded}/#{total} tareas finalizadas correctamente")
+
+            {failed, succeeded, total} ->
+              IO.puts("Demo completado: #{succeeded}/#{total} OK, #{failed} con error simulado")
+
+            nil ->
+              :ok
+          end
+
+          Process.delete(:demo_summary)
+
+          # Cleanup Process dictionary
+          Enum.each(tasks, fn t -> Process.delete({:task_state, t.id}) end)
         end
 
       {:error, reason} ->
@@ -96,36 +138,70 @@ defmodule Alaja.CLI.Commands.Show.Multibar do
     end
   end
 
-  defp demo_loop(_pid, 0, _opts), do: :ok
+  defp demo_loop(_pid, 0, _opts, _task_state_map, _progress_map), do: :ok
 
-  defp demo_loop(pid, ticks_left, opts) do
+  defp demo_loop(pid, ticks_left, opts, task_state_map, progress_map) do
     tasks = Keyword.get(opts, :tasks, [])
 
-    # Randomly update each running task
-    Enum.each(tasks, fn task ->
-      id = Map.fetch!(task, :id)
-      # 1 in 10 chance to error
-      if :rand.uniform(10) == 1 do
-        MultiBar.error(pid, id, "Fallo simulado")
-      else
-        # Random increment 5-15%
-        increment = :rand.uniform(11) + 4
-        MultiBar.progress(pid, id, increment, "Procesando...")
-      end
-    end)
+    {new_task_state_map, new_progress_map} =
+      Enum.reduce(tasks, {task_state_map, progress_map}, fn task, {state_acc, prog_acc} ->
+        id = task.id
+        current_state = Map.get(state_acc, id, :running)
+        current_progress = Map.get(prog_acc, id, 0)
 
-    # Small pause between ticks
+        cond do
+          # Failed tasks: don't progress further
+          current_state == :failed ->
+            {state_acc, prog_acc}
+
+          # Wait tasks: slowly advance but don't mark progress
+          current_state == :wait ->
+            # Resume to running with 30% chance per tick
+            if :rand.uniform(3) == 1 do
+              {Map.put(state_acc, id, :running), prog_acc}
+            else
+              {state_acc, prog_acc}
+            end
+
+          # Running tasks: progress + occasional fail/success
+          true ->
+            # 5% chance of failure, but only if progress >= 60 (advanced enough)
+            cond do
+              :rand.uniform(20) == 1 and current_progress >= 60 ->
+                MultiBar.error(pid, id, "Fallo simulado")
+                Process.put({:task_state, id}, :failed)
+                {Map.put(state_acc, id, :failed), prog_acc}
+
+              # 3% chance of wait
+              :rand.uniform(33) == 1 and current_progress >= 20 and current_progress < 80 ->
+                MultiBar.wait(pid, id, "Esperando recursos...")
+                Process.put({:task_state, id}, :wait)
+                {Map.put(state_acc, id, :wait), prog_acc}
+
+              # Normal progress
+              true ->
+                increment = :rand.uniform(11) + 4
+                new_progress = min(100, current_progress + increment)
+                desc = description_for(id, ticks_left)
+                MultiBar.progress(pid, id, new_progress, desc)
+                {state_acc, Map.put(prog_acc, id, new_progress)}
+            end
+        end
+      end)
+
     :timer.sleep(@tick_ms)
+    demo_loop(pid, ticks_left - 1, opts, new_task_state_map, new_progress_map)
+  end
 
-    # 1 in 8 chance to mark a task as wait
-    if :rand.uniform(8) == 1 and tasks != [] do
-      task = Enum.random(tasks)
-      MultiBar.wait(pid, Map.fetch!(task, :id), "Esperando...")
-      :timer.sleep(div(@tick_ms, 2))
-      MultiBar.progress(pid, Map.fetch!(task, :id), 0, "Reanudando...")
+  defp description_for(id, ticks_left) do
+    idx = rem(ticks_left, 4)
+
+    case idx do
+      0 -> "Procesando #{id}..."
+      1 -> "Validando #{id}..."
+      2 -> "Cargando lote #{id}..."
+      3 -> "Indexando bloque #{id}..."
     end
-
-    demo_loop(pid, ticks_left - 1, opts)
   end
 
   # ── Stdin mode ───────────────────────────────────────────────────────────────
@@ -325,8 +401,7 @@ defmodule Alaja.CLI.Commands.Show.Multibar do
             {:error, "task label cannot be empty in '#{entry}'"}
 
           not valid_id?(id_str) ->
-            {:error,
-             "task id '#{id_str}' must be lowercase alphanumeric (got: '#{id_str}')"}
+            {:error, "task id '#{id_str}' must be lowercase alphanumeric (got: '#{id_str}')"}
 
           true ->
             {:ok, %{id: String.to_atom(id_str), label: label}}
@@ -374,7 +449,11 @@ defmodule Alaja.CLI.Commands.Show.Multibar do
     IO.puts("  alaja multibar --tasks \"id:Label;id2:Label2\" [options]")
     IO.puts("")
     IO.puts("  # Demo mode (default) — animates for --duration seconds:")
-    IO.puts("  alaja multibar --tasks \"scan:File Scanner;embed:Embeddings\" --title \"Indexing\"")
+
+    IO.puts(
+      "  alaja multibar --tasks \"scan:File Scanner;embed:Embeddings\" --title \"Indexing\""
+    )
+
     IO.puts("")
     IO.puts("  # Stdin mode — reads commands from pipe:")
     IO.puts("  echo 'progress scan 50' | alaja multibar --tasks \"scan:Scanner\" --stdin")
