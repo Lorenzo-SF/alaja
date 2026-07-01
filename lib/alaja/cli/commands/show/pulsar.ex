@@ -272,26 +272,39 @@ defmodule Alaja.CLI.Commands.Show.Pulsar do
     frame_output = Pulsar.render_frame(text, frame, pulsar_opts)
     output = wrap_if_boxed(frame_output, global)
 
-    # output is now iodata (Buffer.to_iodata result), safe to split by '\n'.
-    padded_output =
-      output
-      |> IO.iodata_to_binary()
-      |> String.split("\n")
-      |> Enum.map_join("\n", fn line -> String.duplicate(" ", left_pad) <> line end)
-
     if global.raw do
       {start_x, start_y} = start_pos
 
+      # In raw mode position each row individually with ANSI cursor moves.
+      # Using \n between rows would reset the cursor to column 1, losing
+      # the start_x offset for every row after the first.
+      positioned =
+        output
+        |> IO.iodata_to_binary()
+        |> String.split("\n")
+        |> Enum.with_index()
+        |> Enum.map_join(fn {line, row} ->
+          Alaja.ANSI.move_to(start_x + left_pad, start_y + row) <> line
+        end)
+
       if frame == 0 do
-        IO.write([Alaja.ANSI.hide_cursor(), Alaja.ANSI.move_to(start_x, start_y), padded_output])
+        IO.write([Alaja.ANSI.hide_cursor(), positioned])
       else
         IO.write([
           Alaja.ANSI.move_to(start_x, start_y),
           Alaja.ANSI.clear_line_down(),
-          padded_output
+          positioned
         ])
       end
     else
+      # Non-raw mode: prepend left_pad spaces to each line for alignment.
+      # After \n the cursor is at column 1, so spaces correctly offset each row.
+      padded_output =
+        output
+        |> IO.iodata_to_binary()
+        |> String.split("\n")
+        |> Enum.map_join("\n", fn line -> String.duplicate(" ", left_pad) <> line end)
+
       if frame == 0 do
         # Save cursor position before writing
         IO.write([Alaja.ANSI.save_cursor(), padded_output])
