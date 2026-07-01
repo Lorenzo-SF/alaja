@@ -81,7 +81,6 @@ defmodule Alaja.Components.MultiBar do
           titles: [String.t()],
           opts: keyword(),
           sorted_ids: [atom()],
-          first_line: integer() | nil,
           line_count: non_neg_integer(),
           done: boolean()
         }
@@ -205,19 +204,19 @@ defmodule Alaja.Components.MultiBar do
       titles: titles,
       opts: full_opts,
       sorted_ids: sorted_ids,
-      first_line: nil,
       line_count: line_count,
       done: false
     }
 
-    # Hide cursor, render initial frame
+    # Hide cursor and render the initial table.
+    # line_count tracks how many terminal lines the table occupies,
+    # so refresh() can move the cursor back up and repaint in-place.
     IO.write(Alaja.ANSI.hide_cursor())
 
     rendered = render_table(state)
-    # Measure actual rendered lines for future cursor repositioning
     actual_lines = count_lines(rendered)
 
-    state = %{state | first_line: 0, line_count: actual_lines}
+    state = %{state | line_count: actual_lines}
     IO.write(rendered)
 
     {:ok, state}
@@ -261,16 +260,13 @@ defmodule Alaja.Components.MultiBar do
 
   @impl true
   def handle_call(:done, _from, state) do
-    # Move down past the bar area so final output doesn't overwrite
-    lines_to_clear = state.line_count
     state = %{state | done: true}
 
-    # Clear the bar area
-    if state.first_line != nil do
-      clear_lines(state.first_line, lines_to_clear)
-    end
-
-    # Print final state below
+    # Repaint the final state in-place, then advance past it
+    n = max(state.line_count - 1, 0)
+    IO.write("\r")
+    if n > 0, do: IO.write("\e[#{n}A")
+    IO.write("\e[J")
     final = render_table(state)
     IO.write(final)
     IO.write(Alaja.ANSI.show_cursor())
@@ -311,7 +307,7 @@ defmodule Alaja.Components.MultiBar do
     IO.iodata_to_binary([
       Enum.intersperse(title_lines, "\n"),
       (title_lines != [] && "\n") || "",
-      table
+      Alaja.Buffer.to_iodata(table)
     ])
   end
 
@@ -366,30 +362,13 @@ defmodule Alaja.Components.MultiBar do
   # ── ANSI cursor helpers ─────────────────────────────────────────────────────
 
   defp refresh(state) do
-    if state.first_line != nil do
-      # Move cursor to the start of the bar area, clear the whole block
-      clear_lines(state.first_line, state.line_count)
-      IO.write(render_table(state))
-    else
-      IO.write(render_table(state))
-    end
-  end
-
-  defp clear_lines(start_line, count) do
-    # Move cursor to start_line, clear N lines
-    cursor_up = if start_line > 0, do: "\e[#{start_line}A", else: ""
-    IO.write("#{cursor_up}")
-
-    for _ <- 1..count do
-      # clear current line
-      IO.write("\e[K")
-      if count > 1, do: IO.write("\n")
-    end
-
-    # Move back up to the start position
-    if count > 0 do
-      IO.write("\e[#{count}A")
-    end
+    # Go to column 0 of the current (last) line, move up to the first
+    # table line, clear everything from there down, then re-render.
+    n = max(state.line_count - 1, 0)
+    IO.write("\r")
+    if n > 0, do: IO.write("\e[#{n}A")
+    IO.write("\e[J")
+    IO.write(render_table(state))
   end
 
   # ── Helpers ─────────────────────────────────────────────────────────────────
