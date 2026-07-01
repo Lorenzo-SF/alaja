@@ -63,7 +63,9 @@ defmodule Alaja.CLI do
 
   command("animated-bar", "Animated progress bar", run: {Dispatch, :animated_bar})
 
-  command("multibar", "Multi-task progress tracker with parallel bars", run: {Dispatch, :multibar})
+  command("multibar", "Multi-task progress tracker with parallel bars",
+    run: {Dispatch, :multibar}
+  )
 
   command("breadcrumbs", "Navigation path display", run: {Dispatch, :breadcrumbs})
 
