@@ -208,11 +208,11 @@ defmodule Alaja.Components.ColorWheelTest do
     test "uses :harmony_angles override when provided" do
       assert %Buffer{} =
                buf =
-                 ColorWheel.render(
-                   [{255, 0, 0}, {0, 255, 0}, {0, 0, 255}],
-                   harmony_angles: [0, 120, 240],
-                   harmony: :triad
-                 )
+               ColorWheel.render(
+                 [{255, 0, 0}, {0, 255, 0}, {0, 0, 255}],
+                 harmony_angles: [0, 120, 240],
+                 harmony: :triad
+               )
 
       # Just verify it renders without crash; the angle override is used
       # internally for the marker positions.

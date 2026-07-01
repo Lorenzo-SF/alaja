@@ -144,19 +144,7 @@ defmodule Alaja.Syntax do
 
     resolved_lines =
       Enum.map(tokens_by_line, fn line_tokens ->
-        Enum.map(line_tokens, fn {type, text} ->
-          color =
-            case get_language(language) do
-              {:ok, lang} ->
-                {color_atom, _effects} = Theme.resolve(type, lang.colors, theme)
-                color_to_rgb(color_atom)
-
-              :error ->
-                color_to_rgb(color_for_atom(type))
-            end
-
-          {color, text}
-        end)
+        Enum.map(line_tokens, &resolve_token(&1, language, theme))
       end)
 
     height = max(length(resolved_lines), 1)
@@ -169,6 +157,35 @@ defmodule Alaja.Syntax do
     |> Enum.reduce(buffer, fn {line, y}, buf -> write_line(buf, y, line) end)
   end
 
+  defp resolve_token({type, text}, language, theme) do
+    color =
+      case get_language(language) do
+        {:ok, lang} ->
+          {color_atom, _effects} = Theme.resolve(type, lang.colors, theme)
+          color_to_rgb(color_atom)
+
+        :error ->
+          color_to_rgb(color_for_atom(type))
+      end
+
+    {color, text}
+  end
+
+  defp write_fragment(buf, text, col, y, color) do
+    text
+    |> String.graphemes()
+    |> Enum.with_index()
+    |> Enum.reduce(buf, fn {char, idx}, b ->
+      target_x = col + idx
+
+      if target_x < b.width do
+        Buffer.update_cell(b, target_x, y, Cell.new(char, color))
+      else
+        b
+      end
+    end)
+  end
+
   defp line_visible_width(line) do
     Enum.reduce(line, 0, fn {_color, text}, acc -> acc + String.length(text) end)
   end
@@ -179,20 +196,7 @@ defmodule Alaja.Syntax do
     # successive fragments don't overwrite each other.
     {final, _} =
       Enum.reduce(line, {buffer, 0}, fn {color, text}, {buf, col} ->
-        new_buf =
-          text
-          |> String.graphemes()
-          |> Enum.with_index()
-          |> Enum.reduce(buf, fn {char, idx}, b ->
-            target_x = col + idx
-
-            if target_x < b.width do
-              Buffer.update_cell(b, target_x, y, Cell.new(char, color))
-            else
-              b
-            end
-          end)
-
+        new_buf = write_fragment(buf, text, col, y, color)
         {new_buf, col + String.length(text)}
       end)
 
@@ -432,348 +436,137 @@ defmodule Alaja.Syntax do
 
   # ── Language detection (from file extension) ─────────────────────────
 
+  @language_map %{
+    ".ex" => :elixir,
+    ".exs" => :elixir,
+    ".erl" => :erlang,
+    ".hrl" => :erlang,
+    ".json" => :json,
+    ".md" => :markdown,
+    ".py" => :python,
+    ".ts" => :typescript,
+    ".tsx" => :typescript,
+    ".rs" => :rust,
+    ".go" => :go,
+    ".java" => :java,
+    ".rb" => :ruby,
+    ".js" => :javascript,
+    ".jsx" => :javascript,
+    ".mjs" => :javascript,
+    ".cjs" => :javascript,
+    ".c" => :c,
+    ".h" => :c,
+    ".cpp" => :cpp,
+    ".cxx" => :cpp,
+    ".cc" => :cpp,
+    ".hpp" => :cpp,
+    ".cs" => :csharp,
+    ".kt" => :kotlin,
+    ".kts" => :kotlin,
+    ".swift" => :swift,
+    ".scala" => :scala,
+    ".dart" => :dart,
+    ".php" => :php,
+    ".phtml" => :php,
+    ".pl" => :perl,
+    ".pm" => :perl,
+    ".r" => :r,
+    ".jl" => :julia,
+    ".lua" => :lua,
+    ".hs" => :haskell,
+    ".lhs" => :haskell,
+    ".clj" => :clojure,
+    ".cljs" => :clojure,
+    ".cljc" => :clojure,
+    ".ml" => :ocaml,
+    ".mli" => :ocaml,
+    ".sh" => :bash,
+    ".bash" => :bash,
+    ".zsh" => :bash,
+    ".ps1" => :powershell,
+    ".psm1" => :powershell,
+    ".sql" => :sql,
+    ".graphql" => :graphql,
+    ".gql" => :graphql,
+    ".html" => :html,
+    ".htm" => :html,
+    ".css" => :css,
+    ".yaml" => :yaml,
+    ".yml" => :yaml,
+    ".toml" => :toml,
+    ".zig" => :zig,
+    ".nim" => :nim,
+    ".cr" => :crystal,
+    ".d" => :dlang,
+    ".f" => :fortran,
+    ".f90" => :fortran,
+    ".f95" => :fortran,
+    ".ada" => :ada,
+    ".adb" => :ada,
+    ".ads" => :ada,
+    ".pas" => :pascal,
+    ".pp" => :pascal,
+    ".pro" => :prolog,
+    ".rkt" => :racket,
+    ".lisp" => :lisp,
+    ".cl" => :lisp,
+    ".el" => :lisp,
+    ".sol" => :solidity,
+    ".tf" => :terraform,
+    ".hcl" => :terraform,
+    ".gleam" => :gleam,
+    ".purs" => :purescript,
+    ".ha" => :hare,
+    ".odin" => :odin,
+    ".v" => :vlang,
+    ".wat" => :wat,
+    ".wast" => :wat,
+    ".bf" => :brainfuck,
+    ".coffee" => :coffeescript,
+    ".xml" => :xml,
+    ".svg" => :xml,
+    ".xsd" => :xml,
+    ".xsl" => :xml,
+    ".tex" => :tex,
+    ".sty" => :tex,
+    ".cls" => :tex,
+    ".ltx" => :tex,
+    ".m" => :matlab,
+    ".groovy" => :groovy,
+    ".gvy" => :groovy,
+    ".gradle" => :gradle,
+    ".gradle.kts" => :gradle,
+    ".hx" => :haxe,
+    ".hxs" => :haxe,
+    ".hxp" => :haxe,
+    ".st" => :smalltalk,
+    ".tcl" => :tcl,
+    ".mm" => :objc,
+    ".vue" => :vue,
+    ".svelte" => :svelte,
+    ".applescript" => :applescript,
+    ".scpt" => :applescript
+  }
+
   @doc "Detects language atom from file path extension."
   @spec detect_language(String.t()) :: atom()
   def detect_language(path) do
-    case Path.extname(path) do
-      ".ex" ->
-        :elixir
-
-      ".exs" ->
-        :elixir
-
-      ".erl" ->
-        :erlang
-
-      ".hrl" ->
-        :erlang
-
-      ".json" ->
-        :json
-
-      ".md" ->
-        :markdown
-
-      ".py" ->
-        :python
-
-      ".ts" ->
-        :typescript
-
-      ".tsx" ->
-        :typescript
-
-      ".rs" ->
-        :rust
-
-      ".go" ->
-        :go
-
-      ".java" ->
-        :java
-
-      ".rb" ->
-        :ruby
-
-      ".js" ->
-        :javascript
-
-      ".jsx" ->
-        :javascript
-
-      ".mjs" ->
-        :javascript
-
-      ".cjs" ->
-        :javascript
-
-      ".c" ->
-        :c
-
-      ".h" ->
-        :c
-
-      ".cpp" ->
-        :cpp
-
-      ".cxx" ->
-        :cpp
-
-      ".cc" ->
-        :cpp
-
-      ".hpp" ->
-        :cpp
-
-      ".cs" ->
-        :csharp
-
-      ".kt" ->
-        :kotlin
-
-      ".kts" ->
-        :kotlin
-
-      ".swift" ->
-        :swift
-
-      ".scala" ->
-        :scala
-
-      ".dart" ->
-        :dart
-
-      ".php" ->
-        :php
-
-      ".phtml" ->
-        :php
-
-      ".pl" ->
-        :perl
-
-      ".pm" ->
-        :perl
-
-      ".r" ->
-        :r
-
-      ".jl" ->
-        :julia
-
-      ".lua" ->
-        :lua
-
-      ".hs" ->
-        :haskell
-
-      ".lhs" ->
-        :haskell
-
-      ".clj" ->
-        :clojure
-
-      ".cljs" ->
-        :clojure
-
-      ".cljc" ->
-        :clojure
-
-      ".ml" ->
-        :ocaml
-
-      ".mli" ->
-        :ocaml
-
-      ".sh" ->
-        :bash
-
-      ".bash" ->
-        :bash
-
-      ".zsh" ->
-        :bash
-
-      ".ps1" ->
-        :powershell
-
-      ".psm1" ->
-        :powershell
-
-      ".sql" ->
-        :sql
-
-      ".graphql" ->
-        :graphql
-
-      ".gql" ->
-        :graphql
-
-      ".html" ->
-        :html
-
-      ".htm" ->
-        :html
-
-      ".css" ->
-        :css
-
-      ".yaml" ->
-        :yaml
-
-      ".yml" ->
-        :yaml
-
-      ".toml" ->
-        :toml
-
-      ".zig" ->
-        :zig
-
-      ".nim" ->
-        :nim
-
-      ".cr" ->
-        :crystal
-
-      ".d" ->
-        :dlang
-
-      ".f" ->
-        :fortran
-
-      ".f90" ->
-        :fortran
-
-      ".f95" ->
-        :fortran
-
-      ".ada" ->
-        :ada
-
-      ".adb" ->
-        :ada
-
-      ".ads" ->
-        :ada
-
-      ".pas" ->
-        :pascal
-
-      ".pp" ->
-        :pascal
-
-      ".pro" ->
-        :prolog
-
-      ".rkt" ->
-        :racket
-
-      ".lisp" ->
-        :lisp
-
-      ".cl" ->
-        :lisp
-
-      ".el" ->
-        :lisp
-
-      ".sol" ->
-        :solidity
-
-      ".tf" ->
-        :terraform
-
-      ".hcl" ->
-        :terraform
-
-      ".gleam" ->
-        :gleam
-
-      ".purs" ->
-        :purescript
-
-      ".ha" ->
-        :hare
-
-      ".odin" ->
-        :odin
-
-      ".v" ->
-        :vlang
-
-      ".wat" ->
-        :wat
-
-      ".wast" ->
-        :wat
-
-      ".bf" ->
-        :brainfuck
-
-      ".coffee" ->
-        :coffeescript
-
-      ".xml" ->
-        :xml
-
-      ".svg" ->
-        :xml
-
-      ".xsd" ->
-        :xml
-
-      ".xsl" ->
-        :xml
-
-      ".tex" ->
-        :tex
-
-      ".sty" ->
-        :tex
-
-      ".cls" ->
-        :tex
-
-      ".ltx" ->
-        :tex
-
-      ".m" ->
-        :matlab
-
-      ".groovy" ->
-        :groovy
-
-      ".gvy" ->
-        :groovy
-
-      ".gradle" ->
-        :gradle
-
-      ".gradle.kts" ->
-        :gradle
-
-      ".hx" ->
-        :haxe
-
-      ".hxs" ->
-        :haxe
-
-      ".hxp" ->
-        :haxe
-
-      ".st" ->
-        :smalltalk
-
-      ".tcl" ->
-        :tcl
-
-      ".mm" ->
-        :objc
-
-      ".vue" ->
-        :vue
-
-      ".svelte" ->
-        :svelte
-
-      ".applescript" ->
-        :applescript
-
-      ".scpt" ->
-        :applescript
-
-      "" ->
-        case Path.basename(path) do
-          "Dockerfile" -> :dockerfile
-          "Makefile" -> :makefile
-          "makefile" -> :makefile
-          "GNUmakefile" -> :makefile
-          _ -> :text
-        end
-
-      _ ->
-        :text
+    ext = Path.extname(path)
+
+    if ext == "" do
+      detect_basename_language(path)
+    else
+      Map.get(@language_map, ext, :text)
+    end
+  end
+
+  defp detect_basename_language(path) do
+    case Path.basename(path) do
+      "Dockerfile" -> :dockerfile
+      "Makefile" -> :makefile
+      "makefile" -> :makefile
+      "GNUmakefile" -> :makefile
+      _ -> :text
     end
   end
 end

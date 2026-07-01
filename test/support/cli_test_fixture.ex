@@ -12,13 +12,13 @@ defmodule Alaja.CLITestFixture do
   use Alaja.CLI.Definition, otp_app: :alaja
 
   command "echo", "Echo the flag values" do
-    flag :n, :integer, default: 0
-    flag :f, :float, default: 0.0
-    flag :p, :path, default: ""
-    flag :u, :url, default: ""
-    flag :colors, :color_list, default: []
+    flag(:n, :integer, default: 0)
+    flag(:f, :float, default: 0.0)
+    flag(:p, :path, default: "")
+    flag(:u, :url, default: "")
+    flag(:colors, :color_list, default: [])
 
-    run {__MODULE__, :echo}
+    run({__MODULE__, :echo})
   end
 
   @doc false

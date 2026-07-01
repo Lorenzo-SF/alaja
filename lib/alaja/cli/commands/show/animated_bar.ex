@@ -118,11 +118,11 @@ defmodule Alaja.CLI.Commands.Show.AnimatedBar do
     else
       frames = Stream.iterate(0, &(&1 + 1)) |> Stream.take(max_frames)
 
-      run_animated_loop(value, max, bar_opts, global, box_height, frames)
+      run_animated_loop(value, max, speed, bar_opts, global, box_height, frames)
     end
   end
 
-  defp run_animated_loop(value, max, bar_opts, global, box_height, frames) do
+  defp run_animated_loop(value, max, speed, bar_opts, global, box_height, frames) do
     Enum.each(frames, fn position ->
       frame =
         ABComp.render_frame(value, max, position, bar_opts)
