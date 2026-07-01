@@ -1,8 +1,8 @@
 # Alaja — Declarative CLI framework & terminal rendering kit for Elixir
 
-[![Hex version](https://img.shields.io/badge/hex-0.3.3-blue.svg)](https://hex.pm/packages/alaja)
+[![Hex version](https://img.shields.io/badge/hex-2.0.0-blue.svg)](https://hex.pm/packages/alaja)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE.md)
-[![Version](https://img.shields.io/badge/version-0.3.3-blue.svg)](https://github.com/Lorenzo-SF/alaja)
+[![Version](https://img.shields.io/badge/version-2.0.0-blue.svg)](https://github.com/Lorenzo-SF/alaja)
 
 Alaja is a declarative CLI framework and terminal rendering kit for Elixir.
 Define commands with a DSL, validate flags, auto-generate help, and render
@@ -356,6 +356,35 @@ Alaja.CLI.Parser.parse_align("center")
 
 ---
 
+## Multi-field forms (`Alaja.Wizard`, v2.0.0+)
+
+`Alaja.Wizard` is a declarative, multi-field form renderer. It is
+pure data — no I/O — and renders to an `Alaja.Buffer.t/0` via one
+of five **neutral** renderers:
+
+  :inline           single line, comma-separated
+  :compact          two-column table (label | value)
+  :stacked          label above value, blank line between fields
+  :wizard           boxed form with a top progress marker
+  :compact_wizard   boxed, single-line form
+
+```elixir
+w =
+  Alaja.Wizard.new(title: "Profile")
+  |> Alaja.Wizard.field(:name, :string, label: "Name", default: "alice")
+  |> Alaja.Wizard.field(:age, :integer, label: "Age", default: 30)
+  |> Alaja.Wizard.field(:newsletter, :boolean, label: "Subscribe", default: true)
+
+Alaja.Wizard.render(w, :compact) |> Alaja.Printer.print_raw()
+```
+
+The renderer identifiers are deliberately generic and reusable. No
+renderer is named after any product, brand, or AI assistant — so
+downstream consumers can rely on the same five names regardless of
+which feature they are embedding.
+
+---
+
 ## Visual Components
 
 | Module                         | Description                                   |
@@ -425,7 +454,7 @@ Alaja.Components.Breadcrumbs.print(["Home", "Projects", "Zaguan"])
 **JSON**:
 
 ```elixir
-Alaja.Components.Json.print(%{name: "Alaja", version: "0.3.3", deps: ["pote", "jason"]})
+Alaja.Components.Json.print(%{name: "Alaja", version: "2.0.0", deps: ["pote", "jason"]})
 ```
 
 **ColorWheel**:
@@ -473,8 +502,12 @@ Alaja.Components.ColorWheel.show_gradient(["#FF0000", "#00FF00", "#0000FF"])
 # Highlight a file (auto-detects language)
 cells = Alaja.Syntax.highlight_file("lib/my_app.ex")
 
-# Highlight content directly
-cells = Alaja.Syntax.highlight_content(code, :elixir)
+# Highlight content directly (returns iodata)
+iodata = Alaja.Syntax.highlight_content(code, :elixir)
+
+# Buffer-first entry point (v2.0.0+) — returns Alaja.Buffer.t/0
+buf = Alaja.Syntax.highlight_buffer(code, :elixir)
+Alaja.Printer.print_raw(buf)
 
 # Tokenize a line
 tokens = Alaja.Syntax.tokenize("defmodule Foo do", :elixir)
@@ -540,7 +573,20 @@ Alaja.Config.list_themes()               # => ["default", "dracula", "monokai", 
 {:ok, data} = Alaja.Config.load_theme("dracula")
 
 # Built-in themes: default, dracula, monokai, nord, light
+
+# Path-based loader (v2.0.0+). Honours ALAJA_* env vars on top of the
+# on-disk JSON file. Pass skip_env: true in tests for deterministic
+# file-only behaviour.
+:ok = Alaja.Config.load!("/path/to/alaja.conf")
 ```
+
+### `ALAJAX_*` env vars (v2.0.0+)
+
+Env vars win over the on-disk file, so CI shells and one-off scripts
+can override the persisted config without rewriting the JSON file:
+
+  `ALAJAX_COLOR_DEPTH`     overrides `:color_depth`    (truecolor|xterm256|ansi16)
+  `ALAJAX_THEME_ACTIVE`    overrides `:theme_active`   (string)
 
 Configurable keys: `color_depth`, `theme_active`, `refresh_rate`,
 `double_buffer`, `max_workers`, `default_policy`.
@@ -651,8 +697,8 @@ Add `alaja` and `pote` to your `mix.exs`:
 ```elixir
 def deps do
   [
-    {:alaja, path: "../alaja"},
-    {:pote, path: "../pote"}
+    {:alaja, "~> 2.0"},
+    {:pote, github: "Lorenzo-SF/pote", branch: "main"}
   ]
 end
 ```
@@ -665,9 +711,13 @@ Then run `mix deps.get`.
 
 This library was developed as part of a larger internal toolkit and extracted
 to open source in mid-2026. The single commit visible on `main` represents the
-OSS cut-over point — all the features shipped in `1.0.0` were built and tested
-before being made public. Subsequent releases (`1.0.1`, `1.1.0`, ...) will be
+OSS cut-over point — all the features shipped in `2.0.0` were built and tested
+before being made public. Subsequent releases (`2.0.1`, `2.1.0`, ...) will be
 tagged normally, providing a clean public history going forward.
+
+The `1.0.0` tag was placed on the first commit (`1472b5f`) but the
+published artifact was lost; the canonical version going forward is
+`2.0.0`. Use `hex.pm` docs to invalidate the lost `1.0.0` artifact.
 
 A Spanish version of this README is available at [`docs/README.es.md`](./docs/README.es.md).
 
