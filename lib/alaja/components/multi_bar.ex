@@ -311,7 +311,7 @@ defmodule Alaja.Components.MultiBar do
     IO.iodata_to_binary([
       Enum.intersperse(title_lines, "\n"),
       (title_lines != [] && "\n") || "",
-      table
+      Alaja.Buffer.to_iodata(table)
     ])
   end
 

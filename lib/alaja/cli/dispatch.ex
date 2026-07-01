@@ -27,6 +27,7 @@ defmodule Alaja.CLI.Dispatch do
     Json,
     List,
     Menu,
+    Multibar,
     Pulsar,
     Separator,
     Table,
@@ -53,6 +54,7 @@ defmodule Alaja.CLI.Dispatch do
   def json(opts), do: Json.run(opts._args)
   def bar(opts), do: Bar.run(opts._args)
   def animated_bar(opts), do: AnimatedBar.run(opts._args)
+  def multibar(opts), do: Multibar.run(opts._args)
   def breadcrumbs(opts), do: Breadcrumbs.run(opts._args)
   def animate(opts), do: Animate.run(opts._args)
   def pulsar(opts), do: Pulsar.run(opts._args)
