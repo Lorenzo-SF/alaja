@@ -96,8 +96,33 @@ defmodule Alaja.CLI.Commands.Show.AnimatedBar do
     speed = Keyword.get(bar_opts, :speed, 100)
     max_frames = Keyword.get(bar_opts, :max_frames, 100_000)
 
-    frames = Stream.iterate(0, &(&1 + 1)) |> Stream.take(max_frames)
+    # Guard against running the redraw loop in a terminal that cannot
+    # fit the bar (or boxed bar). Without this check, the cursor-up
+    # escape (\e[NA) used to clear the previous frame would walk past
+    # row 1 and start wiping shell history / scrollback above, visibly
+    # destroying unrelated content. Bail out cleanly with a stderr
+    # note so the user can resize or scroll before retrying.
+    term_h =
+      case :io.rows() do
+        {:ok, h} -> h
+        _ -> 24
+      end
 
+    if box_height > term_h do
+      IO.write(
+        :stderr,
+        "alaja animated-bar: not enough vertical space (#{box_height} > #{term_h}); aborting\n"
+      )
+
+      :ok
+    else
+      frames = Stream.iterate(0, &(&1 + 1)) |> Stream.take(max_frames)
+
+      run_animated_loop(value, max, bar_opts, global, box_height, frames)
+    end
+  end
+
+  defp run_animated_loop(value, max, bar_opts, global, box_height, frames) do
     Enum.each(frames, fn position ->
       frame =
         ABComp.render_frame(value, max, position, bar_opts)
