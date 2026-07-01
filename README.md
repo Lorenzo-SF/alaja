@@ -4,6 +4,10 @@
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE.md)
 [![Version](https://img.shields.io/badge/version-2.0.0-blue.svg)](https://github.com/Lorenzo-SF/alaja)
 
+<p align="center">
+  <img src="https://raw.githubusercontent.com/Lorenzo-SF/alaja/main/docs/batamantaman_alaja.png" width="400" alt="Alaja" />
+</p>
+
 Alaja is a declarative CLI framework and terminal rendering kit for Elixir.
 Define commands with a DSL, validate flags, auto-generate help, and render
 rich terminal output — tables, headers, boxes, bars, breadcrumbs, JSON
@@ -709,17 +713,17 @@ Then run `mix deps.get`.
 
 ---
 
-## Project history
-
-This library was developed as part of a larger internal toolkit and extracted
-to open source in mid-2026. The single commit visible on `main` represents the
-OSS cut-over point — all the features shipped in `2.0.0` were built and tested
-before being made public. Subsequent releases (`2.0.1`, `2.1.0`, ...) will be
-tagged normally, providing a clean public history going forward.
-
-The `1.0.0` tag was placed on the first commit (`1472b5f`) but the
-published artifact was lost; the canonical version going forward is
-`2.0.0`. Use `hex.pm` docs to invalidate the lost `1.0.0` artifact.
+> ## A note on history
+>
+> The git history of this repository was reset as part of a deliberate
+> cleanup effort. The commits you can read here describe the codebase as
+> it stands today — they do not preserve the original chronology of
+> development.
+>
+> Anything worth keeping from before the reset was carried forward as
+> tagged releases with explicit `CHANGELOG.md` entries. Anything not
+> preserved is, by the maintainer's choice, no longer part of the
+> canonical development line.
 
 A Spanish version of this README is available at [`docs/README.es.md`](./docs/README.es.md).
 
