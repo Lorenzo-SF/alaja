@@ -5,7 +5,41 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [2.0.0] - 2026-07-01
+
+This release marks a major API shift: alaja is now Buffer-first.
+Components that previously returned strings, iodata, or PNG bytes
+expose a canonical `Alaja.Buffer.t/0` entry point. PNG/iodata paths
+still exist but are now explicit (e.g. `render_for_terminal/2`
+returns a tagged tuple) rather than the only option.
+
+### Added
+- **`Alaja.Wizard`** — declarative multi-field form renderer. Builds
+  a `Buffer.t/0` via one of five neutral renderers:
+  `:inline, :compact, :stacked, :wizard, :compact_wizard`. No
+  renderer is named after any product, brand, or AI assistant.
+  The renderers are pure: same input, same output.
+- **`Alaja.Syntax.highlight_buffer/3`** — canonical Buffer-first
+  entry point for syntax highlighting. Per-line tokenization
+  preserves newlines; ANSI-16 palette is mapped to RGB tuples so
+  the Buffer cells carry proper fg colours.
+- **`Alaja.Config.load!/1,2`** — path-based config loader with
+  optional `:skip_env` (for deterministic tests). Honours the
+  `ALAJAX_COLOR_DEPTH` and `ALAJAX_THEME_ACTIVE` env vars as an
+  overlay on top of the on-disk JSON.
+- **`Alaja.CLI.Definition.cast_flag_value/3` clauses** for `:path`,
+  `:url`, and `:color_list` flag types. `:integer` and `:float` no
+  longer crash on garbage input — they fall back to the flag's
+  default via `Integer.parse/1` and `Float.parse/1`.
+
+### Changed
+- **`Alaja.Components.ColorWheel`** exposes a canonical
+  `render/2`, `render_for_terminal/2`, and `default_opts/0` API
+  that returns `Buffer.t/0`. The PNG path is now reached through
+  `render_for_terminal/2`'s `{:image, iodata}` return value.
+- **`Alaja.Syntax.Renderer.Theme`** is now aliased into `Alaja.Syntax`
+  so `Theme.resolve/3` is reachable from the new highlight_buffer/3
+  without a fully-qualified call.
 
 ### Fixed
 - **`question_with_options/3`** — the function only matched the user's
@@ -21,12 +55,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `yesno/2` is rewritten on top of `question_with_options/3`. Now
   `Y` / `N` / `1` / `2` / empty all behave correctly with `:default`
   mapped to the corresponding index.
+- **`Alaja.CLI.Definition.cast_flag_value(:integer, "abc", _)`** no
+  longer raises ArgumentError. It returns the flag's default.
+  Same for `:float`.
 
-### Changed
-- `mix.exs` pins `pote` to `branch: "main"` rather than a frozen
-  tag. Pinning to a tag (e.g. pote v0.2.0) hid Pote.Theme from
-  every consumer until we manually bumped the SHA. Tracking `main`
-  is a faster feedback loop.
+### Migration
+- If you called `ColorWheel.render/2` (returning iodata), migrate to
+  `ColorWheel.render_for_terminal/2` and pattern-match on the tagged
+  tuple. Or use the new `ColorWheel.render/2` which returns
+  `Buffer.t/0`.
+- If you wrote `cast_flag_value/3` test fixtures, the new
+  `:path, :url, :color_list` types now exist; the failure mode for
+  bad `:integer/:float` input has changed from "raise" to "fall back
+  to default".
+
+[1.0.0] was tagged on the first commit (`1472b5f`) but the published
+artifact was lost — see hex.pm docs to invalidate. This 2.0.0 release
+is the canonical version going forward.
 
 ## [0.3.10] - 2026-06-27
 

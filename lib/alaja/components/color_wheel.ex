@@ -1,4 +1,5 @@
 defmodule Alaja.Components.ColorWheel do
+  alias Alaja.{Buffer, Cell}
   alias Alaja.ImageRenderer
   alias Alaja.ImageTerminal, as: Terminal
 
@@ -8,13 +9,17 @@ defmodule Alaja.Components.ColorWheel do
   Provides multiple rendering modes:
 
   - **Native image** (Kitty/iTerm2/Sixel): generates a real bitmap of the color
-    wheel using the detected terminal protocol.
+    wheel using the detected terminal protocol, with the harmony colours
+    marked at their hue position.
   - **ASCII half-block** (universal fallback): renders a circle using Unicode
     `▀`/`▄` characters with true-color ANSI (24-bit), yielding 2 pixels per
-    vertical cell.
+    vertical cell. This is the Buffer-first canonical rendering.
 
-  Detection is automatic — native rendering is attempted first and the
-  component falls back to ASCII when the terminal does not support images.
+  The canonical entry point is `render/2`, which returns an
+  `Alaja.Buffer.t/0`. Callers that want native-image output should
+  use `render_for_terminal/2` (returns a tagged value so the caller
+  decides whether to embed the bytes directly or feed a Buffer to
+  the printer).
 
   ## Contracts
 
@@ -24,13 +29,19 @@ defmodule Alaja.Components.ColorWheel do
 
       alias Alaja.Components.ColorWheel
 
-      # Show color info
+      # Canonical Buffer-first render (works in any terminal)
+      buffer = ColorWheel.render([{255, 0, 0}, {0, 255, 0}], harmony: :triad)
+      Alaja.Printer.print_raw(buffer)
+
+      # Native image when supported, ASCII fallback otherwise
+      case ColorWheel.render_for_terminal([{255, 0, 0}], harmony: :triad) do
+        {:image, iodata} -> IO.write(iodata)
+        {:ascii, buffer} -> Alaja.Printer.print_raw(buffer)
+      end
+
+      # Legacy IO-based helpers (deprecated but still work)
       ColorWheel.show_color_info({255, 87, 51})
-
-      # Harmony ring
       ColorWheel.show_harmony_ring({255, 0, 0}, :triad)
-
-      # Swatches
       ColorWheel.show_swatches([{255, 0, 0}, {0, 255, 0}, {0, 0, 255}])
 
   """
@@ -43,7 +54,146 @@ defmodule Alaja.Components.ColorWheel do
   @ascii_radius 10
 
   # ═══════════════════════════════════════════════════════════════════════════
-  # PUBLIC API
+  # CANONICAL BUFFER-FIRST API
+  # ═════════════════════════════════════════════════════════════════════════
+
+  @doc """
+  Canonical Buffer-first render entry point.
+
+  Returns an `Alaja.Buffer.t/0` containing the colour wheel drawn with
+  Unicode half-block characters (▀/▄) at the requested harmony colours'
+  hue positions. The buffer is sized `4*radius+1` cells wide by `radius`
+  cells tall, where the x-scale of 2.0 makes the wheel appear circular
+  on terminals whose cells are taller than wide.
+
+  ## Options
+
+    - `:radius` — wheel radius in cells (default: 10)
+    - `:thickness` — ring thickness as a fraction of the radius (default: 0.4)
+    - `:harmony` — atom for the harmony type, draws the marker label in
+                   the centre (`:triad`, `:complementary`, etc.)
+    - `:harmony_angles` — explicit list of hue angles to mark (overrides
+                          `:harmony` for the marker positions)
+
+  When `:harmony` is set, a centred label is embedded in the centre row
+  using a white-on-black pill. When `:harmony_angles` is set, no label is
+  drawn (the wheel is "unlabelled").
+  """
+  @spec render([rgb()], keyword()) :: Buffer.t()
+  def render(rgb_list, opts \\ []) do
+    harmony_angles = render_angles_for(rgb_list, opts)
+    render_wheel_buffer(harmony_angles, opts)
+  end
+
+  @doc """
+  Render the wheel using the best protocol for the current terminal.
+
+  Returns:
+    * `{:image, iodata}` — when the terminal supports native images
+      (Kitty, iTerm2, Sixel); `iodata` contains the terminal escape codes
+      for an inline PNG with the wheel and harmony markers.
+    * `{:ascii, Buffer.t()}` — otherwise; the Buffer can be passed to
+      `Alaja.Printer.print_raw/2`.
+
+  The caller dispatches on the tag because PNG escapes cannot be embedded
+  in a Buffer cell — they have to be written directly to stdout by the
+  caller.
+  """
+  @spec render_for_terminal([rgb()], keyword()) ::
+          {:image, iodata()} | {:ascii, Buffer.t()}
+  def render_for_terminal(rgb_list, opts \\ []) do
+    if Terminal.supports_images?() do
+      {:image, render_png_wheel(rgb_list, opts)}
+    else
+      {:ascii, render(rgb_list, opts)}
+    end
+  end
+
+  @doc """
+  Returns the default options for the wheel renderer.
+  """
+  @spec default_opts() :: keyword()
+  def default_opts do
+    [radius: @ascii_radius, thickness: 0.4]
+  end
+
+  # Internal: build the Buffer with the colour wheel and optional harmony markers.
+  defp render_wheel_buffer(harmony_angles, opts) do
+    radius = Keyword.get(opts, :radius, @ascii_radius)
+    thickness = Keyword.get(opts, :thickness, 0.4)
+    x_scale = 2.0
+    harmony_type = Keyword.get(opts, :harmony)
+
+    harmony_label =
+      if harmony_type, do: harmony_display_name(harmony_type), else: nil
+
+    width = round(radius * x_scale) - round(-radius * x_scale) + 1
+    height = radius
+    x_offset = -round(-radius * x_scale)
+
+    buffer = Buffer.new(width, height)
+
+    buffer =
+      Enum.reduce(0..(height - 1), buffer, fn y_pair, buf ->
+        y_top = y_pair * 2 - radius
+        y_bot = y_top + 1
+
+        Enum.reduce(round(-radius * x_scale)..round(radius * x_scale), buf, fn x_cell, b ->
+          x = x_cell / x_scale
+          top_color = pixel_color_at(x, y_top, radius, harmony_angles, thickness)
+          bot_color = pixel_color_at(x, y_bot, radius, harmony_angles, thickness)
+          cell = half_block_cell(top_color, bot_color)
+          Buffer.update_cell(b, x_cell + x_offset, y_pair, cell)
+        end)
+      end)
+
+    maybe_annotate_label(buffer, harmony_label)
+  end
+
+  # If a harmony label is provided, draw a centred white-on-black pill on
+  # the centre row. Returns the buffer unchanged when there's no label.
+  defp maybe_annotate_label(buffer, nil), do: buffer
+
+  defp maybe_annotate_label(buffer, label) do
+    label_text = " #{label} "
+    label_len = String.length(label_text)
+    width = buffer.width
+    height = buffer.height
+    center_y = div(height, 2)
+
+    if label_len + 2 < width do
+      start_x = div(width - label_len, 2)
+
+      label_text
+      |> String.graphemes()
+      |> Enum.with_index()
+      |> Enum.reduce(buffer, fn {char, idx}, buf ->
+        Buffer.put(buf, start_x + idx, center_y, char, {255, 255, 255}, {0, 0, 0})
+      end)
+    else
+      buffer
+    end
+  end
+
+  # Build the Cell for one half-block position.
+  # `top_color` and `bot_color` are `{r,g,b}` tuples or `nil` for empty.
+  defp half_block_cell(nil, nil), do: Cell.empty()
+  defp half_block_cell({r, g, b}, nil), do: Cell.new("▀", {r, g, b})
+  defp half_block_cell(nil, {r, g, b}), do: Cell.new("▄", {r, g, b})
+  defp half_block_cell({tr, tg, tb}, {br, bg, bb}), do: Cell.new("▀", {tr, tg, tb}, {br, bg, bb})
+
+  defp render_angles_for(rgb_list, opts) do
+    case Keyword.fetch(opts, :harmony_angles) do
+      {:ok, angles} when is_list(angles) ->
+        angles
+
+      _ ->
+        # Default: extract angles from the rgb_list. The caller can pass
+        # either pre-computed angles or a list of RGBs.
+        extract_angles(rgb_list)
+    end
+  end
+
   # ═══════════════════════════════════════════════════════════════════════════
 
   @doc """

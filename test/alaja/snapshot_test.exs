@@ -27,6 +27,34 @@ defmodule Alaja.SnapshotTest do
     File.read!(path)
   end
 
+  defp assert_snapshot(name, actual) do
+    path = Path.join(@snapshot_dir, "#{name}.snap")
+
+    if File.exists?(path) do
+      expected = File.read!(path)
+
+      cond do
+        expected == actual ->
+          :ok
+
+        System.get_env("UPDATE_SNAPSHOTS") == "1" ->
+          File.write!(path, actual)
+          :ok
+
+        true ->
+          flunk(
+            "Snapshot mismatch for #{name}.\n" <>
+              "Expected (#{byte_size(expected)} bytes): #{inspect(expected)}\n" <>
+              "Actual   (#{byte_size(actual)} bytes): #{inspect(actual)}"
+          )
+      end
+    else
+      File.mkdir_p!(@snapshot_dir)
+      File.write!(path, actual)
+      :ok
+    end
+  end
+
   defp to_binary(%Alaja.Buffer{} = buffer),
     do: Alaja.Buffer.to_iodata(buffer) |> IO.iodata_to_binary()
 
@@ -126,7 +154,7 @@ defmodule Alaja.SnapshotTest do
   describe "Json snapshots" do
     test "simple map" do
       actual = Json.render(%{name: "Alaja", version: "0.2.0"}) |> to_binary()
-      assert actual == load_snapshot("json_simple")
+      assert_snapshot("json_simple", actual)
     end
 
     test "nested map" do
@@ -134,7 +162,7 @@ defmodule Alaja.SnapshotTest do
         Json.render(%{deps: ["pote", "jason"], meta: %{author: "Lorenzo", count: 3}})
         |> to_binary()
 
-      assert actual == load_snapshot("json_nested")
+      assert_snapshot("json_nested", actual)
     end
   end
 

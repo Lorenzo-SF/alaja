@@ -1,52 +1,64 @@
 defmodule Alaja.Components.TableTest do
   use ExUnit.Case
 
-  alias Alaja.Components.Table
+  alias Alaja.{Buffer, Components.Table}
 
   describe "render/2" do
-    test "renders table with headers and rows" do
+    test "renders table with headers and rows as Buffer.t()" do
       data = [
         ["ID", "Name", "Status"],
         ["1", "Alice", "Active"],
         ["2", "Bob", "Inactive"]
       ]
 
-      output = Table.render(data)
-      assert is_list(output) or is_binary(output)
+      assert %Buffer{} = output = Table.render(data)
+      str = Buffer.to_iodata(output) |> IO.iodata_to_binary()
+      assert str =~ "ID"
+      assert str =~ "Alice"
+      assert str =~ "Bob"
     end
 
-    test "renders with keyword options" do
-      output =
-        Table.render(
-          headers: ["Col1", "Col2"],
-          rows: [["A", "B"]],
-          headers_color: :cyan,
-          table_border: :rounded
-        )
+    test "renders with keyword options as Buffer.t()" do
+      assert %Buffer{} =
+               output =
+               Table.render(
+                 headers: ["Col1", "Col2"],
+                 rows: [["A", "B"]],
+                 headers_color: :cyan,
+                 table_border: :rounded
+               )
 
-      assert is_list(output) or is_binary(output)
+      str = Buffer.to_iodata(output) |> IO.iodata_to_binary()
+      assert str =~ "Col1"
+      assert str =~ "A"
     end
 
-    test "renders with empty rows" do
-      output =
-        Table.render(
-          headers: ["Col1", "Col2"],
-          rows: []
-        )
+    test "renders with empty rows as Buffer.t()" do
+      assert %Buffer{} =
+               output =
+               Table.render(
+                 headers: ["Col1", "Col2"],
+                 rows: []
+               )
 
-      assert is_list(output) or is_binary(output)
+      str = Buffer.to_iodata(output) |> IO.iodata_to_binary()
+      assert str =~ "Col1"
+      assert str =~ "Col2"
     end
 
     test "renders with different border styles" do
       for border <- [:normal, :rounded, :double, :none] do
-        output =
-          Table.render(
-            headers: ["A"],
-            rows: [["B"]],
-            table_border: border
-          )
+        assert %Buffer{} =
+                 output =
+                 Table.render(
+                   headers: ["A"],
+                   rows: [["B"]],
+                   table_border: border
+                 )
 
-        assert is_list(output) or is_binary(output)
+        str = Buffer.to_iodata(output) |> IO.iodata_to_binary()
+        assert str =~ "A"
+        assert str =~ "B"
       end
     end
   end
