@@ -25,13 +25,19 @@ defmodule Alaja.CLI.Smoke.MessageBoxTest do
     {output, _stderr, exit_code} =
       run_cli([
         "message",
-        "--chunk", "[|color:gray",
-        "--chunk", "OK|color:green|bold:true",
-        "--chunk", "] Deployed|color:cyan",
-        "--align", "center",
+        "--chunk",
+        "[|color:gray",
+        "--chunk",
+        "OK|color:green|bold:true",
+        "--chunk",
+        "] Deployed|color:cyan",
+        "--align",
+        "center",
         "--box",
-        "--box-border", "rounded",
-        "--box-color", "#00B4D8"
+        "--box-border",
+        "rounded",
+        "--box-color",
+        "#00B4D8"
       ])
 
     assert exit_code == 0, "CLI should not crash. Output:\n#{output}"
@@ -43,11 +49,15 @@ defmodule Alaja.CLI.Smoke.MessageBoxTest do
     {output, _stderr, exit_code} =
       run_cli([
         "message",
-        "--text", "Hello",
-        "--color", "green",
-        "--align", "center",
+        "--text",
+        "Hello",
+        "--color",
+        "green",
+        "--align",
+        "center",
         "--box",
-        "--box-border", "single"
+        "--box-border",
+        "single"
       ])
 
     assert exit_code == 0, "CLI should not crash. Output:\n#{output}"
@@ -59,7 +69,8 @@ defmodule Alaja.CLI.Smoke.MessageBoxTest do
     {output, _stderr, exit_code} =
       run_cli([
         "message",
-        "--text", "Plain text inside box",
+        "--text",
+        "Plain text inside box",
         "--box"
       ])
 

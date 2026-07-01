@@ -83,7 +83,11 @@ defmodule Alaja.Printer.Interactive do
     numbered = options_with_indexes(options)
 
     prompt =
-      [text, "", "  " <> Enum.map_join(numbered, "\n  ", fn {idx, lbl, _} -> "#{idx}. #{lbl}" end)]
+      [
+        text,
+        "",
+        "  " <> Enum.map_join(numbered, "\n  ", fn {idx, lbl, _} -> "#{idx}. #{lbl}" end)
+      ]
       |> Enum.join("\n")
 
     answer =
@@ -117,52 +121,53 @@ defmodule Alaja.Printer.Interactive do
   defp pick_answer(answer, options, _default) do
     stripped = answer |> String.trim() |> String.downcase()
 
-    # 1) index match (e.g. "1", "2")
-    idx = case Integer.parse(stripped) do
-      {n, ""} when n > 0 and n <= length(options) -> n
-      _ -> nil
-    end
-
-    cond do
-      idx ->
-        {_, _, val} = Enum.find(options, fn {i, _, _} -> i == idx end)
-        val
-
-      # 2) exact label match (case-insensitive)
-      Enum.any?(options, fn {_, lbl, _} -> String.downcase(lbl) == stripped end) ->
-        {_, _, val} = Enum.find(options, fn {_, lbl, _} -> String.downcase(lbl) == stripped end)
-        val
-
-      # 3) label prefix (case-insensitive)
-      Enum.any?(options, fn {_, lbl, _} -> String.starts_with?(String.downcase(lbl), stripped) end) ->
-        {_, _, val} =
-          Enum.find(options, fn {_, lbl, _} ->
-            String.starts_with?(String.downcase(lbl), stripped)
-          end)
-
-        val
-
-      # 4) atom name match (value |> Atom.to_string() |> downcase)
-      Enum.any?(options, fn {_, _, val} ->
-        case val do
-          a when is_atom(a) -> String.downcase(Atom.to_string(a)) == stripped
-          _ -> false
-        end
-      end) ->
-        {_, _, val} =
-          Enum.find(options, fn {_, _, v} ->
-            case v do
-              a when is_atom(a) -> String.downcase(Atom.to_string(a)) == stripped
-              _ -> false
-            end
-          end)
-
-        val
-
-      true ->
-        :error
+    with nil <- match_by_index(stripped, options),
+         nil <- match_by_label(stripped, options),
+         nil <- match_by_prefix(stripped, options),
+         nil <- match_by_atom(stripped, options) do
+      :error
     end
   end
+
+  defp match_by_index(stripped, options) do
+    case Integer.parse(stripped) do
+      {n, ""} when n > 0 and n <= length(options) ->
+        {_, _, val} = Enum.find(options, fn {i, _, _} -> i == n end)
+        val
+
+      _ ->
+        nil
+    end
+  end
+
+  defp match_by_label(stripped, options) do
+    case Enum.find(options, fn {_, lbl, _} -> String.downcase(lbl) == stripped end) do
+      {_, _, val} -> val
+      nil -> nil
+    end
+  end
+
+  defp match_by_prefix(stripped, options) do
+    case Enum.find(options, fn {_, lbl, _} ->
+           String.starts_with?(String.downcase(lbl), stripped)
+         end) do
+      {_, _, val} -> val
+      nil -> nil
+    end
+  end
+
+  defp match_by_atom(stripped, options) do
+    case Enum.find(options, fn {_, _, v} -> atom_matches?(v, stripped) end) do
+      {_, _, val} -> val
+      nil -> nil
+    end
+  end
+
+  defp atom_matches?(val, stripped) when is_atom(val) do
+    String.downcase(Atom.to_string(val)) == stripped
+  end
+
+  defp atom_matches?(_val, _stripped), do: false
 
   @doc """
   Yes or no question.

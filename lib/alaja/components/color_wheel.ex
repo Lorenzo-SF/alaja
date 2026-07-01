@@ -123,6 +123,7 @@ defmodule Alaja.Components.ColorWheel do
     thickness = Keyword.get(opts, :thickness, 0.4)
     x_scale = 2.0
     harmony_type = Keyword.get(opts, :harmony)
+
     harmony_label =
       if harmony_type, do: harmony_display_name(harmony_type), else: nil
 
@@ -192,6 +193,7 @@ defmodule Alaja.Components.ColorWheel do
         extract_angles(rgb_list)
     end
   end
+
   # ═══════════════════════════════════════════════════════════════════════════
 
   @doc """

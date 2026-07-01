@@ -15,7 +15,9 @@ defmodule Alaja.Components.AnimatedBarTest do
     end
 
     test "returns Buffer.t() with label" do
-      assert %Buffer{} = result = AnimatedBar.render_frame(75, 100, 0, label: "CPU", animation: :spinner)
+      assert %Buffer{} =
+               result = AnimatedBar.render_frame(75, 100, 0, label: "CPU", animation: :spinner)
+
       str = to_binary(result)
       assert String.contains?(str, "CPU")
       assert String.contains?(str, "75%")

@@ -21,12 +21,12 @@ defmodule Alaja.Components.TableTest do
     test "renders with keyword options as Buffer.t()" do
       assert %Buffer{} =
                output =
-                 Table.render(
-                   headers: ["Col1", "Col2"],
-                   rows: [["A", "B"]],
-                   headers_color: :cyan,
-                   table_border: :rounded
-                 )
+               Table.render(
+                 headers: ["Col1", "Col2"],
+                 rows: [["A", "B"]],
+                 headers_color: :cyan,
+                 table_border: :rounded
+               )
 
       str = Buffer.to_iodata(output) |> IO.iodata_to_binary()
       assert str =~ "Col1"
@@ -36,10 +36,10 @@ defmodule Alaja.Components.TableTest do
     test "renders with empty rows as Buffer.t()" do
       assert %Buffer{} =
                output =
-                 Table.render(
-                   headers: ["Col1", "Col2"],
-                   rows: []
-                 )
+               Table.render(
+                 headers: ["Col1", "Col2"],
+                 rows: []
+               )
 
       str = Buffer.to_iodata(output) |> IO.iodata_to_binary()
       assert str =~ "Col1"
@@ -50,11 +50,11 @@ defmodule Alaja.Components.TableTest do
       for border <- [:normal, :rounded, :double, :none] do
         assert %Buffer{} =
                  output =
-                   Table.render(
-                     headers: ["A"],
-                     rows: [["B"]],
-                     table_border: border
-                   )
+                 Table.render(
+                   headers: ["A"],
+                   rows: [["B"]],
+                   table_border: border
+                 )
 
         str = Buffer.to_iodata(output) |> IO.iodata_to_binary()
         assert str =~ "A"
