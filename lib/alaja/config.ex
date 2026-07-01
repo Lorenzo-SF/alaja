@@ -117,12 +117,13 @@ defmodule Alaja.Config do
   @spec lookup_theme_color(String.t()) :: {:ok, {integer(), integer(), integer()}} | :error
   def lookup_theme_color(key) when is_binary(key) do
     theme_name = get(:theme_active, "default") |> to_string()
+    color_key = String.replace_prefix(key, "theme:", "")
 
     case load_theme(theme_name) do
       {:ok, data} ->
         colors = Map.get(data, "colors", %{})
 
-        case Map.get(colors, key) do
+        case Map.get(colors, color_key) do
           [r, g, b] when is_integer(r) and is_integer(g) and is_integer(b) ->
             {:ok, {r, g, b}}
 

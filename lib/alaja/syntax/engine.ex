@@ -206,28 +206,32 @@ defmodule Alaja.Syntax.Engine do
       sorted = Enum.sort_by(lang.operators, &byte_size/1, :desc)
 
       case Enum.find(sorted, &String.starts_with?(rest, &1)) do
-        nil ->
-          :none
-
-        op ->
-          if String.match?(op, ~r/^[A-Za-z]+$/) do
-            after_op = slice_from(content, pos + byte_size(op))
-            before_char = if pos > 0, do: slice_from_to(content, pos - 1, pos), else: ""
-
-            word_boundary? =
-              (pos == 0 or not String.match?(before_char, ~r/[A-Za-z0-9_]/)) and
-                (after_op == "" or not String.match?(String.first(after_op), ~r/[A-Za-z0-9_]/))
-
-            if word_boundary? do
-              {[{:operator, op}], pos + byte_size(op), nil}
-            else
-              :none
-            end
-          else
-            {[{:operator, op}], pos + byte_size(op), nil}
-          end
+        nil -> :none
+        op -> process_operator(content, op, pos)
       end
     end
+  end
+
+  defp process_operator(content, op, pos) do
+    if String.match?(op, ~r/^[A-Za-z]+$/) do
+      after_op = slice_from(content, pos + byte_size(op))
+      before_char = if pos > 0, do: slice_from_to(content, pos - 1, pos), else: ""
+
+      if word_boundary?(pos, before_char, after_op) do
+        {[{:operator, op}], pos + byte_size(op), nil}
+      else
+        :none
+      end
+    else
+      {[{:operator, op}], pos + byte_size(op), nil}
+    end
+  end
+
+  defp word_boundary?(0, _before, _after), do: true
+
+  defp word_boundary?(_pos, before_char, after_op) do
+    not String.match?(before_char, ~r/[A-Za-z0-9_]/) and
+      (after_op == "" or not String.match?(String.first(after_op), ~r/[A-Za-z0-9_]/))
   end
 
   # ── Word ──────────────────────────────────────────────────────────────

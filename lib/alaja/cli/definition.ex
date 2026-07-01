@@ -438,11 +438,9 @@ defmodule Alaja.CLI.Definition do
   defp cast_flag_value(:path, nil, default), do: default
 
   defp cast_flag_value(:path, val, _default) do
-    try do
-      Path.expand(val)
-    rescue
-      _ -> val
-    end
+    Path.expand(val)
+  rescue
+    _ -> val
   end
 
   # URL: accept only http/https URIs. Anything else (mailto, file, no

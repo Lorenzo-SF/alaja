@@ -133,6 +133,7 @@ defmodule Alaja.Components.Message do
   # ---------------------------------------------------------------------------
 
   defp apply_padding(buffer, 0), do: buffer
+
   defp apply_padding(%Buffer{width: w, height: h} = buffer, n) when n > 0 do
     new_w = w + n * 2
     result = Buffer.new(new_w, h)
@@ -150,7 +151,8 @@ defmodule Alaja.Components.Message do
     Buffer.overlay(result, buffer, offset, 0)
   end
 
-  defp alignment_offset(terminal_w, content_w, :center), do: div(max(terminal_w - content_w, 0), 2)
+  defp alignment_offset(terminal_w, content_w, :center),
+    do: div(max(terminal_w - content_w, 0), 2)
 
   # For :right we leave one extra column of slack on the right side of the
   # terminal. Without this, the last visible character lands on column
@@ -161,6 +163,7 @@ defmodule Alaja.Components.Message do
   # right edge visually flush.
   defp alignment_offset(terminal_w, content_w, :right),
     do: max(terminal_w - content_w - 1, 0)
+
   defp alignment_offset(_terminal_w, _content_w, _), do: 0
 
   # ---------------------------------------------------------------------------

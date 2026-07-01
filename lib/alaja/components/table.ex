@@ -103,7 +103,7 @@ defmodule Alaja.Components.Table do
 
   """
 
-  alias Alaja.{Buffer, Cell}
+  alias Alaja.Buffer
   alias Alaja.Structures.ChunkText
 
   # Regex para strip ANSI sequences
@@ -335,7 +335,7 @@ defmodule Alaja.Components.Table do
 
     width =
       parsed
-      |> Enum.map(fn cells -> Enum.reduce(cells, 0, &Kernel.+/2) end)
+      |> Enum.map(&length/1)
       |> Enum.max(fn -> 0 end)
 
     height = length(parsed)
@@ -344,12 +344,14 @@ defmodule Alaja.Components.Table do
     parsed
     |> Enum.with_index()
     |> Enum.reduce(buffer, fn {cells, y}, buf ->
-      cells
-      |> Enum.with_index()
-      |> Enum.reduce({buf, 0}, fn {{char, fg}, _, {b, x}} ->
-        {Buffer.put(b, x, y, char, fg), x + 1}
-      end)
-      |> elem(0)
+      {final, _} =
+        cells
+        |> Enum.with_index()
+        |> Enum.reduce({buf, 0}, fn {{char, fg}, _idx}, {b, x} ->
+          {Buffer.put(b, x, y, char, fg), x + 1}
+        end)
+
+      final
     end)
   end
 
@@ -362,33 +364,37 @@ defmodule Alaja.Components.Table do
 
   defp parse_chars("", acc, fg), do: {acc, fg, ""}
 
-  defp parse_chars(<<"\e[0m", rest/binary>>, acc, fg) do
+  defp parse_chars(<<0x1B, "[0m", rest::binary>>, acc, _fg) do
     parse_chars(rest, acc, nil)
   end
 
   # True-colour fg: \e[38;2;R;G;Bm
-  defp parse_chars(<<"\e[38;2;", r::binary-8, ";", g::binary-8, ";", b::binary-8, "m", rest/binary>>, acc, _fg) do
+  defp parse_chars(
+         <<0x1B, "[38;2;", r::binary-8, ";", g::binary-8, ";", b::binary-8, "m", rest::binary>>,
+         acc,
+         fg
+       ) do
     case {Integer.parse(r), Integer.parse(g), Integer.parse(b)} do
       {{ri, ""}, {gi, ""}, {bi, ""}} ->
         parse_chars(rest, acc, {ri, gi, bi})
 
       _ ->
-        parse_chars(rest, acc, _fg)
+        parse_chars(rest, acc, fg)
     end
   end
 
   # SGR reset / clear styles: \e[m
-  defp parse_chars(<<"\e[m", rest/binary>>, acc, fg) do
+  defp parse_chars(<<0x1B, "[m", rest::binary>>, acc, fg) do
     parse_chars(rest, acc, fg)
   end
 
   # Any other escape sequence: skip until 'm'.
-  defp parse_chars(<<"\e[", rest/binary>>, acc, fg) do
+  defp parse_chars(<<0x1B, "[", rest::binary>>, acc, fg) do
     {skipped, after_rest} = skip_to_m(rest)
     parse_chars(after_rest, acc, apply_sgr(acc, fg, skipped))
   end
 
-  defp parse_chars(<<?\e, _::binary>>, acc, fg), do: {acc, fg, ""}
+  defp parse_chars(<<0x1B, _::binary>>, acc, fg), do: {acc, fg, ""}
 
   defp parse_chars(<<char::utf8, rest::binary>>, acc, fg) do
     parse_chars(rest, [{<<char::utf8>>, fg} | acc], fg)
@@ -398,9 +404,7 @@ defmodule Alaja.Components.Table do
     parse_chars(rest, acc, fg)
   end
 
-  defp skip_to_m(<<";", rest::binary>>), do: {";", rest}
-  defp skip_to_m(<<";", _::binary, "m", rest::binary>>), do: {";m", rest}
-  defp skip_to_m(<<";", _::binary>> = rest), do: {";", rest}
+  defp skip_to_m(<<?m, rest::binary>>), do: {"", rest}
 
   defp skip_to_m(<<c, rest::binary>>) do
     {skipped, after_rest} = skip_to_m(rest)
@@ -409,81 +413,89 @@ defmodule Alaja.Components.Table do
 
   defp skip_to_m(""), do: {"", ""}
 
+  # Sentinel for "not a foreground colour change" (effects, background codes, etc.)
+  @no_fg_change :"$no_fg_change"
+
   # Minimal SGR application — we only care about fg colour updates
   # because the buffer pipeline doesn't carry effects (no italic/bold
-  # in cells yet). Other SGR codes are ignored.
-  defp apply_sgr(_acc, _fg, skipped) do
+  # in cells yet). Other SGR codes pass through the current fg unchanged.
+  defp apply_sgr(_acc, fg, skipped) do
     case parse_fg_sgr(skipped) do
+      @no_fg_change -> fg
       nil -> nil
       rgb -> rgb
     end
   end
 
+  # Standard ANSI 16-color mapping indices: 0-7 standard, 8-15 bright.
+  @ansi_standard_colors %{
+    0 => {0, 0, 0},
+    1 => {170, 0, 0},
+    2 => {0, 170, 0},
+    3 => {170, 85, 0},
+    4 => {0, 0, 170},
+    5 => {170, 0, 170},
+    6 => {0, 170, 170},
+    7 => {170, 170, 170},
+    8 => {85, 85, 85},
+    9 => {255, 85, 85},
+    10 => {85, 255, 85},
+    11 => {255, 255, 85},
+    12 => {85, 85, 255},
+    13 => {255, 85, 255},
+    14 => {85, 255, 255},
+    15 => {255, 255, 255}
+  }
+
   defp parse_fg_sgr(skipped) do
-    # Look for "38;2;R;G;B" sequence inside the skipped bytes.
-    if String.starts_with?(skipped, "38;2;") do
-      rest = String.slice(skipped, 5, byte_size(skipped) - 5)
-      case String.split(rest, ";") do
-        [r, g, b] ->
-          with {ri, ""} <- Integer.parse(r),
-               {gi, ""} <- Integer.parse(g),
-               {bi, ""} <- Integer.parse(b) do
-            {ri, gi, bi}
-          else
-            _ -> nil
-          end
+    cond do
+      String.starts_with?(skipped, "38;2;") -> parse_truecolor_skip(skipped)
+      String.starts_with?(skipped, "38;5;") -> parse_xterm256_skip(skipped)
+      skipped == "39" -> nil
+      byte_size(skipped) == 2 -> parse_standard_fg_code(skipped)
+      true -> @no_fg_change
+    end
+  end
 
-        _ ->
-          nil
-      end
+  defp parse_truecolor_skip(skipped) do
+    rest = String.slice(skipped, 5, byte_size(skipped) - 5)
+    parse_rgb_params(rest)
+  end
+
+  defp parse_xterm256_skip(skipped) do
+    rest = String.slice(skipped, 5, byte_size(skipped) - 5)
+
+    with {n, ""} <- Integer.parse(rest),
+         rgb when rgb != nil <- Map.get(@ansi_standard_colors, n) do
+      rgb
     else
-      nil
+      _ -> @no_fg_change
     end
   end
 
-  defp put_cell_string(buffer, x, y, string, fg) do
-    string
-    |> String.graphemes()
-    |> Enum.with_index()
-    |> Enum.reduce(buffer, fn {char, idx}, buf ->
-      if x + idx < buffer.width, do: put_cell(buf, x + idx, y, char, fg), else: buf
-    end)
-  end
-
-  defp put_cell(buffer, x, y, char, fg) do
-    if x >= 0 and x < buffer.width and y >= 0 and y < buffer.height do
-      cell = Cell.new(char, fg)
-      Buffer.update_cell(buffer, x, y, cell)
-    else
-      buffer
+  defp parse_standard_fg_code(skipped) do
+    case Integer.parse(skipped) do
+      {n, ""} when n >= 30 and n <= 37 -> Map.get(@ansi_standard_colors, n - 30)
+      {n, ""} when n >= 90 and n <= 97 -> Map.get(@ansi_standard_colors, n - 80)
+      _ -> @no_fg_change
     end
   end
 
-  defp align_cell(content, width, _padding) do
-    text = to_string(content)
-    visible_len = visible_length(text)
-    diff = width - visible_len
+  defp parse_rgb_params(params) do
+    case String.split(params, ";") do
+      [r, g, b] ->
+        with {ri, ""} <- Integer.parse(r),
+             {gi, ""} <- Integer.parse(g),
+             {bi, ""} <- Integer.parse(b) do
+          {ri, gi, bi}
+        else
+          _ -> nil
+        end
 
-    if diff <= 0 do
-      text
-    else
-      # Default: left align
-      text <> String.duplicate(" ", diff)
+      _ ->
+        nil
     end
   end
-
-  defp resolve_color(nil), do: nil
-
-  defp resolve_color(color) when is_tuple(color), do: color
-
-  defp resolve_color(color) when is_atom(color) do
-    case Pote.Orchestrator.to_rgb(color) do
-      {:ok, rgb} -> rgb
-      _ -> nil
-    end
-  end
-
-  defp resolve_color(_), do: nil
 
   defp build_table_string(headers, rows, widths, config, opts) do
     lines =
