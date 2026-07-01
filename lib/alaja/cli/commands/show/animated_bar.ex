@@ -95,6 +95,19 @@ defmodule Alaja.CLI.Commands.Show.AnimatedBar do
     box_height = if global.box, do: 3, else: 1
     speed = Keyword.get(bar_opts, :speed, 100)
     max_frames = Keyword.get(bar_opts, :max_frames, 100_000)
+    use_abs = global.raw || global.pos_x > 0 || global.pos_y > 0
+
+    state = %{
+      value: value,
+      max: max,
+      speed: speed,
+      bar_opts: bar_opts,
+      global: global,
+      box_height: box_height,
+      use_abs: use_abs,
+      start_x: global.pos_x + 1,
+      start_y: global.pos_y + 1
+    }
 
     # Guard against running the redraw loop in a terminal that cannot
     # fit the bar (or boxed bar). Without this check, the cursor-up
@@ -116,48 +129,60 @@ defmodule Alaja.CLI.Commands.Show.AnimatedBar do
 
       :ok
     else
-      frames = Stream.iterate(0, &(&1 + 1)) |> Stream.take(max_frames)
+      if state.use_abs do
+        IO.write(Alaja.ANSI.hide_cursor())
+      end
 
-      run_animated_loop(value, max, speed, bar_opts, global, box_height, frames)
+      frames = Stream.iterate(0, &(&1 + 1)) |> Stream.take(max_frames)
+      Enum.each(frames, &animate_bar_frame(&1, state))
+
+      if state.use_abs do
+        IO.write(Alaja.ANSI.show_cursor())
+      end
     end
   end
 
-  defp run_animated_loop(value, max, speed, bar_opts, global, box_height, frames) do
-    Enum.each(frames, fn position ->
-      frame =
-        ABComp.render_frame(value, max, position, bar_opts)
-        |> Alaja.Buffer.to_iodata()
-        |> IO.iodata_to_binary()
+  defp animate_bar_frame(position, state) do
+    frame =
+      ABComp.render_frame(state.value, state.max, position, state.bar_opts)
+      |> Alaja.Buffer.to_iodata()
+      |> IO.iodata_to_binary()
 
-      wrapped =
-        if global.box do
-          box_opts =
-            []
-            |> maybe_add(:title, global.box_title)
-            |> maybe_add(:border, global.box_border)
-            |> maybe_add(:border_color, global.box_color)
+    wrapped = wrap_bar_frame(frame, state.global)
 
-          Box.render(frame, box_opts)
-          |> Alaja.Buffer.to_iodata()
-          |> IO.iodata_to_binary()
-        else
-          frame
-        end
+    if state.use_abs do
+      IO.write([
+        Alaja.ANSI.move_to(state.start_x, state.start_y),
+        Alaja.ANSI.clear_line_down(),
+        wrapped
+      ])
+    else
+      write_bar_frame_relative(wrapped, position, state.box_height)
+    end
 
-      if position == 0 do
-        IO.write(wrapped)
-      else
-        # Move cursor up box_height lines, then clear from cursor to end of
-        # screen. The original code used \e[K which only clears the current
-        # line; when the frame is taller than 1 line (e.g. with --box, which
-        # adds a top and bottom border), previous-frame leftovers were
-        # left behind. Using \e[J ensures everything below the moved cursor
-        # is wiped clean.
-        IO.write("\e[#{box_height}A\e[J#{wrapped}")
-      end
+    Process.sleep(state.speed)
+  end
 
-      Process.sleep(speed)
-    end)
+  defp wrap_bar_frame(frame, global) do
+    if global.box do
+      box_opts =
+        []
+        |> maybe_add(:title, global.box_title)
+        |> maybe_add(:border, global.box_border)
+        |> maybe_add(:border_color, global.box_color)
+
+      Box.render(frame, box_opts)
+      |> Alaja.Buffer.to_iodata()
+      |> IO.iodata_to_binary()
+    else
+      frame
+    end
+  end
+
+  defp write_bar_frame_relative(wrapped, 0, _box_height), do: IO.write(wrapped)
+
+  defp write_bar_frame_relative(wrapped, _position, box_height) do
+    IO.write("\e[#{box_height}A\e[J#{wrapped}")
   end
 
   defp parse_type("kitt"), do: :kitt
