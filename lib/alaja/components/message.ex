@@ -151,7 +151,16 @@ defmodule Alaja.Components.Message do
   end
 
   defp alignment_offset(terminal_w, content_w, :center), do: div(max(terminal_w - content_w, 0), 2)
-  defp alignment_offset(terminal_w, content_w, :right), do: max(terminal_w - content_w, 0)
+
+  # For :right we leave one extra column of slack on the right side of the
+  # terminal. Without this, the last visible character lands on column
+  # `terminal_w - 1` (the very last column), which several terminals treat
+  # as a wrap trigger or cursor-park position; the resulting visual glitch
+  # is that the last glyph appears to wrap onto the next row. Reserving
+  # one trailing space gives the renderer room to "breathe" and keeps the
+  # right edge visually flush.
+  defp alignment_offset(terminal_w, content_w, :right),
+    do: max(terminal_w - content_w - 1, 0)
   defp alignment_offset(_terminal_w, _content_w, _), do: 0
 
   # ---------------------------------------------------------------------------
