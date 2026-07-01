@@ -28,6 +28,28 @@ defmodule Alaja.Components.Box do
 
   alias Alaja.{Buffer, Cell}
 
+  # Standard ANSI 16-color mapping (same as table.ex parse_pg_sgr)
+  @ansi_standard_colors %{
+    0 => {0, 0, 0},
+    1 => {170, 0, 0},
+    2 => {0, 170, 0},
+    3 => {170, 85, 0},
+    4 => {0, 0, 170},
+    5 => {170, 0, 170},
+    6 => {0, 170, 170},
+    7 => {170, 170, 170},
+    8 => {85, 85, 85},
+    9 => {255, 85, 85},
+    10 => {85, 255, 85},
+    11 => {255, 255, 85},
+    12 => {85, 85, 255},
+    13 => {255, 85, 255},
+    14 => {85, 255, 255},
+    15 => {255, 255, 255}
+  }
+
+  @no_fg_change :"$no_fg_change"
+
   @borders %{
     none: %{tl: "", tr: "", bl: "", br: "", h: "", v: "", mt: "", mb: ""},
     single: %{tl: "┌", tr: "┐", bl: "└", br: "┘", h: "─", v: "│", mt: "┬", mb: "┴"},
@@ -103,47 +125,55 @@ defmodule Alaja.Components.Box do
   end
 
   defp prepare_content(content, padding) when is_binary(content) do
-    # Strip ANSI escapes before splitting lines so the visible width
-    # measurement (in prepare_lines/2) doesn't count the escape bytes
-    # as characters. Without this, gradient / coloured text gets a
-    # wildly oversized box because each \e[38;2;R;G;Bm adds ~16 chars
-    # to String.length/1's tally.
-    visible = strip_ansi(content)
-    lines = String.split(visible, "\n")
-    prepare_lines(lines, padding)
-  end
-
-  defp prepare_content(content, padding) when is_list(content) do
-    visible = Enum.map(content, &strip_ansi/1)
-    prepare_lines(visible, padding)
-  end
-
-  defp prepare_lines(lines, padding) do
-    inner_w =
-      lines
-      |> Enum.map(&String.length/1)
-      |> Enum.max(fn -> 0 end)
-      |> Kernel.+(padding * 2)
-
+    # Parse ANSI escapes into coloured cells so gradient / coloured
+    # content preserves its colours inside the box. We measure visible
+    # width separately (via strip_ansi) to size the container correctly.
+    lines = String.split(content, "\n", trim: false)
+    visible_lengths = lines |> Enum.map(&visible_length/1)
+    inner_w = (visible_lengths |> Enum.max(fn -> 0 end)) + padding * 2
     height = max(length(lines), 1)
 
     padded =
       lines
-      |> Enum.map(fn line ->
-        pad_visible(line, inner_w - padding * 2)
-      end)
+      |> Enum.zip(visible_lengths)
       |> Enum.with_index()
-      |> Enum.reduce(Buffer.new(inner_w, height), fn {line, y}, buf ->
-        write_line(buf, padding, y, line)
+      |> Enum.reduce(Buffer.new(inner_w, height), fn {{line, vlen}, y},
+                                                      buf ->
+        # Parse ANSI escapes, pad to target width, write coloured cells
+        cells = parse_ansi_line(line)
+        target = inner_w - padding * 2
+        padded_cells = pad_cells(cells, target, vlen)
+        write_coloured(buf, padding, y, padded_cells)
       end)
 
     {inner_w, padded}
   end
 
-  defp pad_visible(text, target_width) do
-    visible = String.length(text)
-    padding_count = max(0, target_width - visible)
-    text <> String.duplicate(" ", padding_count)
+  defp prepare_content(content, padding) when is_list(content) do
+    # Same as binary but each element is one line (no \n splitting)
+    lines = content
+    visible_lengths = lines |> Enum.map(&visible_length/1)
+    inner_w = (visible_lengths |> Enum.max(fn -> 0 end)) + padding * 2
+    height = max(length(lines), 1)
+
+    padded =
+      lines
+      |> Enum.zip(visible_lengths)
+      |> Enum.with_index()
+      |> Enum.reduce(Buffer.new(inner_w, height), fn {{line, vlen}, y},
+                                                      buf ->
+        cells = parse_ansi_line(line)
+        target = inner_w - padding * 2
+        padded_cells = pad_cells(cells, target, vlen)
+        write_coloured(buf, padding, y, padded_cells)
+      end)
+
+    {inner_w, padded}
+  end
+
+  # Helper: visible width of an ANSI-escaped string
+  defp visible_length(text) do
+    text |> strip_ansi() |> String.length()
   end
 
   @ansi_regex ~r/\e\[[0-9;]*m/
@@ -152,13 +182,113 @@ defmodule Alaja.Components.Box do
     String.replace(text, @ansi_regex, "")
   end
 
-  defp write_line(buffer, x, y, line) do
-    line
-    |> String.graphemes()
+  # Pad a [{char, fg}] list to target width with spaces
+  defp pad_cells(cells, target, current_vlen) do
+    padding_count = max(0, target - current_vlen)
+    cells ++ List.duplicate({" ", nil}, padding_count)
+  end
+
+  # Write coloured cells at (x, y) into the buffer
+  defp write_coloured(buffer, x, y, cells) do
+    cells
     |> Enum.with_index()
-    |> Enum.reduce(buffer, fn {char, idx}, buf ->
-      Buffer.update_cell(buf, x + idx, y, Cell.new(char))
+    |> Enum.reduce(buffer, fn {{char, fg}, idx}, buf ->
+      Buffer.update_cell(buf, x + idx, y, Cell.new(char, fg))
     end)
+  end
+
+  # ---------------------------------------------------------------------------
+  # ANSI parsing (extracts {char, fg} tuples from an ANSI-escaped string)
+  # ---------------------------------------------------------------------------
+
+  defp parse_ansi_line(line) do
+    {cells, _fg} = parse_ansi_chars(line, [], nil)
+    Enum.reverse(cells)
+  end
+
+  defp parse_ansi_chars("", acc, _fg), do: {acc, nil}
+
+  defp parse_ansi_chars(<<0x1B, "[0m", rest::binary>>, acc, _fg) do
+    parse_ansi_chars(rest, acc, nil)
+  end
+
+  defp parse_ansi_chars(<<0x1B, "[", rest::binary>>, acc, fg) do
+    {skipped, after_m} = skip_until_m(rest)
+    new_fg = resolve_ansi_fg(skipped, fg)
+    parse_ansi_chars(after_m, acc, new_fg)
+  end
+
+  defp parse_ansi_chars(<<char::utf8, rest::binary>>, acc, fg) do
+    parse_ansi_chars(rest, [{<<char::utf8>>, fg} | acc], fg)
+  end
+
+  defp parse_ansi_chars(<<_, rest::binary>>, acc, fg) do
+    parse_ansi_chars(rest, acc, fg)
+  end
+
+  defp skip_until_m(<<?m, rest::binary>>), do: {"", rest}
+  defp skip_until_m(<<c, rest::binary>>) do
+    {skipped, after_m} = skip_until_m(rest)
+    {<<c>> <> skipped, after_m}
+  end
+  defp skip_until_m(""), do: {"", ""}
+
+  defp resolve_ansi_fg(skipped, current_fg) do
+    case parse_ansi_fg(skipped) do
+      @no_fg_change -> current_fg
+      nil -> nil
+      rgb -> rgb
+    end
+  end
+
+  defp parse_ansi_fg(skipped) do
+    cond do
+      String.starts_with?(skipped, "38;2;") -> parse_ansi_truecolor(skipped)
+      String.starts_with?(skipped, "38;5;") -> parse_ansi_xterm256(skipped)
+      skipped == "39" -> nil
+      byte_size(skipped) == 2 -> parse_ansi_standard_code(skipped)
+      true -> @no_fg_change
+    end
+  end
+
+  defp parse_ansi_truecolor(skipped) do
+    rest = String.slice(skipped, 5, byte_size(skipped) - 5)
+    parse_rgb_params(rest)
+  end
+
+  defp parse_ansi_xterm256(skipped) do
+    rest = String.slice(skipped, 5, byte_size(skipped) - 5)
+
+    with {n, ""} <- Integer.parse(rest),
+         rgb when rgb != nil <- Map.get(@ansi_standard_colors, n) do
+      rgb
+    else
+      _ -> @no_fg_change
+    end
+  end
+
+  defp parse_ansi_standard_code(skipped) do
+    case Integer.parse(skipped) do
+      {n, ""} when n >= 30 and n <= 37 -> Map.get(@ansi_standard_colors, n - 30)
+      {n, ""} when n >= 90 and n <= 97 -> Map.get(@ansi_standard_colors, n - 80)
+      _ -> @no_fg_change
+    end
+  end
+
+  defp parse_rgb_params(params) do
+    case String.split(params, ";") do
+      [r, g, b] ->
+        with {ri, ""} <- Integer.parse(r),
+             {gi, ""} <- Integer.parse(g),
+             {bi, ""} <- Integer.parse(b) do
+          {ri, gi, bi}
+        else
+          _ -> nil
+        end
+
+      _ ->
+        nil
+    end
   end
 
   defp draw_top_border(buffer, b, width, nil, fg) do
