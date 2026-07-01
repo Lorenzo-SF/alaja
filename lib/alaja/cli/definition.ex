@@ -221,6 +221,23 @@ defmodule Alaja.CLI.Definition do
         dispatch_main(args)
       end
 
+      @doc """
+      Runs a single command without re-starting the application stack.
+
+      This is the in-process execution path used by `alaja action` for
+      batch execution. It assumes the application is already running, so
+      it skips `Application.ensure_all_started/1`. Use `main/1` for the
+      top-level entry point and `exec/1` for child invocations.
+
+      ## Example
+
+          Alaja.CLI.exec(["message", "--text", "Hello"])
+      """
+      @spec exec([String.t()]) :: term()
+      def exec(args) do
+        Alaja.CLI.Definition.dispatch(@commands |> Enum.reverse(), args)
+      end
+
       defp dispatch_main(args) do
         # Ensure both :alaja (for the rendering stack) and the host
         # OTP application (the one declared with `use Alaja.CLI.Definition,
@@ -243,6 +260,7 @@ defmodule Alaja.CLI.Definition do
   # ─── Runtime dispatch ─────────────────────────────────────────────────
 
   alias Alaja.CLI.ErrorHandler
+  alias Alaja.CLI.Parser
 
   @doc false
   @spec dispatch([map()], [String.t()]) :: {:error, atom()} | term()
@@ -384,18 +402,66 @@ defmodule Alaja.CLI.Definition do
 
   defp cast_flag_value(:string, nil, default), do: default
   defp cast_flag_value(:string, val, _default), do: val
+
   defp cast_flag_value(:integer, nil, default), do: default
-  defp cast_flag_value(:integer, val, _default), do: String.to_integer(val)
+
+  defp cast_flag_value(:integer, val, default) do
+    case Integer.parse(to_string(val)) do
+      {n, ""} -> n
+      _ -> default
+    end
+  end
+
   defp cast_flag_value(:float, nil, default), do: default
-  defp cast_flag_value(:float, val, _default), do: String.to_float(val)
+
+  defp cast_flag_value(:float, val, default) do
+    case Float.parse(to_string(val)) do
+      {f, ""} -> f
+      _ -> default
+    end
+  end
+
   defp cast_flag_value(:boolean, nil, default), do: default
   defp cast_flag_value(:boolean, val, _default), do: val in [true, "true", "1"]
+
   defp cast_flag_value(:atom, nil, default), do: default
 
   defp cast_flag_value(:atom, val, _default) do
     case Alaja.Helpers.safe_string_to_atom(val) do
       {:ok, atom} -> atom
       {:error, _} -> val
+    end
+  end
+
+  # Path: expand `~` and relative components. Falls back to the literal
+  # value if Path.expand/1 raises (e.g. HOME unset).
+  defp cast_flag_value(:path, nil, default), do: default
+
+  defp cast_flag_value(:path, val, _default) do
+    Path.expand(val)
+  rescue
+    _ -> val
+  end
+
+  # URL: accept only http/https URIs. Anything else (mailto, file, no
+  # scheme) is rejected silently and the default is used.
+  defp cast_flag_value(:url, nil, default), do: default
+
+  defp cast_flag_value(:url, val, default) do
+    case URI.parse(val) do
+      %URI{scheme: scheme} when scheme in ["http", "https"] -> val
+      _ -> default
+    end
+  end
+
+  # color_list: `red;blue;#FF6B6B` -> [{r,g,b}, ...]. On parse error,
+  # fall back to the default rather than crashing.
+  defp cast_flag_value(:color_list, nil, default), do: default
+
+  defp cast_flag_value(:color_list, val, default) do
+    case Parser.parse_color_list(val) do
+      {:ok, colors} -> colors
+      _ -> default
     end
   end
 
