@@ -9,6 +9,7 @@ defmodule Alaja.CLI.Commands.Color do
   and renders a visual colour wheel when possible.
   """
 
+  alias Alaja.Buffer
   alias Alaja.CLI.GlobalOpts
   alias Alaja.Components.ColorWheel
   alias Alaja.Components.Header
@@ -223,7 +224,10 @@ defmodule Alaja.CLI.Commands.Color do
 
     wheel = render_color_wheel_output(all_colors)
 
-    table = build_color_table(rgb, all_colors, col_names)
+    table =
+      rgb
+      |> build_color_table(all_colors, col_names)
+      |> Buffer.to_iodata()
 
     extras = collect_extras(rgb, opts)
 
@@ -233,12 +237,14 @@ defmodule Alaja.CLI.Commands.Color do
         extra_headers = ["Property", "Value"]
 
         extra_table =
-          TableComp.render([extra_headers | extra_rows],
+          [extra_headers | extra_rows]
+          |> TableComp.render(
             table_border: :rounded,
             padding: 1,
             border_color: rgb,
             table_align: :left
           )
+          |> Buffer.to_iodata()
 
         ["\n", extra_table]
       else
