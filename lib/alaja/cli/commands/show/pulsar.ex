@@ -145,7 +145,11 @@ defmodule Alaja.CLI.Commands.Show.Pulsar do
 
   defp print_verbose_frames(text, pulsar_opts) do
     Enum.each(0..19, fn frame ->
-      frame_output = Pulsar.render_frame(text, frame, pulsar_opts)
+      frame_output =
+        text
+        |> Pulsar.render_frame(frame, pulsar_opts)
+        |> Alaja.Buffer.to_iodata()
+
       IO.puts(frame_output)
       IO.puts("")
     end)
@@ -243,9 +247,10 @@ defmodule Alaja.CLI.Commands.Show.Pulsar do
     frame_output = Pulsar.render_frame(text, frame, pulsar_opts)
     output = wrap_if_boxed(frame_output, global)
 
-    # Apply left padding to each line
+    # output is now iodata (Buffer.to_iodata result), safe to split by '\n'.
     padded_output =
       output
+      |> IO.iodata_to_binary()
       |> String.split("\n")
       |> Enum.map_join("\n", fn line -> String.duplicate(" ", left_pad) <> line end)
 
@@ -305,10 +310,14 @@ defmodule Alaja.CLI.Commands.Show.Pulsar do
       |> maybe_add(:border, global.box_border)
       |> maybe_add(:border_color, global.box_color)
 
-    Box.render(frame_output, box_opts) |> IO.iodata_to_binary()
+    frame_output
+    |> Box.render(box_opts)
+    |> Alaja.Buffer.to_iodata()
   end
 
-  defp wrap_if_boxed(frame_output, _global), do: frame_output
+  defp wrap_if_boxed(frame_output, _global) do
+    Alaja.Buffer.to_iodata(frame_output)
+  end
 
   defp maybe_add(list, _key, nil), do: list
   defp maybe_add(list, key, value), do: Keyword.put(list, key, value)
