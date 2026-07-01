@@ -110,7 +110,9 @@ defmodule Alaja.ConfigTest do
 
       File.write!(path, Jason.encode!(%{"color_depth" => "xterm256", "theme_active" => "midnight"}))
 
-      Config.load!(path)
+      # skip_env: deterministic file-only behaviour regardless of any
+      # BEAM-global env state leaked from concurrent tests.
+      Config.load!(path, skip_env: true)
 
       assert Application.get_env(:alaja, :color_depth) == :xterm256
       assert Application.get_env(:alaja, :theme_active) == "midnight"
