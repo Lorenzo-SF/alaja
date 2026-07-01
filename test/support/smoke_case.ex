@@ -136,17 +136,19 @@ defmodule Alaja.SmokeCase do
       File.exists?(snapshot_path) ->
         expected = File.read!(snapshot_path) |> normalize()
 
-        if actual == expected do
-          :ok
-        else
-          write_diff(snapshot_path, expected, actual)
-          raise snapshot_mismatch_message(snapshot_path, expected, actual)
-        end
+        cond do
+          actual == expected ->
+            :ok
 
-      System.get_env("UPDATE_SNAPSHOTS") == "1" ->
-        File.mkdir_p!(Path.dirname(snapshot_path))
-        File.write!(snapshot_path, normalized_actual)
-        :ok
+          System.get_env("UPDATE_SNAPSHOTS") == "1" ->
+            File.mkdir_p!(Path.dirname(snapshot_path))
+            File.write!(snapshot_path, normalized_actual)
+            :ok
+
+          true ->
+            write_diff(snapshot_path, expected, actual)
+            raise snapshot_mismatch_message(snapshot_path, expected, actual)
+        end
 
       true ->
         File.mkdir_p!(Path.dirname(snapshot_path))
@@ -207,10 +209,12 @@ defmodule Alaja.SmokeCase do
     max_len = 4000
 
     truncated =
-      if String.length(diff) > max_len do
-        String.slice(diff, 0, max_len) <> "\n... [truncated]"
+      diff_bin = IO.iodata_to_binary(diff)
+
+      if String.length(diff_bin) > max_len do
+        String.slice(diff_bin, 0, max_len) <> "\n... [truncated]"
       else
-        diff
+        diff_bin
       end
 
     IO.puts("\n=== SNAPSHOT DIFF ===")
