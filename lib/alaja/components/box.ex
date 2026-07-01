@@ -137,8 +137,7 @@ defmodule Alaja.Components.Box do
       lines
       |> Enum.zip(visible_lengths)
       |> Enum.with_index()
-      |> Enum.reduce(Buffer.new(inner_w, height), fn {{line, vlen}, y},
-                                                      buf ->
+      |> Enum.reduce(Buffer.new(inner_w, height), fn {{line, vlen}, y}, buf ->
         # Parse ANSI escapes, pad to target width, write coloured cells
         cells = parse_ansi_line(line)
         target = inner_w - padding * 2
@@ -160,8 +159,7 @@ defmodule Alaja.Components.Box do
       lines
       |> Enum.zip(visible_lengths)
       |> Enum.with_index()
-      |> Enum.reduce(Buffer.new(inner_w, height), fn {{line, vlen}, y},
-                                                      buf ->
+      |> Enum.reduce(Buffer.new(inner_w, height), fn {{line, vlen}, y}, buf ->
         cells = parse_ansi_line(line)
         target = inner_w - padding * 2
         padded_cells = pad_cells(cells, target, vlen)
@@ -227,10 +225,12 @@ defmodule Alaja.Components.Box do
   end
 
   defp skip_until_m(<<?m, rest::binary>>), do: {"", rest}
+
   defp skip_until_m(<<c, rest::binary>>) do
     {skipped, after_m} = skip_until_m(rest)
     {<<c>> <> skipped, after_m}
   end
+
   defp skip_until_m(""), do: {"", ""}
 
   defp resolve_ansi_fg(skipped, current_fg) do
