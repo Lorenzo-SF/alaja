@@ -12,7 +12,7 @@ defmodule Alaja do
   """
 
   alias Alaja.{Buffer, Cell, Printer}
-  alias Pote.Conversions
+  alias Pote.Converters
 
   @doc """
   Creates an empty cell (space, no colour, no effects).
@@ -41,7 +41,7 @@ defmodule Alaja do
   """
   @spec rgb_to_hex({byte(), byte(), byte()}) :: String.t()
   def rgb_to_hex({r, g, b}) do
-    Conversions.rgb_to_hex({r, g, b})
+    Converters.rgb_to_hex({r, g, b})
   end
 
   @doc "Prints a success message (icon: ✓)."
