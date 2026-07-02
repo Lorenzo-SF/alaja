@@ -55,7 +55,7 @@ defmodule Alaja.MixProject do
       main: "readme",
       source_url: "https://github.com/Lorenzo-SF/alaja",
       homepage_url: "https://github.com/Lorenzo-SF/alaja",
-      extras: ["README.md", "README_ES.md", "LICENSE.md"],
+      extras: ["README.md", "docs/README_ES.md", "LICENSE.md"],
       groups_for_modules: [
         "Core API": [Alaja],
         CLI: [
