@@ -47,7 +47,7 @@ defmodule Alaja.Components.ColorWheel do
   """
 
   alias Pote
-  alias Pote.{Conversions, Harmonies, Orchestrator}
+  alias Pote.{Converters, Harmonies, Orchestrator}
 
   @type rgb :: Pote.rgb()
 
@@ -253,7 +253,7 @@ defmodule Alaja.Components.ColorWheel do
     |> Enum.each(fn chunk ->
       line =
         Enum.map_join(chunk, "  ", fn {r, g, b} ->
-          hex = Conversions.rgb_to_hex({r, g, b})
+          hex = Converters.rgb_to_hex({r, g, b})
           "#{Pote.Orchestrator.to_ansi({r, g, b})}████████#{Alaja.ANSI.reset_attributes()} #{hex}"
         end)
 
@@ -341,7 +341,7 @@ defmodule Alaja.Components.ColorWheel do
   @spec extract_angles([rgb()]) :: [number()]
   def extract_angles(rgbs) do
     Enum.map(rgbs, fn rgb ->
-      {h, _s, _l} = Conversions.rgb_to_hsl(rgb)
+      {h, _s, _l} = Converters.rgb_to_hsl(rgb)
       h
     end)
   end
@@ -351,11 +351,11 @@ defmodule Alaja.Components.ColorWheel do
   """
   @spec render_color_formats(rgb()) :: :ok
   def render_color_formats({r, g, b} = rgb) do
-    hex = Conversions.rgb_to_hex(rgb)
-    {h, s, l} = Conversions.rgb_to_hsl(rgb)
-    {hv, sv, v} = Conversions.rgb_to_hsv(rgb)
-    {c, m, y, k} = Conversions.rgb_to_cmyk(rgb)
-    xterm = Conversions.rgb_to_xterm256(rgb)
+    hex = Converters.rgb_to_hex(rgb)
+    {h, s, l} = Converters.rgb_to_hsl(rgb)
+    {hv, sv, v} = Converters.rgb_to_hsv(rgb)
+    {c, m, y, k} = Converters.rgb_to_cmyk(rgb)
+    xterm = Converters.rgb_to_xterm256(rgb)
     argb = {255, r, g, b}
 
     formats = [
@@ -408,7 +408,7 @@ defmodule Alaja.Components.ColorWheel do
   @spec render_swatch_list([rgb()]) :: :ok
   def render_swatch_list(colors) do
     Enum.each(colors, fn {r, g, b} = rgb ->
-      hex = Conversions.rgb_to_hex(rgb)
+      hex = Converters.rgb_to_hex(rgb)
 
       IO.puts(
         "  #{Pote.Orchestrator.to_ansi({r, g, b})}████#{Alaja.ANSI.reset_attributes()} #{hex}  rgb(#{r},#{g},#{b})"
@@ -494,7 +494,7 @@ defmodule Alaja.Components.ColorWheel do
   defp resolve_rgb(input), do: Orchestrator.to_rgb!(input)
 
   @spec hsl_to_rgb_255(number(), number(), number()) :: rgb()
-  defp hsl_to_rgb_255(h, s, l), do: Conversions.hsl_to_rgb({h * 1.0, s * 1.0, l * 1.0})
+  defp hsl_to_rgb_255(h, s, l), do: Converters.hsl_to_rgb({h * 1.0, s * 1.0, l * 1.0})
 
   @spec harmony_marker?(integer(), [number()], integer()) :: boolean()
   defp harmony_marker?(_hue, [], _tolerance), do: false
