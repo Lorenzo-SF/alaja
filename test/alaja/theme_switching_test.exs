@@ -34,12 +34,19 @@ defmodule Alaja.ThemeSwitchingTest do
     File.mkdir_p!(sandbox)
     System.put_env("ALAJA_THEMES_PATH", sandbox)
 
+    # Sandbox config file so tests don't interfere with each other via
+    # persistence to the real ~/.config/alaja/alaja.conf.
+    config_path = Path.join(sandbox, "alaja.conf")
+    File.write!(config_path, ~s({"theme_active": "dracula"}))
+    System.put_env("ALAJA_CONFIG_PATH", config_path)
+
     # Install all built-in templates into the sandbox dir.
     Enum.each(Theme.templates(), &Theme.install_template/1)
 
     on_exit(fn ->
       File.rm_rf!(sandbox)
       System.delete_env("ALAJA_THEMES_PATH")
+      System.delete_env("ALAJA_CONFIG_PATH")
     end)
 
     :ok
