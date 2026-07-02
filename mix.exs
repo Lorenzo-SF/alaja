@@ -134,10 +134,10 @@ defmodule Alaja.MixProject do
 
   defp deps do
     [
-      # Pinning to a tag froze us to a stale pote v0.2.0 (no Pote.Theme)
-      # and the same happened with candil v0.2.0 (no Provider struct).
-      # We track `main` so consumers always see the latest API surface.
-      {:pote, github: "Lorenzo-SF/pote", branch: "main"},
+      # Pote 2.0.0 is published on Hex.pm. Tracking `main` via GitHub would
+      # break `mix hex.build` (Hex only accepts Hex packages as deps), so
+      # we pin to the public release. Bump this on each pote release.
+      {:pote, "~> 2.0"},
       {:jason, "~> 1.4"},
       {:credo, "~> 1.7", only: [:dev, :test], runtime: false},
       {:dialyxir, "~> 1.4", only: [:dev, :test], runtime: false},
