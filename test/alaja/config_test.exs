@@ -153,6 +153,8 @@ defmodule Alaja.ConfigTest do
       Config.load!(path)
 
       assert Application.get_env(:alaja, :theme_active) == "oceanic-next"
+    after
+      System.delete_env("ALAJAX_THEME_ACTIVE")
     end
 
     test "empty ALAJA_* env vars are ignored", %{tmp_dir: tmp_dir} do
