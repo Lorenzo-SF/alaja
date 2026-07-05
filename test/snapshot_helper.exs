@@ -75,7 +75,7 @@ defmodule SnapshotHelper do
         Json.render(%{deps: ["pote", "jason"], meta: %{author: "Lorenzo", count: 3}})
         |> Alaja.Buffer.to_iodata()
         |> IO.iodata_to_binary(),
-      # Table.render() still returns iodata in v0.3.0 (refactor pending)
+      # Same render -> Cell Buffer -> iodata -> binary pipeline as the rest.
       "table_simple" =>
         Table.render(
           [
@@ -89,6 +89,7 @@ defmodule SnapshotHelper do
           rows_2_color: [:white, :yellow, :white],
           table_border: :rounded
         )
+        |> Alaja.Buffer.to_iodata()
         |> IO.iodata_to_binary()
     }
 
