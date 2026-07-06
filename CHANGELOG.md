@@ -7,6 +7,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.1.0] - 2026-07-07
+
+### Fixed
+- **`source_ref` in `mix.exs`** pointed to a non-existent tag (`v0.1.0`).
+  Now points to the canonical `2.0.0` tag (matches the rest of the
+  Lorenzo-SF/* ecosystem after the doc/source_ref sweep).
+- **CHANGELOG** — drop the `v` prefix from tag references in the
+  "A note on history" footer to match the canonical tag convention
+  (no `v` prefix on this repo).
+- **Dep switch**: `pote` is now tracked from `github: "Lorenzo-SF/pote",
+  branch: "main"` again (was `~> 2.0` on Hex). Aligns alaja with the
+  rest of the ecosystem (apero, arrea, candil, botica all use
+  `branch: "main"` for cross-repo deps).
+- **`Alaja.SnapshotHelper`**: align the `Table` pipeline with the Cell
+  Buffer convention (regenerates JSON snapshots after the theme colour
+  change in 2.0.0).
+
+### Changed
+- **JSON test snapshots regenerated** to match the new theme palette
+  introduced in 2.0.0.
+
+### Internal
+- **`mix dialyzer`** config: add `plt_add_apps: [:mix]` so the PLT
+  contains `Mix.shell/0`, `Mix.Project.project_file/0`, and the
+  `Mix.Task` callback info. The `alaja.snapshot` mix task references
+  these and dialyzer was failing with
+  `Function Mix.shell/0 does not exist` against the previous PLT.
+
 ## [2.0.0] - 2026-07-01
 
 This release marks a major API shift: alaja is now **Buffer-first**.
@@ -221,6 +249,7 @@ into this single canonical entry.
 - Initial open source release: DSL, components, rendering, syntax
   highlighting, ANSI utilities.
 
+[2.1.0]: https://hex.pm/packages/alaja/2.1.0
 [2.0.0]: https://hex.pm/packages/alaja/2.0.0
 [1.0.0]: https://hex.pm/packages/alaja/1.0.0
 
