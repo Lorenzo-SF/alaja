@@ -134,10 +134,13 @@ defmodule Alaja.MixProject do
 
   defp deps do
     [
-      # Pote 2.0.0 is published on Hex.pm. Tracking `main` via GitHub would
-      # break `mix hex.build` (Hex only accepts Hex packages as deps), so
-      # we pin to the public release. Bump this on each pote release.
-      {:pote, "~> 2.0"},
+      # Track pote via GitHub main to stay aligned with the rest of the
+      # Lorenzo-SF/* ecosystem (apero, candil, arrea, botica all use
+      # `branch: \"main\"` for cross-repo deps). Previously we pinned to
+      # the Hex release to keep `mix hex.build` self-contained, but the
+      # external publish workflow now requires a documented override
+      # either way; tracking main is the simpler rule.
+      {:pote, github: "Lorenzo-SF/pote", branch: "main"},
       {:jason, "~> 1.4"},
       {:credo, "~> 1.7", only: [:dev, :test], runtime: false},
       {:dialyxir, "~> 1.4", only: [:dev, :test], runtime: false},
