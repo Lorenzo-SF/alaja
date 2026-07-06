@@ -532,7 +532,6 @@ defmodule Alaja.Buffer do
   # Appends a char to the rightmost position of an iolist.
   # Walks nested cons cells until reaching a binary, then appends.
   defp append_to_last([], char), do: [char]
-  defp append_to_last(binary, char) when is_binary(binary), do: [binary, char]
 
   defp append_to_last([head | tail], char) do
     [head | append_to_last(tail, char)]
