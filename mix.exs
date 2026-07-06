@@ -119,7 +119,7 @@ defmodule Alaja.MixProject do
           Alaja.ImageTerminal
         ]
       ],
-      source_ref: "v0.1.0"
+      source_ref: "2.0.0"
     ]
   end
 
