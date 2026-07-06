@@ -221,6 +221,7 @@ into this single canonical entry.
 - Initial open source release: DSL, components, rendering, syntax
   highlighting, ANSI utilities.
 
+[2.0.0]: https://hex.pm/packages/alaja/2.0.0
 [1.0.0]: https://hex.pm/packages/alaja/1.0.0
 
 
@@ -236,7 +237,7 @@ into this single canonical entry.
 > preserved is, by the maintainer's choice, no longer part of the
 > canonical development line.
 >
-> Tag `v1.0.0` points to the initial open-source cut-over; tag `v2.0.0`
+> Tag `1.0.0` points to the initial open-source cut-over; tag `2.0.0`
 > points to the current HEAD and the canonical Buffer-first release.
 > All versioned artifacts on Hex.pm and GitHub Releases follow this
 > convention.
