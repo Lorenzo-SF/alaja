@@ -250,7 +250,7 @@ defmodule Alaja.CLI.Commands.Show.Multibar do
   end
 
   defp stdin_tty? do
-    match?({:ok, true}, :io.columns())
+    match?({:ok, _}, :io.columns())
   end
 
   defp read_stdin_loop(pid) do

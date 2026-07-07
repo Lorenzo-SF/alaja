@@ -95,5 +95,4 @@ defmodule Alaja.Components.Breadcrumbs do
   end
 
   defp buffer_to_iodata(%Buffer{} = buffer), do: Buffer.to_iodata(buffer)
-  defp buffer_to_iodata(other), do: other
 end

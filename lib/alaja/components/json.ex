@@ -57,7 +57,7 @@ defmodule Alaja.Components.Json do
     sorted = sort_keys(data)
 
     text =
-      case Jason.encode(sorted, pretty: true, indent: indent) do
+      case Jason.encode(sorted, pretty: [indent: String.duplicate(" ", indent)]) do
         {:ok, encoded} -> encoded
         {:error, _} -> "{}"
       end

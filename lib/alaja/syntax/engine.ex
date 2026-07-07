@@ -36,7 +36,7 @@ defmodule Alaja.Syntax.Engine do
     read_multiline(content, pos, end_str, :comment)
   end
 
-  defp advance(content, _lang, pos, {:multiline_string, end_re, _escape}) do
+  defp advance(content, _lang, pos, {:multiline_string, end_re}) do
     read_multiline(content, pos, end_re, :string)
   end
 
