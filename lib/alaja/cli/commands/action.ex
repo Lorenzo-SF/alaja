@@ -118,7 +118,7 @@ defmodule Alaja.CLI.Commands.Action do
     # Erlang's :standard_io because IO.respond?/0 is unreliable across
     # OTP versions.
     case :erlang.port_info(:standard_io, :input) do
-      {:input, "fd:0"} ->
+      {:input, 0} ->
         # In TTY if `tty -s` returns 0 (POSIX). Skip the OS check
         # and rely on TERM=dumb (smoke tests) to disable stdin reads.
         not (System.get_env("TERM") == "dumb")
