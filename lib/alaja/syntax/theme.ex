@@ -25,6 +25,11 @@ defmodule Alaja.Syntax.Theme do
       }
   """
 
+  @type t :: %__MODULE__{
+          name: String.t(),
+          colors: map()
+        }
+
   defstruct name: "default",
             colors: %{}
 
