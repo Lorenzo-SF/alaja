@@ -48,7 +48,7 @@ defmodule Alaja.Syntax.Renderer do
   etc.) and applies effects (bold, italic, etc.).
   """
   @spec render_ansi([{atom(), String.t()}], Alaja.Syntax.Language.t(), Theme.t() | nil) ::
-          IO.iodata()
+          iodata()
   def render_ansi(tokens, lang, global_theme \\ nil) do
     theme = global_theme || Theme.default()
 

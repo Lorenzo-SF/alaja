@@ -12,7 +12,6 @@ defmodule Alaja.CLI.Commands.Show.Table do
   Runs the table command.
   """
   @spec run([String.t()]) :: :ok
-  @dialyzer {:nowarn_function, {:run, 1}}
   def run(args) do
     {global, rest} = GlobalOpts.parse(args)
 
@@ -32,8 +31,7 @@ defmodule Alaja.CLI.Commands.Show.Table do
           rows_align: :string,
           rows_effects: :string,
           table_align: :string
-        ],
-        allow_nonstandard_switches: true
+        ]
       )
 
     if global.help or Keyword.get(opts, :help, false) do
