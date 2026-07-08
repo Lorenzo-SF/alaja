@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.3.0] - 2026-07-08
+
+### Added
+- **12 new colour themes** for `alaja config init`:
+  `catppuccin`, `solarized-dark`, `gruvbox-dark`, `tokyo-night`,
+  `everforest-dark`, `rose-pine`, `ayu-dark`, `synthwave`, `aurora`,
+  `material-ocean`, `outrun`, `kanagawa`.
+- **`Alaja.Theme.CustomTemplates`** — new module shipping extra themes
+  alongside Pote's built-in set. Each theme defines 23 harmonised colours
+  (4 accents, background, text, 6 status colours, 6 gradient stops, menu,
+  debug, happy/sad).
+
+### Changed
+- **`alaja config init`** now installs both Pote's built-in templates and
+  Alaja's own custom templates (17 themes total).
+
 ## [2.2.0] - 2026-07-08
 
 ### Added
