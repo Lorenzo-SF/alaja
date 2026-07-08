@@ -5,6 +5,7 @@ defmodule Alaja.CLI.Commands.Config do
 
   alias Alaja.Components.Header
   alias Alaja.{Config, Theme}
+  alias Alaja.Theme.CustomTemplates
 
   # Only keys that Alaja itself owns and persists.
   @config_keys [:color_depth, :theme_active]
@@ -125,10 +126,21 @@ defmodule Alaja.CLI.Commands.Config do
   end
 
   defp install_theme_templates do
+    # Install built-in templates from Pote
     Enum.each(Theme.templates(), fn name ->
       IO.write("  Writing #{name}.json ... ")
 
       case Theme.install_template(name) do
+        :ok -> IO.puts("\e[38;2;72;187;120m✓\e[0m")
+        {:error, reason} -> IO.puts("\e[38;2;245;101;101m✗ #{inspect(reason)}\e[0m")
+      end
+    end)
+
+    # Install Alaja's own custom templates on top
+    Enum.each(CustomTemplates.all(), fn theme ->
+      IO.write("  Writing #{theme.name}.json ... ")
+
+      case Theme.install!(theme) do
         :ok -> IO.puts("\e[38;2;72;187;120m✓\e[0m")
         {:error, reason} -> IO.puts("\e[38;2;245;101;101m✗ #{inspect(reason)}\e[0m")
       end
