@@ -4,7 +4,7 @@ defmodule Alaja.MixProject do
   def project do
     [
       app: :alaja,
-      version: "2.1.0",
+      version: "2.3.0",
       elixir: "~> 1.19",
       start_permanent: Mix.env() == :prod,
       deps: deps(),
@@ -134,18 +134,12 @@ defmodule Alaja.MixProject do
 
   defp deps do
     [
-      # Track pote via GitHub main to stay aligned with the rest of the
-      # Lorenzo-SF/* ecosystem (apero, candil, arrea, botica all use
-      # `branch: \"main\"` for cross-repo deps). Previously we pinned to
-      # the Hex release to keep `mix hex.build` self-contained, but the
-      # external publish workflow now requires a documented override
-      # either way; tracking main is the simpler rule.
-      {:pote, github: "Lorenzo-SF/pote", branch: "main"},
+      {:pote, "~> 2.1.0"},
       {:jason, "~> 1.4"},
       {:credo, "~> 1.7", only: [:dev, :test], runtime: false},
       {:dialyxir, "~> 1.4", only: [:dev, :test], runtime: false},
       {:ex_doc, "~> 0.34", only: :dev, runtime: false},
-      {:batamanta, "~> 1.6.0", optional: true, runtime: false},
+      {:batamanta, "~> 1.6.1", optional: true, runtime: false},
       {:excoveralls, "~> 0.18", only: :test, runtime: false},
       {:benchee, "~> 1.3", only: :dev}
     ]

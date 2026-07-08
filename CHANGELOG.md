@@ -7,6 +7,48 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.3.0] - 2026-07-08
+
+### Added
+- **12 new colour themes** for `alaja config init`:
+  `catppuccin`, `solarized-dark`, `gruvbox-dark`, `tokyo-night`,
+  `everforest-dark`, `rose-pine`, `ayu-dark`, `synthwave`, `aurora`,
+  `material-ocean`, `outrun`, `kanagawa`.
+- **`Alaja.Theme.CustomTemplates`** — new module shipping extra themes
+  alongside Pote's built-in set. Each theme defines 23 harmonised colours
+  (4 accents, background, text, 6 status colours, 6 gradient stops, menu,
+  debug, happy/sad).
+
+### Changed
+- **`alaja config init`** now installs both Pote's built-in templates and
+  Alaja's own custom templates (17 themes total).
+
+## [2.2.0] - 2026-07-08
+
+### Added
+- **`alaja table` per-row styling**: new `--row-N-color`, `--row-N-align`,
+  `--row-N-effect` CLI flags where N = 1-indexed row number. These override
+  the global `--rows-color/--rows-align/--rows-effects` for a specific row.
+  Supports both `--row-1-color VALUE` and `--row-1-color=VALUE` syntax.
+  Internal row numbers are 0-indexed and mapped automatically.
+
+### Fixed
+- **BUG**: `alaja table` per-row styling was only implemented in the backend
+  (`Alaja.Components.Table`) but had no CLI support. The parser
+  `extract_row_specific_opts/1` already handled `rows_0_color` etc. but no
+  CLI switches exposed them. Fixed by adding `parse_per_row_args/1` which
+  captures `--row-N-{color,align,effect}` from raw args, translates to the
+  backend's `rows_{N-1}_{color,align,effects}` format, and merges them into
+  the option list (global applies first, per-row overrides).
+- **BUG**: theme atom colours (e.g. `:primary`, `:secondary`) resolved to
+  Pote's hardcoded `@default_colors` instead of the user's active Alaja
+  theme. `Cell.ansi_fg/1` and `Cell.ansi_bg/1` called `Pote.color/1` which
+  only does `Map.get(@default_colors, atom)`, completely bypassing the
+  registered theme resolver stack. Fixed by replacing with
+  `Pote.resolve_theme_color/1`, which walks registered resolvers first and
+  only falls back to `@default_colors` as a last resort. Affects any
+  component using `Cell` (Separator, Header, Box, Table via Buffer, etc.).
+
 ## [2.1.0] - 2026-07-07
 
 ### Fixed
@@ -249,6 +291,7 @@ into this single canonical entry.
 - Initial open source release: DSL, components, rendering, syntax
   highlighting, ANSI utilities.
 
+[2.2.0]: https://hex.pm/packages/alaja/2.2.0
 [2.1.0]: https://hex.pm/packages/alaja/2.1.0
 [2.0.0]: https://hex.pm/packages/alaja/2.0.0
 [1.0.0]: https://hex.pm/packages/alaja/1.0.0
