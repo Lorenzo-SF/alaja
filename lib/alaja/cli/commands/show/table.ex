@@ -111,58 +111,54 @@ defmodule Alaja.CLI.Commands.Show.Table do
   # Supports both --row-N-color VALUE and --row-N-color=VALUE forms.
   @spec parse_per_row_args([String.t()]) :: keyword()
   defp parse_per_row_args(args) do
-    # First, split any --row-N-xxx=VALUE args into two elements
-    expanded =
-      args
-      |> Enum.flat_map(fn
-        arg when is_binary(arg) ->
-          if String.starts_with?(arg, "--row-") and String.contains?(arg, "=") do
-            [String.split(arg, "=", parts: 2)]
-          else
-            [arg]
-          end
-
-        other ->
-          [other]
-      end)
-
-    expanded
+    args
+    |> expand_row_args()
     |> Enum.chunk_every(2, 1, :discard)
-    |> Enum.filter(fn [flag, _val] ->
-      is_binary(flag) and
-        String.starts_with?(flag, "--row-") and
-        (String.ends_with?(flag, "-color") or
-           String.ends_with?(flag, "-align") or
-           String.ends_with?(flag, "-effect"))
-    end)
-    |> Enum.map(fn [flag, val] ->
-      # flag: "--row-1-color", "--row-2-align", "--row-3-effect"
-      rest = String.trim_leading(flag, "--row-")
-      # rest: "1-color", "2-align", "3-effect"
-      parts = String.split(rest, "-", parts: 2)
-
-      case parts do
-        [row_str, "color"] ->
-          row_num = String.to_integer(row_str)
-          backend_row = row_num - 1
-          {String.to_atom("rows_#{backend_row}_color"), val}
-
-        [row_str, "align"] ->
-          row_num = String.to_integer(row_str)
-          backend_row = row_num - 1
-          {String.to_atom("rows_#{backend_row}_align"), val}
-
-        [row_str, "effect"] ->
-          row_num = String.to_integer(row_str)
-          backend_row = row_num - 1
-          {String.to_atom("rows_#{backend_row}_effects"), val}
-
-        _ ->
-          nil
-      end
-    end)
+    |> Enum.filter(&row_flag?/1)
+    |> Enum.map(&parse_row_flag/1)
     |> Enum.reject(&is_nil/1)
   end
+
+  # Splits --row-N-xxx=VALUE into two-element list ["--row-N-xxx", "VALUE"]
+  defp expand_row_args(args) do
+    Enum.flat_map(args, fn
+      arg when is_binary(arg) ->
+        if String.starts_with?(arg, "--row-") and String.contains?(arg, "=") do
+          String.split(arg, "=", parts: 2)
+        else
+          [arg]
+        end
+
+      other ->
+        [other]
+    end)
+  end
+
+  defp row_flag?([flag, _val]) when is_binary(flag) do
+    String.starts_with?(flag, "--row-") and
+      (String.ends_with?(flag, "-color") or
+         String.ends_with?(flag, "-align") or
+         String.ends_with?(flag, "-effect"))
+  end
+
+  defp row_flag?(_), do: false
+
+  defp parse_row_flag([flag, val]) do
+    rest = String.trim_leading(flag, "--row-")
+    parts = String.split(rest, "-", parts: 2)
+
+    with [row_str, suffix] when suffix in ~w(color align effect) <- parts,
+         {row_num, ""} when row_num > 0 <- Integer.parse(row_str) do
+      build_per_row_key(row_num - 1, suffix, val)
+    else
+      _ -> nil
+    end
+  end
+
+  # Atoms are deterministic: bounded row numbers (0..99 max) + 3 known suffixes.
+  # Using String.to_atom/1 is safe here — cannot exhaust the atom table.
+  # credo:disable-for-next-line Credo.Check.Warning.UnsafeToAtom
+  defp build_per_row_key(backend_row, suffix, val), do: {String.to_atom("rows_#{backend_row}_#{suffix}"), val}
 
   # Convert per-row parsed opts to their parsed values (color, align, effect)
   @spec build_per_row_opts(keyword()) :: keyword()
@@ -170,6 +166,7 @@ defmodule Alaja.CLI.Commands.Show.Table do
     opts
     |> Enum.filter(fn {key, _val} ->
       key_str = Atom.to_string(key)
+
       String.starts_with?(key_str, "rows_") and
         (String.ends_with?(key_str, "_color") or
            String.ends_with?(key_str, "_align") or
