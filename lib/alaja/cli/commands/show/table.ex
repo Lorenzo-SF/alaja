@@ -15,7 +15,8 @@ defmodule Alaja.CLI.Commands.Show.Table do
   def run(args) do
     {global, rest} = GlobalOpts.parse(args)
 
-    {opts, _, _} =
+    # Parse standard switches first
+    {opts, _, _invalid} =
       OptionParser.parse(rest,
         switches: [
           headers: :string,
@@ -33,6 +34,11 @@ defmodule Alaja.CLI.Commands.Show.Table do
           table_align: :string
         ]
       )
+
+    # Collect per-row args (--row-<N>-color, --row-<N>-align, --row-<N>-effect)
+    # from raw args, including any that OptionParser flagged as invalid
+    per_row_opts = parse_per_row_args(rest)
+    opts = Keyword.merge(opts, per_row_opts)
 
     if global.help or Keyword.get(opts, :help, false) do
       help()
@@ -79,6 +85,8 @@ defmodule Alaja.CLI.Commands.Show.Table do
     border = parse_border_opt(Keyword.get(opts, :border, "normal"))
     padding = Keyword.get(opts, :padding, 1)
 
+    per_row_opts = build_per_row_opts(opts)
+
     [
       table_border: border,
       table_align: table_align(opts, global),
@@ -93,6 +101,99 @@ defmodule Alaja.CLI.Commands.Show.Table do
       rows_align: parse_align_list(Keyword.get(opts, :rows_align)),
       rows_effects: parse_effects_list(Keyword.get(opts, :rows_effects))
     ]
+    |> Keyword.merge(per_row_opts)
+    |> Enum.reject(fn {_, v} -> is_nil(v) end)
+  end
+
+  # Parse --row-<N>-color, --row-<N>-align, --row-<N>-effect from raw args
+  # Converts to backend format: rows_<N-1>_color, rows_<N-1>_align, rows_<N-1>_effects
+  # Row numbers in CLI are 1-indexed; backend uses 0-indexed.
+  # Supports both --row-N-color VALUE and --row-N-color=VALUE forms.
+  @spec parse_per_row_args([String.t()]) :: keyword()
+  defp parse_per_row_args(args) do
+    # First, split any --row-N-xxx=VALUE args into two elements
+    expanded =
+      args
+      |> Enum.flat_map(fn
+        arg when is_binary(arg) ->
+          if String.starts_with?(arg, "--row-") and String.contains?(arg, "=") do
+            [String.split(arg, "=", parts: 2)]
+          else
+            [arg]
+          end
+
+        other ->
+          [other]
+      end)
+
+    expanded
+    |> Enum.chunk_every(2, 1, :discard)
+    |> Enum.filter(fn [flag, _val] ->
+      is_binary(flag) and
+        String.starts_with?(flag, "--row-") and
+        (String.ends_with?(flag, "-color") or
+           String.ends_with?(flag, "-align") or
+           String.ends_with?(flag, "-effect"))
+    end)
+    |> Enum.map(fn [flag, val] ->
+      # flag: "--row-1-color", "--row-2-align", "--row-3-effect"
+      rest = String.trim_leading(flag, "--row-")
+      # rest: "1-color", "2-align", "3-effect"
+      parts = String.split(rest, "-", parts: 2)
+
+      case parts do
+        [row_str, "color"] ->
+          row_num = String.to_integer(row_str)
+          backend_row = row_num - 1
+          {String.to_atom("rows_#{backend_row}_color"), val}
+
+        [row_str, "align"] ->
+          row_num = String.to_integer(row_str)
+          backend_row = row_num - 1
+          {String.to_atom("rows_#{backend_row}_align"), val}
+
+        [row_str, "effect"] ->
+          row_num = String.to_integer(row_str)
+          backend_row = row_num - 1
+          {String.to_atom("rows_#{backend_row}_effects"), val}
+
+        _ ->
+          nil
+      end
+    end)
+    |> Enum.reject(&is_nil/1)
+  end
+
+  # Convert per-row parsed opts to their parsed values (color, align, effect)
+  @spec build_per_row_opts(keyword()) :: keyword()
+  defp build_per_row_opts(opts) do
+    opts
+    |> Enum.filter(fn {key, _val} ->
+      key_str = Atom.to_string(key)
+      String.starts_with?(key_str, "rows_") and
+        (String.ends_with?(key_str, "_color") or
+           String.ends_with?(key_str, "_align") or
+           String.ends_with?(key_str, "_effects"))
+    end)
+    |> Enum.map(fn
+      {key, val} when is_binary(val) ->
+        cond do
+          String.ends_with?(Atom.to_string(key), "_color") ->
+            {key, parse_color_list(val)}
+
+          String.ends_with?(Atom.to_string(key), "_align") ->
+            {key, parse_align_list(val)}
+
+          String.ends_with?(Atom.to_string(key), "_effects") ->
+            {key, parse_effects_list(val)}
+
+          true ->
+            {key, val}
+        end
+
+      {key, val} ->
+        {key, val}
+    end)
     |> Enum.reject(fn {_, v} -> is_nil(v) end)
   end
 
@@ -296,6 +397,27 @@ defmodule Alaja.CLI.Commands.Show.Table do
           "Comma-separated: bold, underline, italic",
           "",
           "Text effects for rows"
+        ],
+        [
+          "--row-N-color COLORS",
+          "string",
+          "Semicolon-separated colors",
+          "",
+          "Per-row color override. N = row number (1-indexed). Overrides --rows-color for that row. Repeatable per row."
+        ],
+        [
+          "--row-N-align ALIGNS",
+          "string",
+          "Comma-separated: left, center, right",
+          "",
+          "Per-row alignment override. N = row number (1-indexed). Overrides --rows-align for that row."
+        ],
+        [
+          "--row-N-effect EFFECTS",
+          "string",
+          "Comma-separated: bold, underline, italic",
+          "",
+          "Per-row effects override. N = row number (1-indexed). Overrides --rows-effects for that row."
         ]
       ],
       table_border: :none,
