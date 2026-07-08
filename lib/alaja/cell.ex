@@ -243,17 +243,25 @@ defmodule Alaja.Cell do
 
   defp ansi_bg(_unknown), do: []
 
-  # Pote.color/1 raises FunctionClauseError when given a tuple or other
-  # non-atom, non-{r,g,b} term. Wrap the call so the render path returns
-  # an empty prefix instead of crashing the cell pipeline. We catch
-  # FunctionClauseError specifically — catching every exception would
-  # hide real bugs (KeyError, ArithmeticError, etc.) in the colour
-  # resolution.
+  # Resolve a colour atom through the registered theme resolver stack.
+  #
+  # Previously this called `Pote.color/1` which only consulted Pote's
+  # own hardcoded `@default_colors` map, completely bypassing any
+  # registered theme resolver (e.g. the one registered by
+  # `Alaja.Theme.register_with_pote/0`). This meant that when a user
+  # configured an Alaja theme and passed `:primary` as a colour atom,
+  # they would always see Pote's default `{161, 231, 250}` instead of
+  # the active theme's value.
+  #
+  # `Pote.resolve_theme_color/1` walks the registered resolver stack
+  # first and only falls back to `@default_colors` when no resolver
+  # returns a match — so the active theme wins.
   @spec safe_pote_color(term()) :: {0..255, 0..255, 0..255} | nil
   defp safe_pote_color(term) do
-    Pote.color(term)
-  rescue
-    FunctionClauseError -> nil
+    case Pote.resolve_theme_color(term) do
+      {:ok, rgb} -> rgb
+      :not_found -> nil
+    end
   end
 
   @spec ansi_effects(effects()) :: iodata()
