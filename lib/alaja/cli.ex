@@ -91,7 +91,5 @@ defmodule Alaja.CLI do
 
   command("action", "Execute Alaja commands from JSON input", run: {Dispatch, :action})
 
-  command("config", "Manage Alaja configuration", run: {Dispatch, :config})
-
-  command("theme", "Manage themes (init, set, list, show)", run: {Dispatch, :theme})
+  command("theme", "Manage themes (init, list, show, all, set)", run: {Dispatch, :theme})
 end

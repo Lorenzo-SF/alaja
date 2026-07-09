@@ -68,16 +68,37 @@ defmodule Alaja.CLI.Commands.Theme do
     end
   end
 
-  def run(["show", name]) do
-    if name in Theme.list() do
-      show_single_theme(name)
-    else
-      IO.puts(:stderr, "  Theme '#{name}' not found. Run 'alaja theme list' to see available.")
+  def run(["show" | names]) when names != [] do
+    themes = Theme.list()
+
+    cond do
+      # Single theme name
+      length(names) == 1 and hd(names) in themes ->
+        show_single_theme(hd(names))
+
+      # Multiple theme names — show side-by-side comparison of those
+      Enum.all?(names, &(&1 in themes)) ->
+        show_theme_table_side_by_side(names)
+
+      # One or more names not found
+      true ->
+        missing = Enum.reject(names, &(&1 in themes))
+
+        IO.puts(
+          :stderr,
+          "  Theme(s) not found: #{Enum.join(missing, ", ")}. Run 'alaja theme list' to see available."
+        )
     end
   end
 
-  def run(["show" | _]) do
-    IO.puts(:stderr, "Usage: alaja theme show <name> | list | all")
+  def run(["all"]) do
+    themes = Theme.list()
+
+    if themes == [] do
+      IO.puts("  No themes found. Run \e[38;2;0;180;216malaja theme init\e[0m first.")
+    else
+      show_theme_table_side_by_side(themes)
+    end
   end
 
   def run(_) do
@@ -167,7 +188,7 @@ defmodule Alaja.CLI.Commands.Theme do
     theme_col_w = 8
 
     header =
-      [String.pad_trailing("color", name_col_w)] ++
+      [String.pad_trailing("", name_col_w)] ++
         Enum.map(themes, &String.pad_trailing(&1, theme_col_w))
 
     IO.puts("\n  \e[38;2;0;180;216mTheme comparison\e[0m\n")
@@ -192,18 +213,23 @@ defmodule Alaja.CLI.Commands.Theme do
       alaja theme <action>
 
     ACTIONS
-      init                Install default themes to ~/.config/alaja/themes
-      set <name>          Activate a theme
-      list                List available themes
-      show <name>         Show a theme's color table
-      show list           Show side-by-side color comparison
-      show all            Show all themes sequentially
+      init                 Install default themes to ~/.config/alaja/themes
+      set <name>           Activate a theme
+      list                 List available themes
+      show <name>          Show a single theme's colour table
+      show <name> <name>…  Show side-by-side comparison of given themes
+      show list            Show side-by-side comparison of all themes
+      show all             Show all themes sequentially (one after another)
+      all                  Show side-by-side comparison of all themes (alias for `show list`)
 
     EXAMPLES
       alaja theme init
       alaja theme set dracula
       alaja theme list
       alaja theme show dracula
+      alaja theme show dracula nord light
+      alaja theme all
+      alaja theme show list
     """)
   end
 
@@ -215,7 +241,7 @@ defmodule Alaja.CLI.Commands.Theme do
           acc ++ [swatch]
 
         _ ->
-          acc ++ [String.pad_trailing("-", theme_col_w)]
+          acc ++ [String.pad_trailing("N/A", theme_col_w)]
       end
     end)
   end
