@@ -123,7 +123,7 @@ defmodule Alaja.Wizard do
   Recognised renderers: `:inline, :compact, :stacked, :wizard,
   :compact_wizard`. Any other atom raises `ArgumentError`.
   """
-  @spec render(t(), :inline | :compact | :stacked | :wizard | :compact_wizard) :: Buffer.t()
+  @spec render(t(), :inline | :compact | :stacked | :wizard | :compact_wizard | nil) :: Buffer.t()
   def render(w, renderer \\ nil)
 
   def render(%__MODULE__{} = w, nil), do: render(w, w.renderer)
