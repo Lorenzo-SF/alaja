@@ -355,7 +355,7 @@ defmodule Alaja.Theme.CustomTemplates do
   }
 
   @doc false
-  @spec all :: [%Pote.Theme.Theme{}]
+  @spec all :: [Pote.Theme.Theme.t()]
   def all do
     [
       @catppuccin,
