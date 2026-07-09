@@ -158,7 +158,8 @@ defmodule Alaja.CLI.Commands.Show.Table do
   # Atoms are deterministic: bounded row numbers (0..99 max) + 3 known suffixes.
   # Using String.to_atom/1 is safe here — cannot exhaust the atom table.
   # credo:disable-for-next-line Credo.Check.Warning.UnsafeToAtom
-  defp build_per_row_key(backend_row, suffix, val), do: {String.to_atom("rows_#{backend_row}_#{suffix}"), val}
+  defp build_per_row_key(backend_row, suffix, val),
+    do: {String.to_atom("rows_#{backend_row}_#{suffix}"), val}
 
   # Convert per-row parsed opts to their parsed values (color, align, effect)
   @spec build_per_row_opts(keyword()) :: keyword()
