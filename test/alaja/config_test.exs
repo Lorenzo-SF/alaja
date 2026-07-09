@@ -66,6 +66,7 @@ defmodule Alaja.ConfigTest do
     end
 
     test "returns {:ok, rgb} for a key present in the active theme" do
+      Application.put_env(:alaja, :theme_active, "dracula")
       assert {:ok, {189, 147, 249}} = Config.lookup_theme_color("theme:primary")
       assert {:ok, {255, 184, 108}} = Config.lookup_theme_color("theme:ternary")
     end

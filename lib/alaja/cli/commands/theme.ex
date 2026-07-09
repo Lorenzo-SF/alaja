@@ -118,7 +118,10 @@ defmodule Alaja.CLI.Commands.Theme do
         Enum.each(colors, fn {k, [r, g, b]} ->
           swatch = "\e[48;2;#{r};#{g};#{b}m  \e[0m"
           hex = String.upcase(Base.encode16(<<r, g, b>>))
-          IO.puts("  #{swatch} \e[38;2;0;180;216m#{String.pad_trailing(k, max_key_len)}\e[0m  ##{hex}")
+
+          IO.puts(
+            "  #{swatch} \e[38;2;0;180;216m#{String.pad_trailing(k, max_key_len)}\e[0m  ##{hex}"
+          )
         end)
 
         IO.puts("")
@@ -172,19 +175,7 @@ defmodule Alaja.CLI.Commands.Theme do
 
     Enum.each(all_keys, fn key ->
       row = [String.pad_trailing(key, name_col_w)]
-
-      row =
-        Enum.reduce(themes, row, fn name, acc ->
-          case get_in(theme_data, [name, key]) do
-            [r, g, b] ->
-              swatch = "\e[48;2;#{r};#{g};#{b}m#{String.pad_trailing("", 6)}\e[0m"
-              acc ++ [swatch]
-
-            _ ->
-              acc ++ [String.pad_trailing("-", theme_col_w)]
-          end
-        end)
-
+      row = build_color_swatches(themes, theme_data, key, name_col_w, theme_col_w, row)
       IO.puts("  #{Enum.join(row, "  ")}")
     end)
 
@@ -214,5 +205,18 @@ defmodule Alaja.CLI.Commands.Theme do
       alaja theme list
       alaja theme show dracula
     """)
+  end
+
+  defp build_color_swatches(themes, theme_data, key, _name_col_w, theme_col_w, row) do
+    Enum.reduce(themes, row, fn name, acc ->
+      case get_in(theme_data, [name, key]) do
+        [r, g, b] ->
+          swatch = "\e[48;2;#{r};#{g};#{b}m#{String.pad_trailing("", 6)}\e[0m"
+          acc ++ [swatch]
+
+        _ ->
+          acc ++ [String.pad_trailing("-", theme_col_w)]
+      end
+    end)
   end
 end

@@ -175,8 +175,6 @@ defmodule Alaja.CLI.Commands.Config do
     end
   end
 
-
-
   # Map user-supplied string to a known atom without String.to_atom/1.
   defp safe_key("color_depth"), do: :color_depth
   defp safe_key("theme_active"), do: :theme_active

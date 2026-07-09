@@ -31,7 +31,10 @@ defmodule Alaja.ImageRenderer.PNG do
   For non-PNG formats, returns `:not_png` so callers can attempt a
   fallback decode via ImageMagick.
   """
-  @spec decode(String.t()) :: {:ok, {pos_integer(), pos_integer(), [{0..255, 0..255, 0..255}]}} | :not_png | {:error, String.t()}
+  @spec decode(String.t()) ::
+          {:ok, {pos_integer(), pos_integer(), [{0..255, 0..255, 0..255}]}}
+          | :not_png
+          | {:error, String.t()}
   def decode(path) do
     with {:ok, bin} <- File.read(path),
          :png <- detect_format(bin) do
@@ -214,7 +217,8 @@ defmodule Alaja.ImageRenderer.PNG do
   @doc """
   Generates an RGBA PNG binary from pixel data (with alpha channel).
   """
-  @spec generate_rgba([[{0..255, 0..255, 0..255, 0..255}]], pos_integer(), pos_integer()) :: binary()
+  @spec generate_rgba([[{0..255, 0..255, 0..255, 0..255}]], pos_integer(), pos_integer()) ::
+          binary()
   def generate_rgba(pixels, width, height) do
     raw_data = generate_rgba_data(pixels, width, height)
     compressed = :zlib.compress(raw_data)
@@ -254,14 +258,18 @@ defmodule Alaja.ImageRenderer.PNG do
   defp png_header, do: <<137, 80, 78, 71, 13, 10, 26, 10>>
 
   defp ihdr_chunk(width, height) do
-    data = <<width::big-size(32), height::big-size(32), 8::size(8), 2::size(8), 0::size(8),
-      0::size(8), 0::size(8)>>
+    data =
+      <<width::big-size(32), height::big-size(32), 8::size(8), 2::size(8), 0::size(8), 0::size(8),
+        0::size(8)>>
+
     chunk("IHDR", data)
   end
 
   defp ihdr_rgba_chunk(width, height) do
-    data = <<width::big-size(32), height::big-size(32), 8::size(8), 6::size(8), 0::size(8),
-      0::size(8), 0::size(8)>>
+    data =
+      <<width::big-size(32), height::big-size(32), 8::size(8), 6::size(8), 0::size(8), 0::size(8),
+        0::size(8)>>
+
     chunk("IHDR", data)
   end
 
