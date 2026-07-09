@@ -4,7 +4,7 @@ defmodule Alaja.MixProject do
   def project do
     [
       app: :alaja,
-      version: "2.0.0",
+      version: "2.1.0",
       elixir: "~> 1.19",
       start_permanent: Mix.env() == :prod,
       deps: deps(),
@@ -119,7 +119,7 @@ defmodule Alaja.MixProject do
           Alaja.ImageTerminal
         ]
       ],
-      source_ref: "2.0.0"
+      source_ref: "2.1.0"
     ]
   end
 
@@ -154,7 +154,8 @@ defmodule Alaja.MixProject do
   defp dialyzer do
     [
       ignore_warnings: ".dialyzer-ignore-warnings",
-      plt_file: {:no_warn, "priv/plts/alaja"}
+      plt_file: {:no_warn, "priv/plts/alaja"},
+      plt_add_apps: [:mix]
     ]
   end
 
