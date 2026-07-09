@@ -174,10 +174,8 @@ defmodule Alaja.Wizard.Renderers do
   end
 
   defp cell_at(%Buffer{} = b, x, y) do
-    case Buffer.get(b, x, y) do
-      %{char: ch} -> ch
-      _ -> " "
-    end
+    %{char: ch} = Buffer.get(b, x, y)
+    ch
   end
 
   defp bottom_border(buf, width, y) do

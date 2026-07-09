@@ -103,7 +103,7 @@ defmodule Alaja.Syntax do
 
   Same API as `highlight_content/2` but produces terminal-ready output.
   """
-  @spec highlight_ansi(String.t(), language()) :: IO.iodata()
+  @spec highlight_ansi(String.t(), language()) :: iodata()
   def highlight_ansi(content, language) do
     tokens = tokenize(content, language)
 

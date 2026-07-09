@@ -28,6 +28,21 @@ defmodule Alaja.Syntax.Language do
       }
   """
 
+  @type t :: %__MODULE__{
+          name: String.t(),
+          line_comment: String.t() | nil,
+          block_comment: map() | nil,
+          strings: [map()],
+          number: Regex.t() | nil,
+          operators: MapSet.t(),
+          keywords: MapSet.t(),
+          types: MapSet.t(),
+          specials: [map()],
+          module_separator: String.t(),
+          case_sensitive: boolean(),
+          colors: map()
+        }
+
   defstruct name: "unknown",
             line_comment: nil,
             block_comment: nil,
