@@ -5,7 +5,6 @@ defmodule Alaja.CLI.Commands.Config do
 
   alias Alaja.Components.Header
   alias Alaja.{Config, Theme}
-  alias Alaja.Theme.CustomTemplates
 
   # Only keys that Alaja itself owns and persists.
   @config_keys [:color_depth, :theme_active]
@@ -32,9 +31,6 @@ defmodule Alaja.CLI.Commands.Config do
   defp dispatch_action(["init"]), do: init_config()
   defp dispatch_action(["get", key | _]), do: get_config(key)
   defp dispatch_action(["set", key, val | _]), do: set_config(key, val)
-  defp dispatch_action(["theme", "list"]), do: list_themes()
-  defp dispatch_action(["theme", "set", name]), do: set_theme(name)
-  defp dispatch_action(["theme" | _]), do: theme_help()
 
   defp dispatch_action(_) do
     IO.puts(:stderr, "alaja config: unknown action")
@@ -99,7 +95,15 @@ defmodule Alaja.CLI.Commands.Config do
     end
   end
 
-  defp do_set_config(:theme_active, v), do: set_theme(v)
+  defp do_set_config(:theme_active, v) do
+    if v in Theme.list() do
+      :ok = Theme.activate(v)
+      Config.set(:theme_active, v)
+      IO.puts("  \e[38;2;72;187;120m✓\e[0m Theme set to '#{v}'")
+    else
+      IO.puts(:stderr, "  Theme '#{v}' not found. Run 'alaja theme list' to see available.")
+    end
+  end
 
   defp persist_and_confirm(key, value, msg) do
     Config.set(key, value)
@@ -108,12 +112,11 @@ defmodule Alaja.CLI.Commands.Config do
 
   defp init_config do
     config_path = Path.expand("~/.config/alaja")
-
     mkdir_p!(config_path)
-    install_theme_templates()
     write_default_config(config_path)
 
     IO.puts("\n  \e[38;2;72;187;120mConfiguration initialized at #{config_path}\e[0m\n")
+    IO.puts("  Run \e[38;2;0;180;216malaja theme init\e[0m to install default themes.")
   end
 
   defp mkdir_p!(config_path) do
@@ -125,7 +128,8 @@ defmodule Alaja.CLI.Commands.Config do
     end
   end
 
-  defp install_theme_templates do
+  @doc false
+  def install_theme_templates do
     # Install built-in templates from Pote
     Enum.each(Theme.templates(), fn name ->
       IO.write("  Writing #{name}.json ... ")
@@ -137,7 +141,7 @@ defmodule Alaja.CLI.Commands.Config do
     end)
 
     # Install Alaja's own custom templates on top
-    Enum.each(CustomTemplates.all(), fn theme ->
+    Enum.each(Alaja.Theme.CustomTemplates.all(), fn theme ->
       IO.write("  Writing #{theme.name}.json ... ")
 
       case Theme.install!(theme) do
@@ -171,45 +175,7 @@ defmodule Alaja.CLI.Commands.Config do
     end
   end
 
-  defp list_themes do
-    themes = Theme.list()
 
-    if themes == [] do
-      IO.puts("  No themes found. Run \e[38;2;0;180;216malaja config init\e[0m first.")
-    else
-      show_themes(themes)
-    end
-  end
-
-  defp show_themes(themes) do
-    IO.puts("\n  \e[38;2;0;180;216mAvailable themes:\e[0m")
-    active = to_string(Config.get(:theme_active))
-
-    Enum.each(themes, fn name ->
-      marker = if name == active, do: " \e[38;2;72;187;120m← active\e[0m", else: ""
-      IO.puts("    • #{name}#{marker}")
-    end)
-
-    IO.puts("")
-  end
-
-  defp set_theme(name) do
-    # Validate the theme exists in storage before activating. This is the
-    # single source of truth — Alaja.Theme.list/0 reads the JSON files
-    # written by Alaja.Theme.install_template/1.
-    if name in Theme.list() do
-      :ok = Theme.activate(name)
-      Config.set(:theme_active, name)
-      IO.puts("  \e[38;2;72;187;120m✓\e[0m Theme set to '#{name}'")
-    else
-      IO.puts(
-        :stderr,
-        "  Theme '#{name}' not found. Run 'alaja config theme list' to see available."
-      )
-    end
-  end
-
-  defp theme_help, do: IO.puts("  Usage: alaja config theme <list|set NAME>")
 
   # Map user-supplied string to a known atom without String.to_atom/1.
   defp safe_key("color_depth"), do: :color_depth
@@ -230,19 +196,18 @@ defmodule Alaja.CLI.Commands.Config do
       init                Initialize ~/.config/alaja with defaults
       set <key> <value>   Set a configuration value (persisted to disk)
       get <key>           Get a configuration value
-      theme list          List available themes
-      theme set <name>    Set the active theme
       --show              Print current configuration
 
     CONFIGURABLE KEYS
       color_depth         Color depth: truecolor, xterm256, ansi16
       theme_active        Active theme name
 
+    THEMES
+      Use `alaja theme` to manage themes (init, set, list, show).
+
     EXAMPLES
       alaja config init
       alaja config set color_depth xterm256
-      alaja config set theme_active dracula
-      alaja config theme list
       alaja config --show
     """)
   end
