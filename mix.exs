@@ -4,7 +4,7 @@ defmodule Alaja.MixProject do
   def project do
     [
       app: :alaja,
-      version: "2.3.0",
+      version: "2.4.0",
       elixir: "~> 1.19",
       start_permanent: Mix.env() == :prod,
       deps: deps(),
@@ -134,7 +134,7 @@ defmodule Alaja.MixProject do
 
   defp deps do
     [
-      {:pote, "~> 2.1.0"},
+      {:pote, "~> 2.2.0"},
       {:jason, "~> 1.4"},
       {:credo, "~> 1.7", only: [:dev, :test], runtime: false},
       {:dialyxir, "~> 1.4", only: [:dev, :test], runtime: false},
