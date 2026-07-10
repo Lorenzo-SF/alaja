@@ -3,7 +3,7 @@ defmodule Alaja.Theme.CustomTemplates do
   Extra theme templates that ship with Alaja on top of those provided by Pote.
 
   These are defined as `%Pote.Theme.Theme{}` structs and installed alongside
-  Pote's built-in templates when `alaja config init` runs.
+   Pote's built-in templates when `alaja theme init` runs.
   """
 
   @catppuccin %Pote.Theme.Theme{

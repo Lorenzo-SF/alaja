@@ -16,7 +16,6 @@ defmodule Alaja.CLI.Commands.Color do
   alias Alaja.Components.Separator
   alias Alaja.Components.Table
   alias Alaja.Components.Table, as: TableComp
-  alias Alaja.Config
   alias Alaja.Printer
   alias Pote.Converters.Advanced
   alias Pote.Converters.RGB, as: RGBConverter
@@ -33,8 +32,6 @@ defmodule Alaja.CLI.Commands.Color do
     "split-complementary" => :split_complementary
   }
 
-  @color_columns ~w(rgb argb hsl hsv hwb cmyk xterm lab xyz kelvin pantone luminance)
-
   @doc """
   Runs the `alaja color` command.
   """
@@ -48,7 +45,6 @@ defmodule Alaja.CLI.Commands.Color do
           harmony: :string,
           darken: :integer,
           lighten: :integer,
-          colors: :boolean,
           lab: :boolean,
           xyz: :boolean,
           kelvin: :boolean,
@@ -60,11 +56,7 @@ defmodule Alaja.CLI.Commands.Color do
     if global.help or Keyword.get(opts, :help, false) do
       help()
     else
-      if Keyword.has_key?(opts, :colors) do
-        show_all_colors(global, positional)
-      else
-        analyze_or_help(positional, opts, global)
-      end
+      analyze_or_help(positional, opts, global)
     end
   end
 
@@ -74,90 +66,6 @@ defmodule Alaja.CLI.Commands.Color do
 
   defp analyze_or_help([], _opts, _global) do
     help()
-  end
-
-  # ─── --colors mode ────────────────────────────────────────────────────────
-
-  defp show_all_colors(global, requested_cols) do
-    columns = parse_color_columns(requested_cols)
-
-    theme_active = Config.get(:theme_active, "default")
-    colors = load_theme_colors(to_string(theme_active))
-
-    rows =
-      Enum.map(colors, fn {name, rgb} ->
-        format_color_row(name, rgb, columns)
-      end)
-
-    headers = ["Color" | Enum.map(columns, &String.upcase/1)]
-
-    rendered =
-      TableComp.render([headers | rows],
-        table_border: :rounded,
-        headers_color: :cyan,
-        headers_effects: [:bold]
-      )
-
-    Printer.print_raw(rendered, printer_opts(global))
-  end
-
-  defp parse_color_columns([]), do: ~w(hex swatch)
-  defp parse_color_columns(["all"]), do: @color_columns ++ ["swatch"]
-
-  defp parse_color_columns(cols) do
-    valid = Enum.map(cols, &String.downcase/1)
-    valid = if "swatch" in valid, do: valid, else: valid ++ ["swatch"]
-    Enum.filter(valid, &(&1 in (@color_columns ++ ~w(hex swatch))))
-  end
-
-  defp load_theme_colors(theme_name) do
-    case Config.load_theme(theme_name) do
-      {:ok, data} ->
-        colors = Map.get(data, "colors", %{})
-
-        colors
-        |> Enum.map(fn {name, color_map} ->
-          rgb = extract_rgb(color_map)
-          {name, rgb}
-        end)
-        |> Enum.filter(fn {_, rgb} -> rgb != nil end)
-
-      {:error, _} ->
-        # Fall back to default palette
-        Pote.default_colors()
-        |> Enum.map(fn {name, rgb} -> {to_string(name), rgb} end)
-    end
-  end
-
-  defp extract_rgb(%{"rgb" => [r, g, b]}), do: {r, g, b}
-  defp extract_rgb(%{}), do: nil
-  defp extract_rgb({r, g, b}), do: {r, g, b}
-  defp extract_rgb([r, g, b]), do: {r, g, b}
-  defp extract_rgb(_), do: nil
-
-  defp format_color_row(name, rgb, columns) do
-    hex = RGBConverter.to_hex(rgb)
-    {r, g, b} = rgb
-
-    ansi_swatch = "\e[38;2;#{r};#{g};#{b}m████\e[0m"
-
-    row_data = %{
-      "hex" => hex,
-      "swatch" => ansi_swatch,
-      "rgb" => "{#{r}, #{g}, #{b}}",
-      "argb" => "{255, #{r}, #{g}, #{b}}",
-      "hsl" => format_hsl(rgb),
-      "hsv" => format_hsv(rgb),
-      "cmyk" => format_cmyk(rgb),
-      "xterm" => to_string(RGBConverter.to_xterm256(rgb)),
-      "lab" => format_lab(rgb),
-      "xyz" => format_xyz(rgb),
-      "kelvin" => format_kelvin(rgb),
-      "pantone" => format_pantone(rgb),
-      "luminance" => format_luminance(rgb)
-    }
-
-    [name | Enum.map(columns, &Map.get(row_data, &1, ""))]
   end
 
   # ─── Analyze mode ─────────────────────────────────────────────────────────
@@ -424,23 +332,6 @@ defmodule Alaja.CLI.Commands.Color do
     "#{Float.round(c, 1)}% #{Float.round(m, 1)}% #{Float.round(y, 1)}% #{Float.round(k, 1)}%"
   end
 
-  defp format_lab({r, g, b}) do
-    {l, a, b_val} = Advanced.to_lab({r, g, b})
-    "#{Float.round(l, 2)}, #{Float.round(a, 2)}, #{Float.round(b_val, 2)}"
-  end
-
-  defp format_xyz({r, g, b}) do
-    {x, y, z} = Advanced.to_xyz({r, g, b})
-    "#{Float.round(x, 3)}, #{Float.round(y, 3)}, #{Float.round(z, 3)}"
-  end
-
-  defp format_kelvin({r, g, b}) do
-    case Advanced.rgb_to_kelvin({r, g, b}) do
-      nil -> "N/A"
-      k -> "#{k}K"
-    end
-  end
-
   defp format_pantone({r, g, b}) do
     case Advanced.nearest_pantone({r, g, b}) do
       nil -> "N/A"
@@ -503,7 +394,6 @@ defmodule Alaja.CLI.Commands.Color do
 
     Separator.print("USAGE", char: "━", width: 50, color: {0, 180, 216})
     IO.puts("  alaja color <color> [options]")
-    IO.puts("  alaja color --colors [columns...]")
     IO.puts("")
 
     Separator.print("ARGUMENTS", char: "━", width: 50, color: {0, 180, 216})
@@ -535,7 +425,6 @@ defmodule Alaja.CLI.Commands.Color do
         ],
         ["--darken N", "integer", "Darken by N steps (1-10)"],
         ["--lighten N", "integer", "Lighten by N steps (1-10)"],
-        ["--colors", "flag", "List all theme colors (optionally specify columns)"],
         ["--lab", "boolean", "Include CIELAB values in output"],
         ["--xyz", "boolean", "Include CIE XYZ values in output"],
         ["--kelvin", "boolean", "Include color temperature in Kelvin"],
@@ -545,31 +434,6 @@ defmodule Alaja.CLI.Commands.Color do
           "string",
           "Calculate WCAG contrast ratio and Delta E against another color"
         ]
-      ],
-      table_border: :none,
-      padding: 1
-    )
-
-    IO.puts("")
-
-    Separator.print("COLUMN OPTIONS FOR --colors", char: "━", width: 50, color: {0, 180, 216})
-
-    Table.print(
-      headers: ["Column", "Description"],
-      rows: [
-        ["rgb", "RGB tuple {r, g, b}"],
-        ["argb", "ARGB tuple {a, r, g, b}"],
-        ["hsl", "HSL values (H° S% L%)"],
-        ["hsv", "HSV values (H° S% V%)"],
-        ["hwb", "HWB values (H° W% B%)"],
-        ["cmyk", "CMYK values"],
-        ["xterm", "XTerm256 index"],
-        ["lab", "CIELAB values"],
-        ["xyz", "CIE XYZ values"],
-        ["kelvin", "Color temperature"],
-        ["pantone", "Pantone approximation"],
-        ["luminance", "Relative luminance"],
-        ["all", "All columns including swatch"]
       ],
       table_border: :none,
       padding: 1
@@ -628,7 +492,7 @@ defmodule Alaja.CLI.Commands.Color do
     Separator.print("EXAMPLES", char: "━", width: 50, color: {0, 180, 216})
 
     IO.puts(
-      "# Analyze a color\n  alaja color \"#FF0000\"\n\n# Analyze with hex shorthand\n  alaja color \"#FF8000\"\n\n# Using a named color\n  alaja color red\n\n# Get CIELAB, XYZ, and Kelvin info\n  alaja color \"#FF8000\" --lab --xyz --kelvin\n\n# Include Pantone approximation\n  alaja color \"#FF8000\" --pantone\n\n# Generate harmonies\n  alaja color \"#FF0000\" --harmony triad\n  alaja color \"#FF0000\" --harmony complementary\n  alaja color \"#FF0000\" --harmony analogous\n  alaja color \"#FF0000\" --harmony square\n  alaja color \"#FF0000\" --harmony monochromatic\n  alaja color \"#FF0000\" --harmony compound\n  alaja color \"#FF0000\" --harmony split-complementary\n\n# Darken or lighten\n  alaja color \"#FF8000\" --darken 3\n  alaja color \"#FF8000\" --lighten 2\n\n# WCAG contrast and Delta E\n  alaja color \"#FF0000\" --contrast \"#FFFFFF\"\n  alaja color \"#FF0000\" --contrast \"#000000\" --lab --pantone\n\n# Verbose mode (raw JSON output)\n  alaja color \"#FF8000\" --verbose\n\n# List theme colors (default columns: hex, swatch)\n  alaja color --colors\n\n# Theme colors with specific columns\n  alaja color --colors rgb hsl cmyk xterm\n\n# Theme colors with all columns\n  alaja color --colors all\n\n# Raw positioning\n  alaja color \"#FF8000\" --raw --pos-x 10 --pos-y 5\n\n# Box wrapper\n  alaja color \"#FF8000\" --box --box-title \"Color Info\" --box-border double --box-color cyan"
+      "# Analyze a color\n  alaja color \"#FF0000\"\n\n# Analyze with hex shorthand\n  alaja color \"#FF8000\"\n\n# Using a named color\n  alaja color red\n\n# Get CIELAB, XYZ, and Kelvin info\n  alaja color \"#FF8000\" --lab --xyz --kelvin\n\n# Include Pantone approximation\n  alaja color \"#FF8000\" --pantone\n\n# Generate harmonies\n  alaja color \"#FF0000\" --harmony triad\n  alaja color \"#FF0000\" --harmony complementary\n  alaja color \"#FF0000\" --harmony analogous\n  alaja color \"#FF0000\" --harmony square\n  alaja color \"#FF0000\" --harmony monochromatic\n  alaja color \"#FF0000\" --harmony compound\n  alaja color \"#FF0000\" --harmony split-complementary\n\n# Darken or lighten\n  alaja color \"#FF8000\" --darken 3\n  alaja color \"#FF8000\" --lighten 2\n\n# WCAG contrast and Delta E\n  alaja color \"#FF0000\" --contrast \"#FFFFFF\"\n  alaja color \"#FF0000\" --contrast \"#000000\" --lab --pantone\n\n# Verbose mode (raw JSON output)\n  alaja color \"#FF8000\" --verbose\n\n# Raw positioning\n  alaja color \"#FF8000\" --raw --pos-x 10 --pos-y 5\n\n# Box wrapper\n  alaja color \"#FF8000\" --box --box-title \"Color Info\" --box-border double --box-color cyan"
     )
 
     IO.puts("")
