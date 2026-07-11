@@ -26,8 +26,7 @@ defmodule Alaja.CLI.Help do
     "menu" => Alaja.CLI.Commands.Show.Menu,
     "yesno" => Alaja.CLI.Commands.Show.YesNo,
     "color" => Alaja.CLI.Commands.Color,
-    "action" => Alaja.CLI.Commands.Action,
-    "config" => Alaja.CLI.Commands.Config
+    "action" => Alaja.CLI.Commands.Action
   }
 
   # ---------------------------------------------------------------------------
@@ -108,7 +107,7 @@ defmodule Alaja.CLI.Help do
     action_command_section()
     IO.puts("")
 
-    config_command_section()
+    theme_command_section()
     IO.puts("")
 
     Separator.print("MORE HELP", char: "━", width: 80, color: {0, 180, 216})
@@ -253,9 +252,6 @@ defmodule Alaja.CLI.Help do
       rows: [
         ["alaja color <color>", "Show color info in all formats"],
         ["alaja color <color> --harmony TYPE", "Generate color harmonies"],
-        ["alaja color --colors", "List theme colors"],
-        ["alaja color --colors COLS...", "List theme colors with specific columns"],
-        ["alaja color --colors all", "List theme colors with every column"],
         ["alaja color <c> --darken N", "Darken by N steps"],
         ["alaja color <c> --lighten N", "Lighten by N steps"],
         ["alaja color <c> --lab", "Include CIELAB values"],
@@ -292,19 +288,21 @@ defmodule Alaja.CLI.Help do
     )
   end
 
-  defp config_command_section do
-    Separator.print("CONFIG COMMAND", char: "━", width: 80, color: {0, 180, 216})
+  defp theme_command_section do
+    Separator.print("THEME COMMAND", char: "━", width: 80, color: {0, 180, 216})
     IO.puts("")
 
     Table.print(
       headers: ["Usage", "Description"],
       rows: [
-        ["alaja config init", "Initialize config and default themes"],
-        ["alaja config get KEY", "Get a configuration value"],
-        ["alaja config set KEY VALUE", "Set a configuration value"],
-        ["alaja config theme list", "List available themes"],
-        ["alaja config theme set NAME", "Set active theme"],
-        ["alaja config --show", "Show current configuration"]
+        ["alaja theme init", "Install default themes to ~/.config/alaja/themes"],
+        ["alaja theme list", "List available themes"],
+        ["alaja theme set <name>", "Activate a theme"],
+        ["alaja theme show <name>", "Show a single theme's colour table"],
+        ["alaja theme show <name> <name> ...", "Show side-by-side comparison of given themes"],
+        ["alaja theme show list", "Show side-by-side comparison of all themes"],
+        ["alaja theme show all", "Show all themes sequentially"],
+        ["alaja theme all", "Show side-by-side comparison of all themes"]
       ],
       table_border: :none,
       padding: 0

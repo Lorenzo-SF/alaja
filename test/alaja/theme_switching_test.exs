@@ -3,7 +3,7 @@ defmodule Alaja.ThemeSwitchingTest do
   Regression tests for `Alaja.Theme` switching semantics.
 
   Bug history (pre-v0.3.5):
-  - `alaja config init` wrote hardcoded themes with only 11 colour keys
+  - `alaja theme init` wrote hardcoded themes with only 11 colour keys
     (no `debug`, `happy`, `sad`, `gradient_1..6`, etc.).
   - The JSON format used `{"rgb": [r,g,b]}` but Pote's resolver
     expected flat `[r,g,b]` arrays, so all lookups returned
@@ -12,13 +12,13 @@ defmodule Alaja.ThemeSwitchingTest do
     returned the same colour regardless of the active theme.
 
   Fix (v0.3.5):
-  - `alaja config init` now calls `Alaja.Theme.install_template/1`
+  - `alaja theme init` now calls `Alaja.Theme.install_template/1`
     for every built-in Pote template, so themes are written in the
     correct flat-array format with the full 22-key set.
-  - `alaja config theme set NAME` now calls `Alaja.Theme.activate/1`
+  - `alaja theme set NAME` now calls `Alaja.Theme.activate/1`
     which writes through to `Application.put_env` and re-registers
     the Pote resolver — both atom and string `theme:` lookups.
-  - `alaja config theme list` now uses `Alaja.Theme.list/0` as the
+  - `alaja theme list` now uses `Alaja.Theme.list/0` as the
     single source of truth (instead of listing files in the dir).
   """
 
@@ -213,7 +213,7 @@ defmodule Alaja.ThemeSwitchingTest do
     # Regression test for the bug where every escript started with
     # `:theme_active` unset in Application env, so `theme:<key>` lookups
     # always fell back to the default theme (ignoring whatever the user
-    # had persisted via `alaja config theme set`).
+    # had persisted via `alaja theme set`).
     #
     # The fix: `Alaja.Application.start/2` calls
     # `Alaja.Config.ensure_loaded/0` before `Theme.register_with_pote/0`,

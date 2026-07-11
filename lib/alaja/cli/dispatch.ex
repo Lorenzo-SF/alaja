@@ -12,7 +12,7 @@ defmodule Alaja.CLI.Dispatch do
   alias Alaja.CLI.Commands.{
     Action,
     Color,
-    Config
+    Theme
   }
 
   alias Alaja.CLI.Commands.Show.{
@@ -65,5 +65,5 @@ defmodule Alaja.CLI.Dispatch do
   def yesno(opts), do: YesNo.run(opts._args)
   def color(opts), do: Color.run(opts._args)
   def action(opts), do: Action.run(opts._args)
-  def config(opts), do: Config.run(opts._args)
+  def theme(opts), do: Theme.run(opts._args)
 end
