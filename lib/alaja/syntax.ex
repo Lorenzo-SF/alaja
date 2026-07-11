@@ -30,7 +30,7 @@ defmodule Alaja.Syntax do
   """
 
   alias Alaja.{Buffer, Cell}
-  alias Alaja.Syntax.{Engine, Language, Renderer, Theme}
+  alias Alaja.Syntax.{Builtin, Engine, Language, Renderer, Theme}
 
   @type language ::
           :elixir
@@ -47,10 +47,6 @@ defmodule Alaja.Syntax do
   @type token :: {atom(), String.t()}
 
   # ── Built-in inline tokenizers (kept for backward compat) ──────────────
-
-  @elixir_keywords ~w(def defmodule defp do end case cond if else when with fn
-                       use import alias require receive send raise try catch
-                       after rescue throw for while return)
 
   @doc """
   Highlights a file by detecting language from extension.
@@ -79,13 +75,13 @@ defmodule Alaja.Syntax do
 
     case language do
       :elixir ->
-        Enum.map(tokens, fn {type, text} -> {color_for(type), text} end)
+        Enum.map(tokens, fn {type, text} -> {Builtin.color_for(type), text} end)
 
       :json ->
-        Enum.map(tokens, fn {type, text} -> {color_for(type), text} end)
+        Enum.map(tokens, fn {type, text} -> {Builtin.color_for(type), text} end)
 
       :markdown ->
-        Enum.map(tokens, fn {type, text} -> {color_for(type), text} end)
+        Enum.map(tokens, fn {type, text} -> {Builtin.color_for(type), text} end)
 
       :text ->
         [{"white", content}]
@@ -165,7 +161,7 @@ defmodule Alaja.Syntax do
           color_to_rgb(color_atom)
 
         :error ->
-          color_to_rgb(color_for_atom(type))
+          color_to_rgb(Builtin.color_for_atom(type))
       end
 
     {color, text}
@@ -266,173 +262,9 @@ defmodule Alaja.Syntax do
   # ── Built-in tokenizers (unchanged) ───────────────────────────────────
 
   # Split content into lines for built-in tokenizers
-  defp tokenize_elixir(content) do
-    content
-    |> String.split("\n")
-    |> Enum.flat_map(&tokenize_elixir_line/1)
-  end
-
-  defp tokenize_elixir_line(line) do
-    if String.starts_with?(String.trim_leading(line), "#") do
-      [{:comment, line}]
-    else
-      tokenize_elixir_parts(line, [])
-    end
-  end
-
-  defp tokenize_elixir_parts("", acc), do: Enum.reverse(acc)
-
-  defp tokenize_elixir_parts(line, acc) do
-    {token, rest} = take_next_token(line)
-
-    {type, text} =
-      case token do
-        "" -> {:plain, rest}
-        text -> classify_token(text)
-      end
-
-    if rest == "" or rest == line do
-      Enum.reverse([{type, text} | acc])
-    else
-      tokenize_elixir_parts(rest, [{type, text} | acc])
-    end
-  end
-
-  defp classify_token(text) do
-    cond do
-      String.starts_with?(text, "\"") -> {:string, text}
-      atom_token?(text) -> {:atom, text}
-      String.starts_with?(text, "#") -> {:comment, text}
-      text in @elixir_keywords -> {:keyword, text}
-      module_token?(text) -> {:module, text}
-      number_token?(text) -> {:number, text}
-      true -> {:plain, text}
-    end
-  end
-
-  defp atom_token?(text),
-    do: String.starts_with?(text, ":") and not String.starts_with?(text, "::")
-
-  defp module_token?(text), do: Regex.match?(~r/^[A-Z]/, text) and String.contains?(text, ".")
-  defp number_token?(text), do: Regex.match?(~r/^-?\d+(\.\d+)?$/, text)
-
-  defp take_next_token(line) do
-    case Regex.run(
-           ~r/^(\s+|[A-Za-z_][A-Za-z0-9_]*[!?]?|"[^"]*"|:[A-Za-z_][A-Za-z0-9_]*[!?]?|#[^\n]*|-?\d+(\.\d+)?|.)/,
-           line
-         ) do
-      [match, token] -> {token, String.replace_prefix(line, match, "")}
-      _ -> {"", line}
-    end
-  end
-
-  defp tokenize_json(content) do
-    content
-    |> String.split("\n")
-    |> Enum.flat_map(&tokenize_json_line/1)
-  end
-
-  defp tokenize_json_line(line) do
-    line
-    |> String.split(~r/("[^"]*"|\d+|true|false|null|[{}\[\],:])/,
-      include_captures: true,
-      trim: true
-    )
-    |> Enum.map(fn token ->
-      cond do
-        String.starts_with?(token, "\"") -> {:string, token}
-        token in ["true", "false", "null"] -> {:keyword, token}
-        token in ["{", "}", "[", "]", ",", ":"] -> {:operator, token}
-        Regex.match?(~r/^\d+(\.\d+)?$/, token) -> {:number, token}
-        true -> {:plain, token}
-      end
-    end)
-  end
-
-  defp tokenize_markdown(content) do
-    content
-    |> String.split("\n")
-    |> Enum.flat_map(&tokenize_markdown_line/1)
-  end
-
-  defp tokenize_markdown_line(line) do
-    cond do
-      Regex.match?(~r/^\#{1,6}\s+/, line) -> [{:keyword, line}]
-      Regex.match?(~r/^\*\*[^*]+\*\*$/, String.trim(line)) -> [{:keyword, line}]
-      Regex.match?(~r/^\*[^*]+\*$/, String.trim(line)) -> [{:keyword, line}]
-      String.contains?(line, "`") -> [{:string, line}]
-      String.contains?(line, "](") -> [{:module, line}]
-      true -> [{:plain, line}]
-    end
-  end
-
-  # ── Color mapping (built-in defaults) ─────────────────────────────────
-
-  defp color_for(:keyword), do: "blue"
-  defp color_for(:string), do: "green"
-  defp color_for(:comment), do: "gray"
-  defp color_for(:number), do: "cyan"
-  defp color_for(:operator), do: "white"
-  defp color_for(:atom), do: "yellow"
-  defp color_for(:module), do: "magenta"
-  defp color_for(:plain), do: "white"
-  defp color_for(_), do: "white"
-
-  # Atom name used by the buffer pipeline (same atoms as color_for/1 above).
-  defp color_for_atom(:keyword), do: :blue
-  defp color_for_atom(:string), do: :green
-  defp color_for_atom(:comment), do: :gray
-  defp color_for_atom(:number), do: :cyan
-  defp color_for_atom(:operator), do: :white
-  defp color_for_atom(:atom), do: :yellow
-  defp color_for_atom(:module), do: :magenta
-  defp color_for_atom(:plain), do: :white
-  defp color_for_atom(_), do: :white
-
-  # Map ANSI/SGR colour names (atoms or strings) to RGB tuples.
-  # The 16-colour palette is what the buffer pipeline uses — bright
-  # variants get the half-bright form (255/85 split). Unknown atoms
-  # fall back to white.
-  @ansi_16_colors %{
-    black: {0, 0, 0},
-    red: {170, 0, 0},
-    green: {0, 170, 0},
-    yellow: {170, 85, 0},
-    blue: {0, 0, 170},
-    magenta: {170, 0, 170},
-    cyan: {0, 170, 170},
-    white: {170, 170, 170},
-    default: {255, 255, 255},
-    bright_black: {85, 85, 85},
-    gray: {85, 85, 85},
-    grey: {85, 85, 85},
-    bright_red: {255, 85, 85},
-    bright_green: {85, 255, 85},
-    bright_yellow: {255, 255, 85},
-    bright_blue: {85, 85, 255},
-    bright_magenta: {255, 85, 255},
-    bright_cyan: {85, 255, 255},
-    bright_white: {255, 255, 255}
-  }
-
-  defp color_to_rgb(atom) when is_atom(atom) do
-    Map.get(@ansi_16_colors, atom, {255, 255, 255})
-  end
-
-  defp color_to_rgb(string) when is_binary(string) do
-    atom =
-      try do
-        String.to_existing_atom(string)
-      rescue
-        ArgumentError -> :white
-      end
-
-    color_to_rgb(atom)
-  end
-
-  defp color_to_rgb({r, g, b}) when is_integer(r) and is_integer(g) and is_integer(b) do
-    {r, g, b}
-  end
+  defp tokenize_elixir(content), do: Builtin.tokenize_elixir(content)
+  defp tokenize_json(content), do: Builtin.tokenize_json(content)
+  defp tokenize_markdown(content), do: Builtin.tokenize_markdown(content)
 
   # ── Language detection (from file extension) ─────────────────────────
 
@@ -568,5 +400,26 @@ defmodule Alaja.Syntax do
       "GNUmakefile" -> :makefile
       _ -> :text
     end
+  end
+
+  # ── Color resolution helpers ──────────────────────────────────────────
+
+  defp color_to_rgb(atom) when is_atom(atom) do
+    Map.get(Builtin.ansi_16_colors(), atom, {255, 255, 255})
+  end
+
+  defp color_to_rgb(string) when is_binary(string) do
+    atom =
+      try do
+        String.to_existing_atom(string)
+      rescue
+        ArgumentError -> :white
+      end
+
+    color_to_rgb(atom)
+  end
+
+  defp color_to_rgb({r, g, b}) when is_integer(r) and is_integer(g) and is_integer(b) do
+    {r, g, b}
   end
 end
