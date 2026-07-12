@@ -23,7 +23,8 @@ defmodule Alaja.HelpersTest do
 
     test "clamps negative values but keeps positive" do
       result = Helpers.braille_spark([-10, 50], 2)
-      assert Enum.count(String.graphemes(result)) == 2
+      # width chars joined by width-1 spaces = 2*2-1 graphemes
+      assert Enum.count(String.graphemes(result)) == 3
     end
 
     test "respects width limit" do
@@ -164,7 +165,8 @@ defmodule Alaja.HelpersTest do
 
     test "braille_spark with all same values" do
       result = Helpers.braille_spark([50, 50, 50], 3)
-      assert Enum.count(String.graphemes(result)) == 3
+      # width chars joined by width-1 spaces = 3*2-1 graphemes
+      assert Enum.count(String.graphemes(result)) == 5
     end
   end
 

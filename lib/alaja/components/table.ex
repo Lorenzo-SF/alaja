@@ -321,10 +321,8 @@ defmodule Alaja.Components.Table do
   # in a string), so we can split without parsing.
   defp split_iodata_lines(iodata) do
     iodata
-    |> List.flatten()
-    |> Enum.chunk_by(&(&1 == "\n"))
-    |> Enum.reject(&(&1 == ["\n"]))
-    |> Enum.map(&Enum.join/1)
+    |> IO.iodata_to_binary()
+    |> String.split("\n", trim: true)
   end
 
   # Translate an array of text lines (with embedded ANSI escapes) into

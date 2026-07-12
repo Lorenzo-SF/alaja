@@ -288,11 +288,7 @@ defmodule Alaja.CLI.Definition do
   end
 
   defp find_command(commands, name) when is_list(commands) do
-    Enum.find(commands, &(&1.name == name)) ||
-      Enum.find(commands, fn
-        {^name, cmd} -> cmd
-        _ -> nil
-      end)
+    Enum.find(commands, &(&1.name == name))
   end
 
   defp find_command(commands, name) when is_map(commands) do
@@ -343,7 +339,7 @@ defmodule Alaja.CLI.Definition do
     value_already = arg =~ "=true" or arg =~ "=false"
     value = if value_already, do: String.contains?(arg, "=true"), else: true
     next = if value_already, do: rest, else: rest
-    parse_flags(flags, next, [{flag.name, value} | acc])
+    parse_flags(flags -- [flag], next, [{flag.name, value} | acc])
   end
 
   defp parse_matched_flag(%{type: :boolean} = flag, flags, [arg | rest], acc) do
@@ -532,8 +528,20 @@ defmodule Alaja.CLI.Definition do
   end
 
   defp cast_arg_value(:string, val), do: val
-  defp cast_arg_value(:integer, val), do: String.to_integer(val)
-  defp cast_arg_value(:float, val), do: String.to_float(val)
+
+  defp cast_arg_value(:integer, val) do
+    case Integer.parse(val) do
+      {int, ""} -> int
+      _ -> {:error, "invalid integer: #{inspect(val)}"}
+    end
+  end
+
+  defp cast_arg_value(:float, val) do
+    case Float.parse(val) do
+      {float, ""} -> float
+      _ -> {:error, "invalid float: #{inspect(val)}"}
+    end
+  end
 
   defp struct_to_map(%_{} = struct), do: Map.from_struct(struct)
   defp struct_to_map(map) when is_map(map), do: map
