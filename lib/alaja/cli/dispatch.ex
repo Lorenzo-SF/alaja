@@ -66,4 +66,5 @@ defmodule Alaja.CLI.Dispatch do
   def color(opts), do: Color.run(opts._args)
   def action(opts), do: Action.run(opts._args)
   def theme(opts), do: Theme.run(opts._args)
+  def config(opts), do: Alaja.CLI.Commands.Config.run(opts._args)
 end

@@ -1,8 +1,20 @@
 # credo:disable-for-this-file Credo.Check.Readability.StringSigils
 defmodule Alaja.CLI.Commands.Show.Table do
+  alias Alaja.CLI.Commands.Base, as: Base
+
+  # Delegate common helpers to Base
+  defdelegate parse_color(arg), to: Base, as: :parse_color, arity: 1
+  defdelegate parse_color_list(arg), to: Base, as: :parse_color_list, arity: 1
+  defdelegate parse_align(arg), to: Base, as: :parse_align, arity: 1
+  defdelegate parse_align_list(arg), to: Base, as: :parse_align_list, arity: 1
+  defdelegate parse_effects(arg), to: Base, as: :parse_effects, arity: 1
+  defdelegate parse_effects_list(arg), to: Base, as: :parse_effects_list, arity: 1
+  defdelegate term_width(), to: Base, as: :term_width, arity: 0
+  defdelegate apply_align(line, align), to: Base, as: :apply_align, arity: 2
+  defdelegate parse_border_opt(s), to: Base, as: :parse_border_opt, arity: 1
   @moduledoc "`alaja table` — Display formatted tables."
 
-  alias Alaja.CLI.{GlobalOpts, Parser}
+  alias Alaja.CLI.GlobalOpts
   alias Alaja.Components.{Header, Separator}
   alias Alaja.Components.Table, as: TableComp
 
@@ -177,13 +189,13 @@ defmodule Alaja.CLI.Commands.Show.Table do
       {key, val} when is_binary(val) ->
         cond do
           String.ends_with?(Atom.to_string(key), "_color") ->
-            {key, parse_color_list(val)}
+            {key, Base.parse_color_list(val)}
 
           String.ends_with?(Atom.to_string(key), "_align") ->
-            {key, parse_align_list(val)}
+            {key, Base.parse_align_list(val)}
 
           String.ends_with?(Atom.to_string(key), "_effects") ->
-            {key, parse_effects_list(val)}
+            {key, Base.parse_effects_list(val)}
 
           true ->
             {key, val}
@@ -200,88 +212,8 @@ defmodule Alaja.CLI.Commands.Show.Table do
     if global.box do
       :left
     else
-      parse_align(Keyword.get(opts, :table_align)) || global.align
+      Base.parse_align(Keyword.get(opts, :table_align)) || global.align
     end
-  end
-
-  @spec parse_border_opt(String.t()) :: atom()
-  defp parse_border_opt(s) do
-    case Alaja.Helpers.safe_string_to_atom(s) do
-      {:ok, atom} -> atom
-      {:error, _} -> :normal
-    end
-  end
-
-  defp parse_color(nil), do: nil
-  defp parse_color(s), do: Parser.parse_color_opt(s)
-
-  defp parse_color_list(nil), do: nil
-
-  defp parse_color_list(s) do
-    case Parser.parse_color_list(s) do
-      {:ok, list} ->
-        list
-
-      {:error, msg} ->
-        IO.puts(:stderr, "Color list error: #{msg}")
-        nil
-    end
-  end
-
-  defp parse_align(nil), do: nil
-
-  defp parse_align(s) when is_binary(s) do
-    case Alaja.Helpers.safe_string_to_atom(s) do
-      {:ok, atom} -> atom
-      {:error, _} -> nil
-    end
-  end
-
-  defp parse_align(a), do: a
-
-  defp parse_align_list(nil), do: nil
-
-  defp parse_align_list(s) when is_binary(s) do
-    s
-    |> String.split(",")
-    |> Enum.map(&String.trim/1)
-    |> Enum.map(fn s ->
-      case Alaja.Helpers.safe_string_to_atom(s) do
-        {:ok, atom} -> atom
-        {:error, _} -> nil
-      end
-    end)
-    |> Enum.reject(&is_nil/1)
-  end
-
-  defp parse_effects(nil), do: nil
-
-  defp parse_effects(s) when is_binary(s) do
-    s
-    |> String.split(",")
-    |> Enum.map(&String.trim/1)
-    |> Enum.map(fn s ->
-      case Alaja.Helpers.safe_string_to_atom(s) do
-        {:ok, atom} -> atom
-        {:error, _} -> nil
-      end
-    end)
-    |> Enum.reject(&is_nil/1)
-  end
-
-  defp parse_effects_list(nil), do: nil
-
-  defp parse_effects_list(s) when is_binary(s) do
-    s
-    |> String.split(",")
-    |> Enum.map(&String.trim/1)
-    |> Enum.map(fn s ->
-      case Alaja.Helpers.safe_string_to_atom(s) do
-        {:ok, atom} -> atom
-        {:error, _} -> nil
-      end
-    end)
-    |> Enum.reject(&is_nil/1)
   end
 
   defp printer_opts(g), do: GlobalOpts.to_printer_opts(g)

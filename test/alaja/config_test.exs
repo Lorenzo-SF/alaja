@@ -54,11 +54,17 @@ defmodule Alaja.ConfigTest do
       )
 
       System.put_env("ALAJA_THEMES_PATH", Path.join(tmp_dir, "themes"))
+      # Isolate from real ~/.config/alaja/alaja.conf
+      System.put_env("ALAJA_CONFIG_PATH", Path.join(tmp_dir, "alaja.conf"))
+      # Force ensure_loaded to re-read (will load from non-existent file, no-op)
+      Application.delete_env(:alaja, :__conf_loaded__)
       Application.put_env(:alaja, :theme_active, "dracula")
 
       on_exit(fn ->
         System.delete_env("ALAJA_THEMES_PATH")
+        System.delete_env("ALAJA_CONFIG_PATH")
         Application.delete_env(:alaja, :theme_active)
+        Application.delete_env(:alaja, :__conf_loaded__)
         File.rm_rf!(tmp_dir)
       end)
 
