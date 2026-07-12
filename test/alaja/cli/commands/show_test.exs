@@ -10,7 +10,7 @@ defmodule ShowTest do
   end
 
   test "header command renders subtitle when provided" do
-    output = capture_io(fn -> Header.run(["Dashboard", "--subtitle", "Test"] ) end)
+    output = capture_io(fn -> Header.run(["Dashboard", "--subtitle", "Test"]) end)
     assert String.contains?(output, "Test")
   end
 end

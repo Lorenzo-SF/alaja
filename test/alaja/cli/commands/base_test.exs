@@ -52,7 +52,11 @@ defmodule BaseTest do
     end
 
     test "splits and maps to atoms" do
-      assert Base.parse_align_list("left,center,right") |> Enum.sort() == [{:ok, :center}, {:ok, :left}, {:ok, :right}]
+      assert Base.parse_align_list("left,center,right") |> Enum.sort() == [
+               {:ok, :center},
+               {:ok, :left},
+               {:ok, :right}
+             ]
     end
   end
 
