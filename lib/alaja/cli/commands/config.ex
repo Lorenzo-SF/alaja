@@ -1,5 +1,6 @@
 defmodule Alaja.CLI.Commands.Config do
   @moduledoc "DEPRECATED: The `alaja config` command has been removed. Use `alaja theme` for theme management."
+  @deprecated "Use Alaja.CLI.Commands.Theme instead"
 
   alias Alaja.Theme
 
