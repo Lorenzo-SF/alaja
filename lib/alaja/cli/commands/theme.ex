@@ -3,7 +3,6 @@ defmodule Alaja.CLI.Commands.Theme do
   `alaja theme` — Manage themes (init, set, list, show).
   """
 
-  alias Alaja.CLI.Commands.Config, as: ConfigCmd
   alias Alaja.{Config, Theme}
 
   @spec run([String.t()]) :: :ok | no_return()
@@ -16,7 +15,23 @@ defmodule Alaja.CLI.Commands.Theme do
     config_path = Path.expand("~/.config/alaja")
     File.mkdir_p!(config_path)
 
-    ConfigCmd.install_theme_templates()
+    Enum.each(Theme.templates(), fn name ->
+      IO.write("  Writing #{name}.json ... ")
+
+      case Theme.install_template(name) do
+        :ok -> IO.puts("\e[38;2;72;187;120m✓\e[0m")
+        {:error, reason} -> IO.puts("\e[38;2;245;101;101m✗ #{inspect(reason)}\e[0m")
+      end
+    end)
+
+    Enum.each(Alaja.Theme.CustomTemplates.all(), fn theme ->
+      IO.write("  Writing #{theme.name}.json ... ")
+
+      case Theme.install!(theme) do
+        :ok -> IO.puts("\e[38;2;72;187;120m✓\e[0m")
+        {:error, reason} -> IO.puts("\e[38;2;245;101;101m✗ #{inspect(reason)}\e[0m")
+      end
+    end)
 
     IO.puts("\n  \e[38;2;72;187;120mThemes initialized at #{config_path}/themes\e[0m\n")
   end
