@@ -33,9 +33,142 @@ defmodule Alaja.Theme.CustomTemplates do
       "gradient_5" => {249, 226, 175},
       "gradient_6" => {250, 179, 135}
     }
+   }
+ 
+  @catppuccin_mocha %Pote.Theme.Theme{
+    name: "catppuccin_mocha",
+    description: "Catppuccin Mocha — warm pastel on deep brown-black",
+    colors: %{
+      "rosewater" => {245, 224, 220},
+      "flamingo" => {242, 205, 205},
+      "pink" => {245, 194, 231},
+      "mauve" => {203, 166, 247},
+      "red" => {243, 139, 168},
+      "maroon" => {235, 160, 172},
+      "peach" => {250, 179, 135},
+      "yellow" => {249, 226, 175},
+      "green" => {166, 227, 161},
+      "teal" => {148, 226, 213},
+      "sky" => {137, 220, 235},
+      "sapphire" => {116, 199, 236},
+      "blue" => {137, 180, 250},
+      "lavender" => {180, 190, 254},
+      "text" => {205, 214, 244},
+      "subtext1" => {186, 194, 222},
+      "subtext0" => {166, 173, 200},
+      "overlay2" => {147, 153, 178},
+      "overlay1" => {127, 132, 156},
+      "overlay0" => {108, 112, 134},
+      "surface2" => {88, 91, 112},
+      "surface1" => {69, 71, 90},
+      "surface0" => {49, 34, 68},
+      "base" => {30, 30, 46},
+      "mantle" => {24, 24, 37},
+      "crust" => {17, 17, 27}
+    }
   }
+ 
+  @catppuccin_frappe %Pote.Theme.Theme{
+    name: "catppuccin_frappe",
+    description: "Catppuccin Frappe — precision palette with balanced luminance",
+    colors: %{
+      "rosewater" => {242, 213, 207},
+      "flamingo" => {238, 190, 190},
+      "pink" => {244, 189, 228},
+      "mauve" => {201, 209, 238},
+      "red" => {231, 130, 132},
+      "maroon" => {234, 153, 156},
+      "peach" => {239, 159, 118},
+      "yellow" => {229, 200, 144},
+      "green" => {166, 209, 137},
+      "teal" => {225, 194, 103},
+      "sky" => {216, 182, 224},
+      "sapphire" => {166, 229, 225},
+      "blue" => {180, 208, 226},
+      "lavender" => {200, 211, 248},
+      "text" => {198, 208, 245},
+      "subtext1" => {181, 191, 226},
+      "subtext0" => {165, 173, 206},
+      "overlay2" => {147, 156, 178},
+      "overlay1" => {131, 139, 167},
+      "overlay0" => {115, 153, 148},
+      "surface2" => {98, 104, 128},
+      "surface1" => {81, 87, 109},
+      "surface0" => {65, 85, 79},
+      "base" => {48, 52, 70},
+      "mantle" => {41, 44, 60},
+      "crust" => {35, 38, 52}
+    }
+  }
+ 
+  @catppuccin_latte %Pote.Theme.Theme{
+    name: "catppuccin_latte",
+    description: "Catppuccin Latte — warm pastel on deep brown-black",
+    colors: %{
+      "rosewater" => {220, 138, 120},
+      "flamingo" => {221, 120, 120},
+      "pink" => {234, 118, 203},
+      "mauve" => {136, 57, 239},
+      "red" => {210, 15, 57},
+      "maroon" => {229, 59, 58},
+      "peach" => {235, 142, 72},
+      "yellow" => {233, 168, 102},
+      "green" => {166, 209, 137},
+      "teal" => {80, 250, 122},
+      "sky" => {0, 195, 160},
+      "sapphire" => {29, 233, 242},
+      "blue" => {255, 91, 0},
+      "lavender" => {231, 212, 244},
+      "text" => {78, 90, 126},
+      "subtext1" => {124, 136, 147},
+      "subtext0" => {168, 182, 194},
+      "overlay2" => {10, 106, 140},
+      "overlay1" => {12, 107, 142},
+      "overlay0" => {13, 108, 144},
+      "surface2" => {61, 122, 151},
+      "surface1" => {78, 156, 173},
+      "surface0" => {92, 181, 189},
+      "base" => {245, 245, 245},
+      "mantle" => {229, 229, 229},
+      "crust" => {213, 213, 213}
+    }
+  }
+ 
+  @catppuccin_macchiato %Pote.Theme.Theme{
+    name: "catppuccin_macchiato",
+    description: "Catppuccin Macchiato — warm pastel on deep brown-black",
+    colors: %{
+      "rosewater" => {244, 219, 214},
+      "flamingo" => {240, 198, 198},
+      "pink" => {245, 189, 230},
+      "mauve" => {198, 160, 246},
+      "red" => {237, 135, 150},
+      "maroon" => {238, 153, 160},
+      "peach" => {245, 169, 127},
+      "yellow" => {238, 212, 159},
+      "green" => {166, 210, 164},
+      "teal" => {139, 213, 202},
+      "sky" => {145, 215, 227},
+      "sapphire" => {125, 196, 228},
+      "blue" => {170, 173, 244},
+      "lavender" => {183, 189, 248},
+      "text" => {202, 211, 245},
+      "subtext1" => {184, 198, 217},
+      "subtext0" => {168, 195, 182},
+      "overlay2" => {147, 154, 183},
+      "overlay1" => {128, 135, 162},
+      "overlay0" => {110, 115, 141},
+      "surface2" => {91, 96, 120},
+      "surface1" => {73, 77, 100},
+      "surface0" => {54, 58, 79},
+      "base" => {36, 39, 58},
+      "mantle" => {30, 32, 48},
+      "crust" => {24, 25, 38}
+    }
+  }
+ 
+   @solarized %Pote.Theme.Theme{
 
-  @solarized %Pote.Theme.Theme{
     name: "solarized-dark",
     description: "Solarized Dark — precision palette with balanced luminance",
     colors: %{
@@ -358,7 +491,12 @@ defmodule Alaja.Theme.CustomTemplates do
   @spec all :: [Pote.Theme.Theme.t()]
   def all do
     [
-      @catppuccin,
+       @catppuccin,
+       @catppuccin_mocha,
+       @catppuccin_frappe,
+       @catppuccin_latte,
+       @catppuccin_macchiato,
+
       @solarized,
       @gruvbox,
       @tokyo_night,
