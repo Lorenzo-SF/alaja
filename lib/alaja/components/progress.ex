@@ -79,11 +79,12 @@ defmodule Alaja.Components.Progress do
 
   defp render(bar, opts \\ []) do
     if bar.enabled do
-      buf = AnimatedBar.render_frame(bar.position, bar.total, bar.position,
-        label: "#{bar.label}: ",
-        width: bar.width,
-        animation: bar.animation
-      )
+      buf =
+        AnimatedBar.render_frame(bar.position, bar.total, bar.position,
+          label: "#{bar.label}: ",
+          width: bar.width,
+          animation: bar.animation
+        )
 
       # Cursor to column 0, clear line, write buffer, show cursor.
       # We always repaint in-place (no flicker) by resetting to col 0
@@ -92,14 +93,16 @@ defmodule Alaja.Components.Progress do
       suffix = if finished, do: " ✓", else: ""
 
       elapsed = System.monotonic_time(:millisecond) - bar.started_at
-      eta = if bar.position > 0 and not finished do
-        avg = elapsed / bar.position
-        remaining = bar.total - bar.position
-        secs_left = max(0, round((remaining * avg) / 1000))
-        " (ETA: #{secs_left}s, elapsed: #{div(elapsed, 1000)}s)"
-      else
-        " (elapsed: #{div(elapsed, 1000)}s)"
-      end
+
+      eta =
+        if bar.position > 0 and not finished do
+          avg = elapsed / bar.position
+          remaining = bar.total - bar.position
+          secs_left = max(0, round(remaining * avg / 1000))
+          " (ETA: #{secs_left}s, elapsed: #{div(elapsed, 1000)}s)"
+        else
+          " (elapsed: #{div(elapsed, 1000)}s)"
+        end
 
       IO.write(:stderr, "\r\e[K")
       IO.write(:stderr, Buffer.to_iodata(buf))
