@@ -7,6 +7,29 @@ defmodule Alaja.ANSI do
   handling, and alternate screen buffers.
   """
 
+  @standard_colors %{
+    0 => {0, 0, 0},
+    1 => {170, 0, 0},
+    2 => {0, 170, 0},
+    3 => {170, 85, 0},
+    4 => {0, 0, 170},
+    5 => {170, 0, 170},
+    6 => {0, 170, 170},
+    7 => {170, 170, 170},
+    8 => {85, 85, 85},
+    9 => {255, 85, 85},
+    10 => {85, 255, 85},
+    11 => {255, 255, 85},
+    12 => {85, 85, 255},
+    13 => {255, 85, 255},
+    14 => {85, 255, 255},
+    15 => {255, 255, 255}
+  }
+
+  @doc "Standard 16 ANSI colours mapped by index."
+  @spec standard_colors() :: %{non_neg_integer() => {0..255, 0..255, 0..255}}
+  def standard_colors, do: @standard_colors
+
   @doc "Hides the terminal cursor."
   @spec hide_cursor() :: String.t()
   def hide_cursor, do: "\e[?25l"

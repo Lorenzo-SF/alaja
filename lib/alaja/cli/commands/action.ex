@@ -134,8 +134,6 @@ defmodule Alaja.CLI.Commands.Action do
       data when is_binary(data) and data == "" -> {:error, "No data received from stdin"}
       data -> {:ok, String.trim(data)}
     end
-  rescue
-    _ -> {:error, "Failed to read from stdin"}
   end
 
   defp read_file(path) do
