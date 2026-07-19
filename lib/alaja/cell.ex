@@ -179,7 +179,11 @@ defmodule Alaja.Cell do
   end
 
   def to_ansi(%__MODULE__{} = cell) do
-    [build_ansi_prefix(cell), cell.char, IO.ANSI.reset()]
+    if Alaja.Config.color_enabled?() do
+      [build_ansi_prefix(cell), cell.char, IO.ANSI.reset()]
+    else
+      cell.char
+    end
   end
 
   @doc """
@@ -192,7 +196,11 @@ defmodule Alaja.Cell do
   def to_ansi_prefix(%__MODULE__{fg: nil, bg: nil, effects: []}), do: []
 
   def to_ansi_prefix(%__MODULE__{} = cell) do
-    build_ansi_prefix(cell)
+    if Alaja.Config.color_enabled?() do
+      build_ansi_prefix(cell)
+    else
+      []
+    end
   end
 
   @spec normalize_color(color() | any()) :: color()
@@ -212,11 +220,15 @@ defmodule Alaja.Cell do
 
   @spec build_ansi_prefix(t()) :: iodata()
   defp build_ansi_prefix(%__MODULE__{fg: fg, bg: bg, effects: effects}) do
-    [
-      if(fg, do: ansi_fg(fg), else: []),
-      if(bg, do: ansi_bg(bg), else: []),
-      ansi_effects(effects)
-    ]
+    if Alaja.Config.color_enabled?() do
+      [
+        if(fg, do: ansi_fg(fg), else: []),
+        if(bg, do: ansi_bg(bg), else: []),
+        ansi_effects(effects)
+      ]
+    else
+      []
+    end
   end
 
   @spec ansi_fg({0..255, 0..255, 0..255}) :: String.t()

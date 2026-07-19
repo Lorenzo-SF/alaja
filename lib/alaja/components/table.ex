@@ -1048,10 +1048,13 @@ defmodule Alaja.Components.Table do
   defp render_formatted(text, nil, _effects), do: text
 
   defp render_formatted(text, color, effects) do
-    # Convert any color format to ColorInfo using the proper constructor
-    color_info = Pote.ColorInfo.new(color)
+    if Alaja.Config.color_enabled?() do
+      color_info = Pote.ColorInfo.new(color)
 
-    ChunkText.render(ChunkText.new(text, color: color_info, effects: effects))
+      ChunkText.render(ChunkText.new(text, color: color_info, effects: effects))
+    else
+      text
+    end
   end
 
   # ── Interactive pagination ────────────────────────────────────────────
