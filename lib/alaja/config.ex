@@ -34,6 +34,12 @@ defmodule Alaja.Config do
     "ALAJAX_THEME_ACTIVE" => :theme_active
   }
 
+  @doc "Returns whether ANSI colour output is enabled."
+  @spec color_enabled?() :: boolean()
+  def color_enabled? do
+    get(:no_color, false) == false and IO.ANSI.enabled?()
+  end
+
   @doc "Gets a configuration value with fallback."
   @spec get(atom(), any()) :: any()
   def get(key, default \\ nil) do
