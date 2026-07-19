@@ -23,8 +23,8 @@ defmodule Alaja.Wizard.Renderers do
   # ANSI palette used by the boxed renderers for the borders.
   @border_fg {120, 120, 120}
 
-  # ─── :inline ─────────────────────────────────────────────────────────
-  # `Name: alice, Age: 30, Subscribe: true`
+  @doc "Renders all fields on one line, comma-separated."
+  @spec inline(Wizard.t()) :: Buffer.t()
   def inline(%Wizard{} = w) do
     line = Enum.map_join(w.fields, ", ", &inline_pair/1)
     write_lines([line])
@@ -40,11 +40,8 @@ defmodule Alaja.Wizard.Renderers do
     "#{label}: #{rendered}"
   end
 
-  # ─── :compact ────────────────────────────────────────────────────────
-  # Two-column layout:
-  #   Name       alice
-  #   Age        30
-  #   Subscribe  true
+  @doc "Renders a two-column compact table (label | value)."
+  @spec compact(Wizard.t()) :: Buffer.t()
   def compact(%Wizard{} = w) do
     label_width = w.fields |> Enum.map(&String.length(&1.label)) |> Enum.max(fn -> 0 end)
     lines = Enum.map(w.fields, &compact_line(&1, label_width))
@@ -56,13 +53,8 @@ defmodule Alaja.Wizard.Renderers do
     "#{padded}#{render_value(value, default, type)}"
   end
 
-  # ─── :stacked ────────────────────────────────────────────────────────
-  # One field per row, label above value, blank line between fields.
-  #   Name
-  #     alice
-  #
-  #   Age
-  #     30
+  @doc "Renders one field per row, label above value, blank line between fields."
+  @spec stacked(Wizard.t()) :: Buffer.t()
   def stacked(%Wizard{} = w) do
     chunks =
       Enum.map(w.fields, fn f ->
@@ -74,13 +66,8 @@ defmodule Alaja.Wizard.Renderers do
     write_lines(lines)
   end
 
-  # ─── :wizard ─────────────────────────────────────────────────────────
-  # Boxed form with a top progress marker:
-  #   ┌─ My Form (3 fields) ─────────────────┐
-  #   │  Name       alice                    │
-  #   │  Age        30                       │
-  #   │  Subscribe  true                     │
-  #   └──────────────────────────────────────┘
+  @doc "Renders a boxed form with a top progress marker."
+  @spec wizard(Wizard.t()) :: Buffer.t()
   def wizard(%Wizard{} = w) do
     body = compact(w)
     {bw, bh} = {body.width, body.height}
@@ -105,11 +92,8 @@ defmodule Alaja.Wizard.Renderers do
     |> bottom_border(width - 1, height - 1)
   end
 
-  # ─── :compact_wizard ─────────────────────────────────────────────────
-  # Single-line boxed form:
-  #   ┌─ My Form ──────────────────────────┐
-  #   │  Name: alice | Age: 30 | ...       │
-  #   └────────────────────────────────────┘
+  @doc "Renders a single-line boxed form."
+  @spec compact_wizard(Wizard.t()) :: Buffer.t()
   def compact_wizard(%Wizard{} = w) do
     line = Enum.map_join(w.fields, " | ", &inline_pair/1)
     title = w.title || "Wizard"
