@@ -426,25 +426,6 @@ defmodule Alaja.Components.Table do
   end
 
   # Standard ANSI 16-color mapping indices: 0-7 standard, 8-15 bright.
-  @ansi_standard_colors %{
-    0 => {0, 0, 0},
-    1 => {170, 0, 0},
-    2 => {0, 170, 0},
-    3 => {170, 85, 0},
-    4 => {0, 0, 170},
-    5 => {170, 0, 170},
-    6 => {0, 170, 170},
-    7 => {170, 170, 170},
-    8 => {85, 85, 85},
-    9 => {255, 85, 85},
-    10 => {85, 255, 85},
-    11 => {255, 255, 85},
-    12 => {85, 85, 255},
-    13 => {255, 85, 255},
-    14 => {85, 255, 255},
-    15 => {255, 255, 255}
-  }
-
   defp parse_fg_sgr(skipped) do
     cond do
       String.starts_with?(skipped, "38;2;") -> parse_truecolor_skip(skipped)
@@ -464,7 +445,7 @@ defmodule Alaja.Components.Table do
     rest = String.slice(skipped, 5, byte_size(skipped) - 5)
 
     with {n, ""} <- Integer.parse(rest),
-         rgb when rgb != nil <- Map.get(@ansi_standard_colors, n) do
+          rgb when rgb != nil <- Map.get(Alaja.ANSI.standard_colors(), n) do
       rgb
     else
       _ -> @no_fg_change
@@ -473,8 +454,8 @@ defmodule Alaja.Components.Table do
 
   defp parse_standard_fg_code(skipped) do
     case Integer.parse(skipped) do
-      {n, ""} when n >= 30 and n <= 37 -> Map.get(@ansi_standard_colors, n - 30)
-      {n, ""} when n >= 90 and n <= 97 -> Map.get(@ansi_standard_colors, n - 80)
+      {n, ""} when n >= 30 and n <= 37 -> Map.get(Alaja.ANSI.standard_colors(), n - 30)
+      {n, ""} when n >= 90 and n <= 97 -> Map.get(Alaja.ANSI.standard_colors(), n - 80)
       _ -> @no_fg_change
     end
   end
