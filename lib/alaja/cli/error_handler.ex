@@ -6,9 +6,12 @@ defmodule Alaja.CLI.ErrorHandler do
   and appropriate exit codes.
   """
 
+  require Logger
+
   @doc "Handles unknown command by showing suggestions."
   @spec unknown_command(String.t(), [map()]) :: {:error, :unknown_command}
   def unknown_command(command, commands) do
+    log_warning("unknown command '#{command}'")
     IO.puts(:stderr, "Error: unknown command '#{command}'")
 
     suggestions = suggest(command, available_names(commands))
@@ -25,6 +28,7 @@ defmodule Alaja.CLI.ErrorHandler do
   @doc "Shows error when no command is given."
   @spec no_command([map()]) :: {:error, :no_command}
   def no_command(commands) do
+    log_warning("no command specified")
     IO.puts(:stderr, "Error: no command specified")
     print_available(commands)
     {:error, :no_command}
@@ -33,6 +37,7 @@ defmodule Alaja.CLI.ErrorHandler do
   @doc "Shows error when a command has no run handler."
   @spec no_handler(String.t()) :: {:error, :no_handler}
   def no_handler(name) do
+    log_warning("command '#{name}' has no handler defined")
     IO.puts(:stderr, "Error: command '#{name}' has no handler defined")
     {:error, :no_handler}
   end
@@ -40,6 +45,7 @@ defmodule Alaja.CLI.ErrorHandler do
   @doc "Prints flag validation errors and exits."
   @spec flag_errors([String.t()]) :: {:error, atom()}
   def flag_errors(errors) do
+    log_warning("invalid options")
     IO.puts(:stderr, "Error: invalid options")
     Enum.each(errors, fn e -> IO.puts(:stderr, "  #{e}") end)
     {:error, :handler}
@@ -49,6 +55,7 @@ defmodule Alaja.CLI.ErrorHandler do
   @spec missing_args(String.t(), [atom()]) :: {:error, atom()}
   def missing_args(command_name, missing_names) do
     args = Enum.map_join(missing_names, ", ", &"<#{&1}>")
+    log_warning("command '#{command_name}' requires: #{args}")
     IO.puts(:stderr, "Error: command '#{command_name}' requires: #{args}")
     {:error, :handler}
   end
@@ -56,12 +63,19 @@ defmodule Alaja.CLI.ErrorHandler do
   @doc "Prints a formatted error message for the CLI."
   @spec format_error(String.t(), String.t()) :: {:error, atom()}
   def format_error(title, detail) do
+    log_warning("#{title}: #{detail}")
     IO.puts(:stderr, "Error: #{title}")
     unless detail == "", do: IO.puts(:stderr, "  #{detail}")
     {:error, :handler}
   end
 
   # ─── Private ──────────────────────────────────────────────────────
+
+  defp log_warning(msg) do
+    if Alaja.Config.get(:error_handler_logger, false) do
+      Logger.warning(msg)
+    end
+  end
 
   defp print_available(commands) do
     unless commands == [] do
