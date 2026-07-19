@@ -89,25 +89,35 @@ defmodule Alaja.Components.ColorWheelTest do
   end
 
   describe "show_color_info/2" do
-    test "outputs color info to stdout" do
+    test "outputs color info via render_color_formats" do
+      output = capture_io(fn -> ColorWheel.render_color_formats({186, 218, 85}) end)
+      assert String.contains?(output, "HEX")
+    end
+
+    test "outputs color info via render_color_variants" do
+      output = capture_io(fn -> ColorWheel.render_color_variants({186, 218, 85}) end)
+      assert String.contains?(output, "Base")
+    end
+
+    test "show_color_info (deprecated) still works" do
       output = capture_io(fn -> ColorWheel.show_color_info({186, 218, 85}) end)
       assert String.contains?(output, "████")
     end
 
-    test "shows formats when enabled" do
+    test "shows formats via render_color_formats" do
       output =
         capture_io(fn ->
-          ColorWheel.show_color_info({255, 0, 0}, show_formats: true)
+          ColorWheel.render_color_formats({255, 0, 0})
         end)
 
       assert String.contains?(output, "HEX")
       assert String.contains?(output, "RGB")
     end
 
-    test "shows variants when enabled" do
+    test "shows variants via render_color_variants" do
       output =
         capture_io(fn ->
-          ColorWheel.show_color_info({255, 0, 0}, show_variants: true)
+          ColorWheel.render_color_variants({255, 0, 0})
         end)
 
       assert String.contains?(output, "Base")
@@ -115,20 +125,29 @@ defmodule Alaja.Components.ColorWheelTest do
   end
 
   describe "show_harmony_ring/3" do
-    test "renders harmony ring to stdout" do
+    test "renders harmony ring via get_ascii_wheel_lines and render_swatch_list" do
+      lines = ColorWheel.get_ascii_wheel_lines([0.0, 120.0, 240.0], :triad)
+      assert Enum.any?(lines, &String.contains?(&1, "TRÍADA"))
+
+      output = capture_io(fn -> ColorWheel.render_swatch_list([{255, 0, 0}]) end)
+      assert String.contains?(output, "rgb(255,0,0)")
+    end
+
+    test "show_harmony_ring (deprecated) still works" do
       output = capture_io(fn -> ColorWheel.show_harmony_ring({255, 0, 0}, :triad) end)
       assert String.contains?(output, "TRÍADA")
     end
   end
 
   describe "show_swatches/2" do
-    test "renders color swatches" do
+    test "renders swatches via render_swatch_list" do
       output =
         capture_io(fn ->
-          ColorWheel.show_swatches([{255, 0, 0}, {0, 255, 0}])
+          ColorWheel.render_swatch_list([{255, 0, 0}, {0, 255, 0}])
         end)
 
-      assert String.contains?(output, "████████")
+      assert String.contains?(output, "rgb(255,0,0)")
+      assert String.contains?(output, "rgb(0,255,0)")
     end
   end
 
