@@ -113,7 +113,7 @@ defmodule Alaja.Components.Progress do
 
   defp tty? do
     case :io.getopts(:standard_error) do
-      {:ok, opts} -> Keyword.get(opts, :tty, false)
+      opts when is_list(opts) -> Keyword.get(opts, :tty, false)
       _ -> false
     end
   end
