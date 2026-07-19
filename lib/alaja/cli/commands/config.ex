@@ -34,6 +34,7 @@ defmodule Alaja.CLI.Commands.Config do
   """
   @spec run(Keyword.t() | list()) :: :ok
   def run(_opts) do
-    :ok
+    IO.puts(:stderr, "config is deprecated, use 'alaja theme' instead")
+    :error
   end
 end
