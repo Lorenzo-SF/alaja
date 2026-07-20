@@ -2,17 +2,7 @@ defmodule Alaja.CLI.Commands.Show.Animate do
   @moduledoc "`alaja animate` — Display animated spinners and indicators."
 
   alias Alaja.CLI.GlobalOpts
-  alias Alaja.Components.{Header, Separator, Table}
-
-  @frames %{
-    "spinner" => ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"],
-    "dots" => ["⣾", "⣽", "⣻", "⢿", "⡿", "⣟", "⣯", "⣷"],
-    "bar" => ["▏", "▎", "▍", "▌", "▋", "▊", "▉", "█", "▉", "▊", "▋", "▌"],
-    "moon" => ["🌑", "🌒", "🌓", "🌔", "🌕", "🌖", "🌗", "🌘"],
-    "clock" => ["🕐", "🕑", "🕒", "🕓", "🕔", "🕕", "🕖", "🕗", "🕘", "🕙", "🕚", "🕛"],
-    "pulse" => ["█", "▓", "▒", "░", "▒", "▓"],
-    "kitt" => ["█", "▓", "▒", "░"]
-  }
+  alias Alaja.Components.{Animate, Header, Separator, Table}
 
   @spec run([String.t()]) :: :ok | no_return()
   def run(args) do
@@ -40,8 +30,8 @@ defmodule Alaja.CLI.Commands.Show.Animate do
       speed = Keyword.get(opts, :speed, 100)
       verbose = global.verbose
 
-      frames = get_frames(type, Keyword.get(opts, :chars))
-      colors = parse_colors(Keyword.get(opts, :color), Keyword.get(opts, :colors))
+      frames = Animate.frames(type, Keyword.get(opts, :chars))
+      colors = Animate.parse_colors(Keyword.get(opts, :color), Keyword.get(opts, :colors))
 
       {cr, cg, cb} =
         case colors do
@@ -50,127 +40,11 @@ defmodule Alaja.CLI.Commands.Show.Animate do
         end
 
       if type == "kitt" do
-        run_kitt(text, duration, speed, {cr, cg, cb}, verbose, frames, colors)
+        Animate.run_kitt(text, duration, speed, {cr, cg, cb}, verbose, frames, colors)
       else
-        run_animation(frames, duration, speed, text, {cr, cg, cb}, verbose, colors)
+        Animate.run_animation(frames, duration, speed, text, {cr, cg, cb}, verbose, colors)
       end
     end
-  end
-
-  defp get_frames(type, nil), do: Map.get(@frames, type, Map.get(@frames, "spinner"))
-
-  defp get_frames(_type, chars_str) do
-    chars_str |> String.split(",") |> Enum.map(&String.trim/1) |> Enum.reject(&(&1 == ""))
-  end
-
-  defp parse_colors(color_str, colors_str) do
-    cond do
-      colors_str ->
-        colors_str
-        |> String.split(";")
-        |> Enum.map(&String.trim/1)
-        |> Enum.map(&parse_one/1)
-        |> Enum.reject(&is_nil/1)
-
-      color_str ->
-        color_str
-        |> String.split(";")
-        |> Enum.map(&String.trim/1)
-        |> Enum.map(&parse_one/1)
-        |> Enum.reject(&is_nil/1)
-
-      true ->
-        []
-    end
-  end
-
-  defp parse_one(s) do
-    case Pote.Orchestrator.parse_color(s) do
-      {:ok, c} -> c
-      _ -> nil
-    end
-  end
-
-  defp run_animation(frames, duration, speed, text, {cr, cg, cb}, verbose, colors) do
-    iterations = duration * div(1000, speed)
-    total = length(frames)
-
-    if verbose do
-      Enum.each(0..(iterations - 1), fn i ->
-        fidx = rem(i, total)
-        {fr, fg, fb} = frame_color(fidx, colors, {cr, cg, cb})
-
-        IO.puts(
-          "#{Pote.Orchestrator.to_ansi({fr, fg, fb})}#{Enum.at(frames, fidx)}#{Alaja.ANSI.reset_attributes()} #{text}"
-        )
-      end)
-    else
-      Enum.each(1..iterations, fn i ->
-        fidx = rem(i, total)
-        {fr, fg, fb} = frame_color(fidx, colors, {cr, cg, cb})
-
-        IO.write(
-          "\r\e[K  #{Pote.Orchestrator.to_ansi({fr, fg, fb})}#{Enum.at(frames, fidx)}#{Alaja.ANSI.reset_attributes()} #{text}..."
-        )
-
-        Process.sleep(speed)
-      end)
-
-      IO.write("\r\e[K")
-    end
-  end
-
-  defp run_kitt(text, duration, speed, {cr, cg, cb}, verbose, frames, colors) do
-    text_len = String.length(text)
-    iterations = duration * div(1000, speed)
-
-    if verbose do
-      Enum.each(0..(iterations - 1), fn frame ->
-        IO.puts(build_kitt_frame(text, text_len, frame, {cr, cg, cb}, frames, colors))
-      end)
-    else
-      Enum.each(0..(iterations - 1), fn frame ->
-        IO.write(
-          "\r\e[K  " <> build_kitt_frame(text, text_len, frame, {cr, cg, cb}, frames, colors)
-        )
-
-        Process.sleep(speed)
-      end)
-
-      IO.write("\r\e[K")
-    end
-  end
-
-  defp build_kitt_frame(text, text_len, frame, {cr, cg, cb}, frames, colors) do
-    width = text_len
-    cycle = rem(frame, max(width * 2, 1))
-    center = if cycle < width, do: cycle, else: width * 2 - cycle - 1
-
-    result =
-      text
-      |> String.graphemes()
-      |> Enum.with_index()
-      |> Enum.map_join(fn {char, i} ->
-        dist = abs(i - center)
-        fidx = rem(frame, length(frames))
-        {fr, fg, fb} = frame_color(fidx, colors, {cr, cg, cb})
-
-        multiplier =
-          case dist do
-            0 -> 1.0
-            1 -> 0.7
-            2 -> 0.4
-            _ -> 0.5
-          end
-
-        "#{Pote.Orchestrator.to_ansi({round(fr * multiplier), round(fg * multiplier), round(fb * multiplier)})}#{char}#{Alaja.ANSI.reset_attributes()}"
-      end)
-
-    result <> " "
-  end
-
-  defp frame_color(idx, colors, base) do
-    if colors != [] and idx < length(colors), do: Enum.at(colors, idx), else: base
   end
 
   @spec help() :: :ok
