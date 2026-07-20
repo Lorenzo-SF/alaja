@@ -142,6 +142,29 @@ defmodule Alaja.Helpers do
   end
 
   @doc """
+  Renders a single-line border box into an `Alaja.Buffer.t()`.
+
+  Same geometry as `box/6` but returns a buffer with the box drawn at
+  local coordinates (0, 0) and proper cell-level colour data instead
+  of embedded ANSI escapes.
+
+  ## Parameters
+    - w, h: Width and height
+    - title: Optional title (default: "")
+    - color: RGB colour tuple (default: {100, 140, 200})
+
+  ## Returns
+  An `Alaja.Buffer.t()` of size w×h.
+
+  ## Example
+      iex> Helpers.box_buffer(40, 10, "My Box", {100, 140, 200})
+      %Alaja.Buffer{width: 40, height: 10, ...}
+  """
+  def box_buffer(w, h, title \\ "", color \\ {100, 140, 200}) do
+    draw_box_buffer(w, h, title, color, :single)
+  end
+
+  @doc """
   Draw a box with double-line border.
 
   ## Parameters
@@ -178,6 +201,71 @@ defmodule Alaja.Helpers do
       end
 
     [top, bottom] ++ sides ++ title_line
+  end
+
+  @doc """
+  Renders a double-line border box into an `Alaja.Buffer.t()`.
+
+  Same geometry as `double_box/6` but returns a buffer with the box
+  drawn at local coordinates and proper cell-level colour data.
+
+  ## Parameters
+    - w, h: Width and height
+    - title: Optional title (default: "")
+    - color: RGB colour tuple (default: {180, 130, 80})
+
+  ## Returns
+  An `Alaja.Buffer.t()` of size w×h.
+  """
+  def double_box_buffer(w, h, title \\ "", color \\ {180, 130, 80}) do
+    draw_box_buffer(w, h, title, color, :double)
+  end
+
+  @box_borders %{
+    single: %{tl: "╭", tr: "╮", bl: "╰", br: "╯", h: "─", v: "│"},
+    double: %{tl: "╔", tr: "╗", bl: "╚", br: "╝", h: "═", v: "║"}
+  }
+
+  defp draw_box_buffer(w, h, title, color, style) do
+    alias Alaja.Buffer
+
+    borders = Map.fetch!(@box_borders, style)
+    {r, g, b} = color
+
+    buffer = Buffer.new(w, h)
+
+    # Top edge (0-indexed)
+    buffer =
+      buffer
+      |> Buffer.write(0, 0, borders.tl, {r, g, b})
+      |> Buffer.write(1, 0, String.duplicate(borders.h, w - 2), {r, g, b})
+      |> Buffer.write(w - 1, 0, borders.tr, {r, g, b})
+
+    # Bottom edge
+    buffer =
+      buffer
+      |> Buffer.write(0, h - 1, borders.bl, {r, g, b})
+      |> Buffer.write(1, h - 1, String.duplicate(borders.h, w - 2), {r, g, b})
+      |> Buffer.write(w - 1, h - 1, borders.br, {r, g, b})
+
+    # Vertical sides
+    buffer =
+      Enum.reduce(1..(h - 2), buffer, fn row, buf ->
+        buf
+        |> Buffer.write(0, row, borders.v, {r, g, b})
+        |> Buffer.write(w - 1, row, borders.v, {r, g, b})
+      end)
+
+    # Title (overwrites top-edge horizontal chars at the centre)
+    if title != "" do
+      title_text = " #{title} "
+      title_x = div(w - String.length(title_text), 2)
+
+      buffer
+      |> Buffer.write(title_x, 0, title_text, {r, g, b})
+    else
+      buffer
+    end
   end
 
   # ═══════════════════════════════════════════════════════════════════════════════

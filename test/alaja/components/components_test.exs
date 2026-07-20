@@ -1,7 +1,7 @@
 defmodule Alaja.Components.ComponentsTest do
   use ExUnit.Case
 
-  alias Alaja.{Buffer, Components}
+  alias Alaja.Buffer
   alias Alaja.Components.{Bar, Box, Breadcrumbs, Header, Json, Separator}
 
   # Helper: render a component (returning either a Buffer or iodata) to a binary.
