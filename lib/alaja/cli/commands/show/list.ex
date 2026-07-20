@@ -2,7 +2,7 @@ defmodule Alaja.CLI.Commands.Show.List do
   @moduledoc "`alaja list` — Display a styled list."
 
   alias Alaja.CLI.GlobalOpts
-  alias Alaja.Components.{Header, Separator, Table}
+  alias Alaja.Components.{Header, List, Separator, Table}
   alias Alaja.Printer
 
   @spec run([String.t()]) :: :ok | no_return()
@@ -20,59 +20,9 @@ defmodule Alaja.CLI.Commands.Show.List do
       header = Keyword.get(opts, :header)
       color = parse_color(Keyword.get(opts, :color))
       align = parse_align(Keyword.get(opts, :align))
-      list_content = build_list_string(header, items, color, align)
+      list_content = List.build(items, header: header, color: color, align: align)
 
       Printer.print_raw(list_content, GlobalOpts.to_printer_opts(global))
-    end
-  end
-
-  defp build_list_string(nil, items, color, align) do
-    items
-    |> Enum.map_join("\n", &format_item(&1, color, align))
-    |> then(&[&1, "\n"])
-  end
-
-  defp build_list_string(header, items, color, align) do
-    header_line = "  #{header}"
-    item_lines = Enum.map_join(items, "\n", &format_item(&1, color, align))
-    [header_line, "\n", item_lines, "\n"]
-  end
-
-  defp format_item(item, nil, align) do
-    apply_align("  • #{item}", align)
-  end
-
-  defp format_item(item, {r, g, b}, align) do
-    apply_align(
-      "#{Pote.Orchestrator.to_ansi({r, g, b})}  • #{item}#{Alaja.ANSI.reset_attributes()}",
-      align
-    )
-  end
-
-  # Alignment is relative to the terminal width for center/right.
-  # Falls back gracefully when width cannot be determined.
-  defp apply_align(line, :left), do: line
-
-  defp apply_align(line, align) when align in [:center, :right] do
-    # Strip ANSI to measure visible length
-    visible_len = line |> String.replace(~r/\x1b\[[0-9;]*m/, "") |> String.length()
-    term_width = term_width()
-
-    padding =
-      case align do
-        :center -> max(0, div(term_width - visible_len, 2))
-        :right -> max(0, term_width - visible_len)
-      end
-
-    String.duplicate(" ", padding) <> line
-  end
-
-  defp apply_align(line, _), do: line
-
-  defp term_width do
-    case :io.columns() do
-      {:ok, w} -> w
-      _ -> 80
     end
   end
 
