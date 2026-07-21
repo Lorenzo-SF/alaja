@@ -96,6 +96,7 @@ defmodule Alaja.CLI.Dispatch do
   def action(opts), do: Action.run(opts._args)
   @doc "Dispatches the `alaja theme` command."
   def theme(opts), do: Theme.run(opts._args)
+
   @doc "Dispatches the deprecated `alaja config` command (prints deprecation notice and returns `:error`)."
   def config(opts), do: Alaja.CLI.Commands.Config.run(opts._args)
 end
