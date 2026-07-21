@@ -57,14 +57,15 @@ defmodule Alaja.Components.Gradient do
   @doc """
   Applies a simple two-color gradient to text.
 
-  Uses Pote.Gradients internally.
+  Uses Pote.Gradients internally. Returns iodata suitable for direct
+  `IO.write` or `Alaja.Printer.print_raw/2`.
   """
   @spec apply_gradient_text(
           String.t(),
           {integer(), integer(), integer()},
           {integer(), integer(), integer()},
           keyword()
-        ) :: String.t() | {:error, String.t()}
+        ) :: iodata()
   def apply_gradient_text(text, from, to, opts \\ []) do
     direction = Keyword.get(opts, :direction, :left_to_right)
     bg = Keyword.get(opts, :bg, false)
