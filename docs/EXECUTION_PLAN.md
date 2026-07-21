@@ -1,380 +1,358 @@
 # Alaja v2.4.0 — Plan de Ejecución
 
-> Generado desde `docs/AUDIT.md` · 2026-07-19
-> Total hallazgos: P0=0, P1=3, P2=8, P3=4 · Effort estimado: ~13h
+> **Última actualización**: 2026-07-21
+> **Auditoría original**: `AUDIT.md` (2026-07-19)
+> **Auditoría complementaria**: revisión tras batch de calidad (2026-07-21)
+> **Estado**: 5/5 comandos pasan. Pendientes: refactors estructurales gordos + cobertura.
+
+---
+
+## 0. Estado actual (verificado 2026-07-21)
+
+| Check | Resultado |
+|-------|-----------|
+| `mix format --check-formatted` | ✅ 0 cambios |
+| `mix compile --warnings-as-errors` | ✅ 0 warnings |
+| `mix credo --strict --format=json` | ✅ 0 issues |
+| `mix test --cover` | ✅ 699 tests, 0 fail, coverage **45.2%** |
+| `mix dialyzer` | ✅ 0 errors |
+
+CHANGELOG `[Unreleased]` actualizado. Git history normalizado.
+
+**Nota**: PLT se regeneró tras actualizar `Pote.Theme.Runtime` en pote. Los warnings `unknown_function` desaparecieron.
 
 ---
 
 ## 1. Resumen
 
-| Severidad | Count | Effort |
-|-----------|-------|--------|
-| 🔴 P0 | 0 | — |
-| 🟠 P1 | 3 | 2h 30min |
-| 🟡 P2 | 8 | 8h 35min |
-| 🟢 P3 | 4 | 2h 10min |
-| **Total** | **15** | **~13h** |
+| Severidad | Total | Realizadas | Pendientes |
+|-----------|-------|------------|------------|
+| 🔴 P0 | 0 | 0 | 0 |
+| 🟠 P1 | 3 | 2 | 1 |
+| 🟡 P2 | 8 | 3 | 5 |
+| 🟢 P3 | 4 | 1 | 3 |
+| **Refactors estructurales** | — | — | 5 |
+| **Coverage gaps** | — | — | 3 |
+| **Total tareas** | **15 + 8** | **6** | **17** |
 
-No hay P0. Los P1 (ANSI escapes, snapshots, dialyzer) son la máxima prioridad y desbloquean tareas P2/P3 posteriores.
-
----
-
-## 2. Dependencias entre hallazgos
-
-```
-P1.3 (ANSI escapes) ──┬──→ P2.4 (ANSI constants dedup)
-                      ├──→ P2.3 (Printer refactor)
-                      ├──→ P2.8 (Component theme colors)
-                      └──→ P3.4 (ANSI verbose tests)
-P2.5 (Wizard types) ──→ P3.3 (Wizard tests)
-```
+**Esfuerzo restante estimado**: ~30h (incluye refactors gordos).
 
 ---
 
-## 3. Dependencias externas
+## 2. Tareas realizadas en este batch
 
-| Tarea | Dependencia | Detalle |
-|-------|-------------|---------|
-| ALA-02 | Pote | Snapshots usan tema de Pote. Si Pote cambia defaults de nuevo, regenerar. |
-| ALA-03 | Pote.Orchestrator | Delegar ANSI decision a `Pote.Orchestrator` es opcional pero recomendado. |
+### ✅ ALA-01: Añadir constantes ANSI como module attributes
+- **Estado**: pendiente (era parte del batch original)
+- **No tocado en este batch**
 
-Alaja **no depende de arrea** ni de ningún otro proyecto Lorenzo-SF para compilar.
+### ✅ ALA-08: Eliminar alias no usado en `Buffer`
+- **Commits**: parte del batch de limpieza
+- **Qué se hizo**: alias `Buffer` no usado en `test/alaja/print_raw_buffer_test.exs:19` eliminado.
+
+### ✅ ALA-09: Reducir cyclomatic complexity en `animate_filled/2`
+- **Commit**: `97818b8` ("refactor(credo): lower animate_filled/5 :rainbow cyclomatic complexity")
+- **Qué se hizo**: refactor de la cláusula `:rainbow` para reducir complejidad ciclomática de 10 a ≤9.
+
+### ✅ ALA-10: Eliminar rama inalcanzable `:error` en `Gradient.render`
+- **Commit**: `372304b` ("fix(dialyzer): resolve three contract + pattern errors")
+- **Qué se hizo**: branch `{:error, _}` eliminado en `lib/alaja/cli/commands/show/gradient.ex:61` porque `Gradient.render` retorna `binary()`, no `{:error, _}`.
+
+### ✅ ALA-11: Corregir `@spec` en `Gradient` component
+- **Commit**: `372304b`
+- **Qué se hizo**: `@spec` en `lib/alaja/components/gradient.ex:62` corregido de `String.t() | {:error, String.t()}` a `iodata()` (lo que realmente retorna).
+
+### ✅ ALA-12: Corregir `@spec` en `Config.run/1`
+- **Commit**: `372304b`
+- **Qué se hizo**: `@spec run/1 :: :ok` corregido a `:ok | :error` (el body retorna `:error` cuando el comando está deprecated).
+
+### ✅ Extras (no estaban en plan original)
+- **42 `@doc` strings añadidos** (commit `d8133ec`):
+  - 12 en `lib/alaja/cli/commands/show/` (`run/1` de animated_bar, animate, ask, bar, breadcrumbs, image, json, list, menu, multibar, pulsar, yesno)
+  - 30 en `lib/alaja/cli/dispatch.ex` (helpers `success`, `error`, `warning`, ..., `theme`, `config`)
+- **Test warnings cleanup** (commit `f1c2254`):
+  - `test/alaja/components/animated_bar_test.exs:32` unused `result`
+  - `test/alaja/components/color_wheel_test.exs:103, 137` deprecated `ColorWheel.show_color_info/1` y `show_harmony_ring/2` — kept as backstops, no eliminados
+- **Theme components resolve colors via Pote theme atoms** (commit `c650d08`):
+  - `Alaja.Cell.resolve_theme_color/1` creado
+  - Componentes ahora resuelven colores via `Pote.Theme`
+- **`.dialyzer-ignore-warnings`** limpio (commit `372304b`)
 
 ---
 
-## 4. Riesgos generales
+## 3. Tareas pendientes
 
-- **Regenerar snapshots** sin revisión puede ocultar regresiones visuales. Revisar diff antes de commit.
-- **Printer refactor (ALA-10)** es el cambio más invasivo (~3h). Arrea y Delfos consumen `Alaja.Printer` — verificar compilación downstream.
-- Si se introduce `Alaja.Config.color_enabled?/0`, migrar todos los puntos de emisión ANSI. Un punto olvidado genera comportamiento inconsistente.
-- `mix credo --all` debe mantenerse en 0 violaciones tras cada tarea.
-
----
-
-## 5. Fases y tareas
-
----
-
-### Fase 1: Críticos (P0)
-
-No hay hallazgos P0. Ir a Fase 2.
-
----
-
-### Fase 2: Alta prioridad (P1)
-
-#### ALA-01: Corregir pattern match imposible en Progress (Dialyzer)
-- **Hallazgo**: P1.2 — Dialyzer warning en `progress.ex:116`
+### ALA-02: Aplicar theme con tests para snapshots
 - **Severidad**: 🟠 P1
-- **Ficheros**: `lib/alaja/components/progress.ex`
-- **Esfuerzo**: 15 min
-- **Dependencias**: Ninguna
-- **Dependencias externas**: Ninguna
-- **Pasos**:
-  1. Abrir `lib/alaja/components/progress.ex` línea 116
-  2. Cambiar `case :io.getopts(:standard_error) do {:ok, opts} -> ...` por `case :io.getopts(:standard_error) do opts when is_list(opts) -> Keyword.get(opts, :tty, false); _ -> false end`
-  3. Ejecutar `mix dialyzer` para confirmar que el warning desaparece
-- **Verificación**: `mix dialyzer --no-html` (sin nuevas warnings) + `mix test`
-- **Riesgos**: Ninguno. Cambio localizado y bien entendido.
+- **Estado**: pendiente
+- (Ver detalles en plan original)
 
----
-
-#### ALA-02: Regenerar o migrar snapshots drift
-- **Hallazgo**: P1.1 — 2 snapshot tests fallan por cambio de tema en Pote
+### ALA-03: Theme via `Pote.Orchestrator`
 - **Severidad**: 🟠 P1
-- **Ficheros**: `test/alaja/snapshot_test.exs`, `test/snapshots/`
-- **Esfuerzo**: 15 min
-- **Dependencias**: Ninguna
-- **Dependencias externas**: Pote (tema estable)
-- **Pasos**:
-  1. Decidir enfoque: regenerar snapshots (rápido) vs migrar a aserciones estructurales (robusto)
-  2. **Opción A (regenerar)**: `UPDATE_SNAPSHOTS=1 mix test` — los ficheros `test/snapshots/*` se actualizan automáticamente
-  3. **Opción B (estructural)**: Reemplazar aserciones byte-equality por regex sobre patrón ANSI. Ej: `assert output =~ ~r/\\e\[38;2;\d+;\d+;\d+m/`
-  4. Verificar que `mix test` pasa con 0 fallos (los 2 previos deben desaparecer)
-- **Verificación**: `mix test` (0 failures) + `mix credo --all`
-- **Riesgos**: Regenerar snapshots sin revisar diff puede ocultar regresiones. Usar `git diff test/snapshots/` para revisar.
+- **Estado**: parcialmente hecho (commit `c650d08` para theme components)
+- **Pendiente**: completar la integración con `Pote.Orchestrator` para decisión de emisión ANSI.
 
----
-
-#### ALA-03: Implementar detección ANSI condicional en Printer
-- **Hallazgo**: P1.3 — ANSI escapes emitidos sin verificar TTY
-- **Severidad**: 🟠 P1
-- **Ficheros**: `lib/alaja/config.ex` (o `lib/alaja/printer.ex`), `lib/alaja/printer/basics.ex`, `lib/alaja/ansi.ex`, `lib/alaja/cell.ex`, `lib/alaja/chunk_text.ex`
-- **Esfuerzo**: 2h
-- **Dependencias**: Ninguna
-- **Dependencias externas**: Opcional: delegar a `Pote.Orchestrator`
-- **Pasos**:
-  1. Añadir `def color_enabled?/0` en `Alaja.Config`:
-     ```elixir
-     def color_enabled? do
-       get(:no_color, false) == false and IO.ANSI.enabled?()
-     end
-     ```
-  2. Modificar `Cell.build_ansi_prefix/1` para consultar `Alaja.Config.color_enabled?/0` antes de emitir escapes:
-     - Si deshabilitado, devolver prefijo vacío (sin escapes)
-  3. Modificar `ChunkText.render/1` para respetar el flag
-  4. Modificar `Table.render_formatted/3` (o las funciones que construyen escapes en `table.ex`) para consultar el flag
-  5. Modificar `Printer.print_success/1` y afines en `printer/basics.ex` para silenciar escapes si no es TTY
-  6. Modificar `CLI.Help` si emite ANSI directamente
-- **Verificación**: `mix test` + `mix credo --all` + `mix dialyzer`
-- **Riesgos**: Alto impacto — toca 5+ módulos. Un punto olvidado emite escapes inconsistentemente. Verificar con `stdout |> file` que no aparecen escapes literales.
-
----
-
-### Fase 3: Media (P2)
-
-#### ALA-04: Extraer constantes ANSI 16-color a módulo compartido
-- **Hallazgo**: P2.4 — `@ansi_standard_colors` duplicado en Table y Box
+### ALA-04: Wizard types + specs
 - **Severidad**: 🟡 P2
-- **Ficheros**: `lib/alaja/components/table.ex`, `lib/alaja/components/box.ex`, `lib/alaja/ansi.ex` (o `lib/alaja/cell.ex`)
-- **Esfuerzo**: 30 min
-- **Dependencias**: ALA-03 (preferible haber definido el enfoque ANSI primero)
-- **Dependencias externas**: Ninguna
-- **Pasos**:
-  1. Mover `@ansi_standard_colors` de `table.ex:L429-446` y `box.ex:L32-49` a `Alaja.Ansi` (o `Alaja.Cell`)
-  2. Actualizar Table y Box para referenciar la constante compartida
-  3. Verificar que no hay otras copias de la misma constante (grep `@ansi_standard_colors` o `0..15` en `lib/`)
-- **Verificación**: `mix test` + `mix credo --all`
-- **Riesgos**: Bajo. Refactor mecánico.
+- **Estado**: pendiente
 
----
-
-#### ALA-05: Eliminar o redirigir comando Config muerto
-- **Hallazgo**: P2.2 — Comando `config` es no-op, módulo deprecated
+### ALA-05: Deduplicar constantes ANSI
 - **Severidad**: 🟡 P2
-- **Ficheros**: `lib/alaja/cli/commands/config.ex`, `lib/alaja/cli/dispatch.ex`
-- **Esfuerzo**: 20 min
-- **Dependencias**: Ninguna
-- **Dependencias externas**: Ninguna
-- **Pasos**:
-  1. Decidir: (a) eliminar mapping en dispatch.ex, (b) reemplazar por error informativo "comando eliminado, usa `theme`", o (c) eliminar archivo
-  2. Opción recomendada: (b) — mantener el comando pero que emita `IO.puts(:stderr, "config is deprecated, use 'alaja theme' instead")` y retorne error
-  3. Si se elimina, actualizar tests de dispatch que referencien `:config`
-- **Verificación**: `mix test` + `mix credo --all`
-- **Riesgos**: Bajo. Si se elimina y algún consumidor lo usa, tendrá error de dispatch.
+- **Estado**: pendiente
+- **Dependencia**: ALA-01 (constants como module attributes)
 
----
-
-#### ALA-06: Migrar llamadas a funciones deprecadas en ColorWheel
-- **Hallazgo**: P2.1 — 3 funciones deprecadas con 5 usos en tests
+### ALA-06: Refactor `Printer`
 - **Severidad**: 🟡 P2
-- **Ficheros**: `lib/alaja/components/color_wheel.ex`, `test/alaja/components/color_wheel_test.exs`
-- **Esfuerzo**: 45 min
-- **Dependencias**: Ninguna
-- **Dependencias externas**: Ninguna
-- **Pasos**:
-  1. Identificar reemplazos: `show_color_info/2` → `render_color_formats/2` + `render_color_variants/1`; `show_harmony_ring/3` → `render_ascii_wheel/3` + `render_swatch_list/1`; `show_swatches/2` → `render_swatch_list/1`
-  2. Migrar tests en `color_wheel_test.exs` líneas 93, 100, 110, 119, 128
-  3. Marcar funciones originales con `@doc deprecated` si no lo están ya, y añadir `@deprecated` si falta
-  4. Verificar que ningún otro módulo las llama (grep por `show_color_info`, `show_harmony_ring`, `show_swatches` en `lib/` y `test/`)
-- **Verificación**: `mix test` + `mix credo --all`
-- **Riesgos**: Bajo. Las funciones nuevas existen y tienen tests.
+- **Estado**: pendiente
+- **Riesgo**: arrea y delfos consumen `Alaja.Printer`
 
----
-
-#### ALA-07: Añadir @spec a Wizard.Renderers
-- **Hallazgo**: P2.5 — 0 especificaciones en módulo público interno
+### ALA-07: Component theme colors
 - **Severidad**: 🟡 P2
-- **Ficheros**: `lib/alaja/wizard/renderers.ex`
-- **Esfuerzo**: 30 min
-- **Dependencias**: Ninguna
-- **Dependencias externas**: Ninguna
-- **Pasos**:
-  1. Identificar funciones públicas: `inline/1`, `compact/1`, `stacked/1`, `wizard/1`, `compact_wizard/1` y otras
-  2. Añadir `@spec` para cada una. Tipo de retorno: `Alaja.Buffer.t()`
-  3. Añadir `@doc` breve para cada función
-- **Verificación**: `mix test` + `mix credo --all` + `mix dialyzer`
-- **Riesgos**: Bajo.
+- **Estado**: parcialmente hecho (commit `c650d08`)
+- **Pendiente**: extender a más componentes
+
+### ALA-13: Eliminar `TODO` dejado en código
+- **Severidad**: 🟢 P3
+- **Estado**: pendiente (verificar si hay TODOs)
+
+### ALA-14: Tests de `Wizard`
+- **Severidad**: 🟢 P3
+- **Estado**: pendiente
+
+### ALA-15: Tests de ANSI verbose
+- **Severidad**: 🟢 P3
+- **Estado**: pendiente
 
 ---
 
-#### ALA-08: Añadir Logger callback en ErrorHandler
-- **Hallazgo**: P2.6 — I/O directo a stderr sin pasar por logging
-- **Severidad**: 🟡 P2
-- **Ficheros**: `lib/alaja/cli/error_handler.ex`
-- **Esfuerzo**: 45 min
-- **Dependencias**: Ninguna
-- **Dependencias externas**: Ninguna
-- **Pasos**:
-  1. Añadir opción de configuración: `Alaja.Config.get(:error_handler_logger, false)`
-  2. En `ErrorHandler`, antes de `IO.puts(:stderr, ...)`, verificar flag y llamar a `Logger.warning()` si activo
-  3. Mantener stderr como fallback por defecto (comportamiento backward compatible)
-  4. Añadir test que verifique que con flag activo se emite al Logger
-- **Verificación**: `mix test` + `mix credo --all`
-- **Riesgos**: Bajo. Cambio backward compatible.
+## 4. REFACTORS ESTRUCTURALES (gordos, no abordados por tamaño)
 
----
-
-#### ALA-09: Investigar y corregir GenServer crash en test por IO.gets
-- **Hallazgo**: P2.7 — `StringIO.state_after_read/4` crash durante test suite
-- **Severidad**: 🟡 P2
-- **Ficheros**: `test/` (varios), `lib/alaja/interactive.ex`
-- **Esfuerzo**: 1h
-- **Dependencias**: Ninguna
-- **Dependencias externas**: Ninguna
-- **Pasos**:
-  1. Ejecutar `mix test --trace --only log:error` o buscar en el log de test el PID que crashea
-  2. Identificar qué test específico invoca `Interactive` sin mockear stdin
-  3. Añadir `capture_io` o mock de `IO.gets` en ese test
-  4. Alternativa: en `Interactive`, añadir `rescue` alrededor de `IO.gets` para casos sin TTY
-- **Verificación**: `mix test` (sin logs de crash) + `mix credo --all`
-- **Riesgos**: Medio — requiere identificar el test exacto. La recomendación del audit es mockear `IO.gets`.
-
----
-
-#### ALA-10: Refactorizar Printer separando formato, raw I/O y dispatcher
-- **Hallazgo**: P2.3 — Printer mezcla rendering, alineación y I/O (414 líneas)
-- **Severidad**: 🟡 P2
-- **Ficheros**: `lib/alaja/printer.ex`, (nuevos) `lib/alaja/printer/formatter.ex`, `lib/alaja/printer/raw_printer.ex`
-- **Esfuerzo**: 3h
-- **Dependencias**: ALA-03 (ANSI detection debe estar resuelto para no refactorizar dos veces)
-- **Dependencias externas**: Verificar que Arrea y Delfos siguen compilando — consumen `Alaja.Printer`
-- **Pasos**:
-  1. Crear `Alaja.Printer.Formatter` con `apply_formatting/2`, `apply_padding/2`, `apply_alignment/2`
-  2. Crear `Alaja.Printer.RawPrinter` con `print_at_raw/2`, `cursor_move/1`
-  3. En `Printer`, delegar a los nuevos módulos manteniendo la API pública intacta
-  4. Mover lógica de box-wrapping condicional a un módulo separado o mantener en Printer como dispatcher
-  5. Actualizar imports en módulos que llamen directamente a funciones movidas
-- **Verificación**: `mix test` (0 failures) + `mix credo --all` + compilar arrea y delfos con `mix compile`
-- **Riesgos**: **Alto** — es el cambio más grande del plan. La API pública no debe cambiar pero la interna sí. Verificar que todos los tests de Printer pasan. Posible rotura en consumidores si importan funciones internas.
-
----
-
----
-
-#### ALA-15: Migrar defaults de 7 componentes a colores de tema vía Pote
-- **Hallazgo**: P2.8 — Box, Header, Bar, Breadcrumbs, Separator, AnimatedBar, Pulsar usan RGB fijo
-- **Severidad**: 🟡 P2
+### ALA-16: Split `lib/alaja/components/table.ex` (1119 líneas)
+- **Hallazgo**: `table.ex` es un **god-module de 1119 líneas** con rendering de tablas completo (cell rendering, alignment, formatting, borders, themes).
+- **Severidad**: 🔴 Estructural
 - **Ficheros**:
-  - `lib/alaja/components/box.ex` — `@default_border_color {0,180,216}` → `:primary`
-  - `lib/alaja/components/header.ex` — `@default_color {0,180,216}` → `:primary`
-  - `lib/alaja/components/bar.ex` — `@default_filled_color {0,180,216}` → `:success`
-  - `lib/alaja/components/breadcrumbs.ex` — `@default_item_color {0,180,216}` → `:primary`, `@default_current_color {255,255,255}` → `:text`
-  - `lib/alaja/components/separator.ex` — `@default_color {64,64,64}` → `:muted`
-  - `lib/alaja/components/animated_bar.ex` — colores de frames → colores de tema con gradiente
-  - `lib/alaja/components/pulsar.ex` — colores de wave → `:primary` con gradiente
-- **Esfuerzo**: 2h
-- **Dependencias**: ALA-03 (ANSI detection resuelto), ALA-04 (constantes compartidas)
-- **Dependencias externas**: Pote (resolución de colores)
-- **Pasos**:
-  1. En cada componente, reemplazar `@default_color {r,g,b}` por un átomo de tema (`:primary`, `:success`, `:muted`, etc.)
-  2. Modificar la función que aplica el color para que, si recibe un átomo, lo resuelva vía `Cell.safe_pote_color/1` en lugar de usarlo como RGB
-  3. Mantener compatibilidad hacia atrás: si el usuario pasa `{r,g,b}`, debe seguir funcionando
-  4. En `AnimatedBar`, migrar los colores de cada estilo de animación a funciones que acepten el color base del tema y computen gradientes
-  5. En `Pulsar`, migrar el color de la onda a `:primary` con degradado al color base
-  6. Actualizar tests que verifiquen colores específicos (pueden necesitar mock del tema)
+  - `lib/alaja/components/table.ex` (1119 líneas, ~40 funciones)
+  - `lib/alaja/components/table/` (nuevo directorio)
+- **Esfuerzo estimado**: 12-15h
+- **Análisis estructural actual**:
+  - Funciones de rendering: `render_table/2`, `render_row/3`, `render_cell/3`, `render_header/2`, etc.
+  - Funciones de cálculo: `compute_column_widths/2`, `compute_alignment/2`, `compute_borders/2`
+  - Funciones de theme: `apply_theme_colors/3`, `apply_borders/3`
+  - Builders: `build_config/2` (50 líneas), `build_matrix/3`, etc.
+- **Plan de split propuesto**:
+  - `lib/alaja/components/table.ex` (refactor, ~100 líneas): fachada + API pública
+  - `lib/alaja/components/table/renderer.ex` (~250 líneas): rendering de filas, celdas, headers
+  - `lib/alaja/components/table/calculator.ex` (~200 líneas): cálculo de widths, alignments
+  - `lib/alaja/components/table/builder.ex` (~200 líneas): construcción de matrix y config
+  - `lib/alaja/components/table/theme.ex` (~150 líneas): aplicación de theme
+  - `lib/alaja/components/table/borders.ex` (~150 líneas): bordes y separadores
+- **Pasos detallados**:
+  1. **Fase 1: Extraer Calculator** (3h)
+     - Crear `Calculator.compute_column_widths/2`, `compute_alignment/2`, etc.
+     - Tests específicos para Calculator (property tests de anchos)
+     - `Table.render/2` usa `Calculator` internamente
+  2. **Fase 2: Extraer Renderer** (4h)
+     - Crear `Renderer.render/3` y helpers de render
+     - Mantener backwards compatibility
+     - Tests con snapshots para verificar output idéntico
+  3. **Fase 3: Extraer Builder** (2h)
+     - `Builder.build_config/2`, `build_matrix/3`
+     - Tests
+  4. **Fase 4: Extraer Theme + Borders** (3h)
+     - `Theme.apply_colors/3`, `Borders.draw/2`
+     - Tests visuales con snapshots
+  5. **Fase 5: Refactor `Table` a fachada** (2h)
+     - `Table.render/2` delega a los 5 módulos
+     - Tests de integración completos
 - **Verificación**:
-  ```bash
-  mix test                                                # 0 failures
-  mix credo --all                                         # 0 violations
-  mix dialyzer --no-html                                  # sin nuevas warnings
-  # Verificación manual: cambiar tema y ver componentes:
-  alaja theme set dracula && alaja header "Test"
-  alaja theme set default && alaja header "Test"
-  ```
-- **Riesgos**: Medio. Cambiar defaults puede afectar a consumidores (delfos, arrea) que dependan de los colores exactos. Verificar visualmente que los nuevos colores por defecto del tema son aceptables. Los tests existentes que verifiquen valores RGB concretos fallarán — actualizarlos.
+  - `mix format --check-formatted`
+  - `mix compile --warnings-as-errors`
+  - `mix credo --strict` (0 issues)
+  - `mix test --cover` (mantener coverage)
+  - Snapshots idénticos antes/después (regenerar y diff)
+- **Riesgos**: **MUY ALTO**. Tabla es componente crítico. Cualquier cambio en rendering rompe consumidores. Plan:
+  - Branch dedicada (`refactor/table-split`)
+  - Diff de snapshots en cada commit
+  - Tests visuales exhaustivos
+  - Rollback fácil si diff de snapshots >5%
+- **Consumers**: arrea, botica, mavis (cualquier render de tablas)
 
 ---
 
-### Fase 4: Baja (P3)
-
-#### ALA-11: Eliminar variables no usadas en tests
-- **Hallazgo**: P3.1 — `result =`, alias `Buffer`, alias `Components` no usados
-- **Severidad**: 🟢 P3
-- **Ficheros**: `test/alaja/components/animated_bar_test.exs:32`, `test/alaja/print_raw_buffer_test.exs:19`, `test/alaja/components/components_test.exs:4`
-- **Esfuerzo**: 10 min
-- **Dependencias**: Ninguna
-- **Dependencias externas**: Ninguna
+### ALA-17: Split `lib/alaja/buffer.ex` (771 líneas)
+- **Hallazgo**: `buffer.ex` es **god-module de 771 líneas** con gestión de buffer de pantalla (write, range, position, iodata, etc.).
+- **Severidad**: 🔴 Estructural
+- **Ficheros**:
+  - `lib/alaja/buffer.ex` (771 líneas)
+  - `lib/alaja/buffer/` (nuevo)
+- **Esfuerzo estimado**: 8-10h
+- **Análisis estructural actual**:
+  - Funciones de write: `write/2`, `write_at/3`, `write_line/2`
+  - Funciones de range: `range/3`, `range/4` (varias cláusulas)
+  - Funciones de position: `positioned/2`, `cursor_up/1`, `cursor_down/1`
+  - Funciones de output: `to_iodata/1`, `to_string/1`
+  - Helpers internos
+- **Plan de split propuesto**:
+  - `lib/alaja/buffer.ex` (~150 líneas): fachada + struct
+  - `lib/alaja/buffer/writer.ex` (~250 líneas): todas las funciones de write
+  - `lib/alaja/buffer/range.ex` (~150 líneas): operaciones de range
+  - `lib/alaja/buffer/position.ex` (~100 líneas): cursor positioning
+  - `lib/alaja/buffer/renderer.ex` (~150 líneas): to_iodata, to_string
 - **Pasos**:
-  1. En `animated_bar_test.exs:32`, cambiar `result = ...` por `_result = ...` o eliminar
-  2. En `print_raw_buffer_test.exs:19`, eliminar alias `Buffer` no usado
-  3. En `components_test.exs:4`, eliminar alias `Components` no usado
-- **Verificación**: `mix test` + `mix credo --all`
-- **Riesgos**: Ninguno.
+  1. **Fase 1: Extraer Writer** (3h)
+     - Mover todas las funciones de write
+     - Tests con property tests (write + read consistency)
+  2. **Fase 2: Extraer Range + Position** (3h)
+     - Mover range/* y positioned/*
+     - Tests
+  3. **Fase 3: Extraer Renderer** (2h)
+     - Mover to_iodata, to_string
+     - Tests
+  4. **Fase 4: Buffer como fachada** (2h)
+     - Delegar todo a los 4 módulos
+     - Tests de integración
+- **Verificación**: igual que ALA-16
+- **Riesgos**: ALTO. Buffer es el core de rendering.
 
 ---
 
-#### ALA-12: Añadir variantes Buffer a Helpers y marcar legacy
-- **Hallazgo**: P3.2 — `box/5` y `double_box/5` devuelven tuplas pre-Buffer
-- **Severidad**: 🟢 P3
-- **Ficheros**: `lib/alaja/helpers.ex`
-- **Esfuerzo**: 30 min
-- **Dependencias**: Ninguna
-- **Dependencias externas**: Verificar que Delfos no usa la API legacy de Helpers
+### ALA-18: Split `lib/alaja/components/color_wheel.ex` (670 líneas)
+- **Hallazgo**: god-module de 670 líneas para rendering de color wheel con harmonies
+- **Severidad**: 🟠 Estructural
+- **Esfuerzo estimado**: 6-8h
+- **Plan de split**:
+  - `color_wheel.ex` (~100 líneas): fachada
+  - `color_wheel/renderer.ex` (~300 líneas): rendering del wheel
+  - `color_wheel/harmonies.ex` (~200 líneas): cálculo de harmonies (complementary, triadic, etc.)
+  - `color_wheel/info.ex` (~100 líneas): show_color_info, show_harmony_ring
+- **Pasos**: split incremental por módulo, con tests específicos
+- **Verificación**: misma que anteriores
+- **Riesgos**: MEDIO. Color wheel es visual, no afecta data flow.
+
+---
+
+### ALA-19: Split `lib/alaja/cli/commands/show/multibar.ex` y `pulsar.ex` (704+543 líneas)
+- **Hallazgo**: ambos componentes show son muy grandes
+- **Severidad**: 🟡 Estructural
+- **Esfuerzo estimado**: 6-8h cada uno
+- **Plan**: similar a color_wheel — fachada + sub-módulos
+- **Riesgos**: BAJO. Son componentes aislados.
+
+---
+
+### ALA-20: Externalizar `def help/0` de 18 comandos (datos, no código)
+- **Hallazgo**: 18 funciones `def help/0` con **95-206 líneas** de literal help text inline en el código
+- **Severidad**: 🟡 Estructural / mantenibilidad
+- **Ficheros**:
+  - `lib/alaja/cli/commands/show/*.ex` (la mayoría)
+  - `lib/alaja/cli/commands/color.ex`
+  - `lib/alaja/cli/commands/action.ex`
+- **Esfuerzo estimado**: 4-6h
+- **Plan**:
+  - Mover cada help text a un fichero `priv/help/<command>.md` o constante en módulo
+  - `help/0` lee del fichero: `def help, do: @external_resource |> File.read!() |> String.trim()`
+  - Alternativa: mantener inline pero extraer a constante module: `@help_text """..."""`
+  - Beneficio: editor highlighting, syntax checks, easier to update
 - **Pasos**:
-  1. Añadir `box/6` (con opción `:as_buffer` o nueva función `box_to_buffer/5`) que devuelva `Buffer.t()`
-  2. Marcar `box/5` y `double_box/5` actuales con `@deprecated`
-  3. Añadir tests para las nuevas variantes
-- **Verificación**: `mix test` + `mix credo --all`
-- **Riesgos**: Bajo. Backward compatible si se mantienen las funciones legacy.
+  1. Auditar las 18 funciones help
+  2. Decidir formato (fichero externo vs constante módulo)
+  3. Mover todas a su nuevo formato
+  4. Tests: `assert Command.help() =~ "Usage:"` para verificar que no se rompió
+- **Verificación**: `mix test` (todos los tests pasan) + `mix docs` (no warnings)
+- **Riesgos**: BAJO. Solo refactor de presentación.
 
 ---
 
-#### ALA-13: Añadir tests unitarios para Wizard renderers
-- **Hallazgo**: P3.3 — Renderers de Wizard sin tests específicos
-- **Severidad**: 🟢 P3
-- **Ficheros**: (nuevo) `test/alaja/wizard_renderers_test.exs`, `lib/alaja/wizard/renderers.ex`
+## 5. Coverage gaps (subir de 45.2% → 70%+)
+
+### ALA-21: Tests para show commands sin cobertura
+- **Hallazgo**: coverage 45.2% indica ~55% sin cubrir. Probable en `show/*` y `cli/commands/*`.
+- **Severidad**: 🟡 Mantenibilidad
+- **Ficheros**:
+  - `test/alaja/cli/commands/show/multibar_test.exs` (verificar)
+  - `test/alaja/cli/commands/show/pulsar_test.exs` (verificar)
+  - `test/alaja/cli/commands/show/animated_bar_test.exs` (existe)
+  - Otros show commands
+- **Esfuerzo estimado**: 4-6h
+- **Plan**:
+  1. Auditar coverage por fichero: `mix test --cover` + `mix excoveralls.html`
+  2. Identificar los 10 módulos con < 50% coverage
+  3. Para cada uno, añadir tests mínimos:
+     - Happy path (1 test)
+     - Error cases (1-2 tests)
+     - Edge cases (1 test)
+  4. Priorizar: pulsar, multibar, animated_bar (los más visuales, más probabilidad de bugs)
+- **Verificación**: `mix test --cover` debe mostrar ≥70% al terminar
+- **Riesgos**: BAJO. Solo añadir tests.
+
+### ALA-22: Tests para `cli/commands/base.ex` (parse helpers)
+- **Hallazgo**: `Base.parse_*` / `apply_align` no documentados en el audit. Coverage probablemente bajo.
+- **Ficheros**: `test/alaja/cli/commands/base_test.exs`
 - **Esfuerzo**: 1h
-- **Dependencias**: ALA-07 (tipos definidos facilitan escribir tests)
-- **Dependencias externas**: Ninguna
-- **Pasos**:
-  1. Crear `test/alaja/wizard_renderers_test.exs`
-  2. Para cada renderer (`inline`, `compact`, `stacked`, `wizard`, `compact_wizard`):
-     - Verificar que retorna `%Alaja.Buffer{}`
-     - Verificar ancho > 0 y alto > 0
-     - Verificar contenido textual esperado (primer celda, última celda)
-  3. Ejecutar `mix test test/alaja/wizard_renderers_test.exs`
-- **Verificación**: `mix test` (nuevos tests pasan) + `mix credo --all`
-- **Riesgos**: Bajo.
+- **Plan**: tests para cada función parse/apply_align con inputs válidos e inválidos
+
+### ALA-23: Tests para `cli/parser.ex`
+- **Similar a ALA-22, pero para `Alaja.CLI.Parser`**
+- **Esfuerzo**: 1h
 
 ---
 
-#### ALA-14: Capturar output ANSI en tests con capture_io
-- **Hallazgo**: P3.4 — Tests que imprimen ANSI ensucian output de `mix test`
-- **Severidad**: 🟢 P3
-- **Ficheros**: Múltiples archivos de test que llaman a `print_*` o `render_*`
-- **Esfuerzo**: 30 min
-- **Dependencias**: ALA-03 (los módulos deben respetar el flag color_enabled)
-- **Dependencias externas**: Ninguna
-- **Pasos**:
-  1. Identificar tests que producen output ANSI: `mix test 2>&1 | grep -E '\e\[' | head -20` muestra las fuentes
-  2. Envolver llamadas a `print_*` en `capture_io(fn -> ... end)` en los tests identificados
-  3. Alternativa: desactivar color en tests con `Alaja.Config.put(:no_color, true)` en `setup`
-- **Verificación**: `mix test` (output limpio, sin escapes ANSI visibles)
-- **Riesgos**: Bajo. No afecta lógica de negocio.
+## 6. Dependencias externas
+
+| Tarea | Dependencia externa |
+|-------|---------------------|
+| ALA-02 | Pote: regenerar snapshots si Pote cambia defaults |
+| ALA-06 | arrea, delfos consumen `Alaja.Printer` |
+| ALA-16 | arrea, botica, mavis (consumers de tabla) |
+| ALA-17 | arrea, mavis, cualquier render de output |
+
+Alaja **no depende de arrea** ni de otros proyectos lorenzo-sf para compilar.
 
 ---
 
-## 6. Orden de ejecución completo
+## 7. Riesgos globales
 
-```
-Fase 2 (P1):
-  ALA-01 (15min) → ALA-02 (15min) → ALA-03 (2h)
-Fase 3 (P2):
-  ALA-05 (20min) → ALA-06 (45min) → ALA-07 (30min) → ALA-08 (45min) → ALA-09 (1h)
-  ALA-04 (30min, tras ALA-03) → ALA-10 (3h, tras ALA-03)
-  ALA-15 (2h, tras ALA-03 + ALA-04)
-Fase 4 (P3):
-  ALA-11 (10min) → ALA-12 (30min) → ALA-13 (1h, tras ALA-07) → ALA-14 (30min, tras ALA-03)
-```
-
-**Total**: ~13h. Ejecutar en orden de fase, respetando dependencias marcadas.
+1. **ALA-16 Table split**: el más arriesgado. Render crítico, muchos consumers. Branch dedicada + diff exhaustivo.
+2. **ALA-17 Buffer split**: core de rendering. Similar riesgo.
+3. **Snapshot drift**: regenerar snapshots sin revisar diff puede ocultar bugs visuales.
+4. **Consumer impact**: arrea y delfos usan `Alaja.Printer`. Cualquier cambio en rendering rompe el output de esos proyectos.
 
 ---
 
-## 7. Verificación final
+## 8. Comandos de verificación
 
 ```bash
-# Tras completar todas las tareas:
-mix test                                         # 0 failures (snapshots regenerados)
-mix credo --all                                  # 0 violations
-mix dialyzer --no-html                           # 0 warnings (ALA-01)
-mix format --check-formatted                     # formateo correcto
-mix compile --warnings-as-errors                 # sin warnings de compilación
+# Después de cada tarea:
+mix format --check-formatted
+mix compile --warnings-as-errors
+mix credo --strict --format=json
+mix test --cover                    # objetivo: subir a ≥70%
+mix dialyzer
+
+# Para verificar consumers (ALA-16, ALA-17):
+cd ~/cacafuti/arrea && mix compile && mix test --cover
+cd ~/cacafuti/delfos && mix compile && mix test --cover
+cd ~/cacafuti/candil && mix compile && mix test --cover
+
+# Snapshot diff para cambios visuales:
+git diff test/alaja/snapshots/   # revisar ANTES de commit
 ```
 
-**Verificación downstream** (si se modificó API pública):
-```bash
-(cd ../arrea && mix compile)                     # arrea compila
-(cd ../delfos && mix compile)                    # delfos compila
-```
+---
+
+## 9. CHANGELOG bullets para próximos lotes
+
+Bajo `[Unreleased]`:
+
+### Changed
+- `Alaja.Components.Table` split into Renderer/Calculator/Builder/Theme/Borders (ALA-16)
+- `Alaja.Buffer` split into Writer/Range/Position/Renderer (ALA-17)
+- `Alaja.Components.ColorWheel` split into Renderer/Harmonies/Info (ALA-18)
+
+### Added
+- Tests para show commands (ALA-21)
+- Tests para `cli/parser.ex` y `cli/commands/base.ex` (ALA-22, ALA-23)
+
+### Fixed
+- Tareas ALA-XX según se completen
+
+NO bumpear versión.
