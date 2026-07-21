@@ -5,6 +5,7 @@ defmodule Alaja.CLI.Commands.Show.List do
   alias Alaja.Components.{Header, List, Separator, Table}
   alias Alaja.Printer
 
+  @doc "Runs the `alaja list` command from raw argv; prints help on `--help` or no items."
   @spec run([String.t()]) :: :ok | no_return()
   def run(args) do
     {global, rest} = GlobalOpts.parse(args)

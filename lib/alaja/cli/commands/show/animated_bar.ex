@@ -5,6 +5,7 @@ defmodule Alaja.CLI.Commands.Show.AnimatedBar do
   alias Alaja.Components.AnimatedBar, as: ABComp
   alias Alaja.Components.{Box, Header, Separator, Table}
 
+  @doc "Runs the `alaja animated-bar` command from raw argv; prints help on `--help` or no value."
   @spec run([String.t()]) :: :ok | no_return()
   def run(args) do
     {global, rest} = GlobalOpts.parse(args)

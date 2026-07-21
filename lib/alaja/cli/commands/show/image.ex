@@ -5,6 +5,7 @@ defmodule Alaja.CLI.Commands.Show.Image do
   alias Alaja.Components.{Header, Separator, Table}
   alias Alaja.ImageRenderer
 
+  @doc "Runs the `alaja image` command from raw argv; picks ascii or imgcat based on protocol and renders the image."
   @spec run([String.t()]) :: :ok | no_return()
   def run(args) do
     {global, rest} = GlobalOpts.parse(args)

@@ -221,6 +221,10 @@ defmodule Alaja.Components.AnimatedBar do
     end
   end
 
+  defp animate_filled(count, position, _type, char, opts) do
+    animate_filled(count, position, :spinner, char, opts)
+  end
+
   defp rainbow_palette do
     [
       Alaja.Cell.resolve_theme_color(:happy) || {238, 128, 195},
@@ -231,10 +235,6 @@ defmodule Alaja.Components.AnimatedBar do
       Alaja.Cell.resolve_theme_color(:quaternary) || {155, 66, 226},
       Alaja.Cell.resolve_theme_color(:menu) || {171, 205, 241}
     ]
-  end
-
-  defp animate_filled(count, position, _type, char, opts) do
-    animate_filled(count, position, :spinner, char, opts)
   end
 
   # ---------------------------------------------------------------------------

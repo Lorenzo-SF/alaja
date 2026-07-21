@@ -6,6 +6,8 @@ defmodule Alaja.CLI.Commands.Show.Bar do
   alias Alaja.Components.Bar, as: BarComp
   alias Alaja.Components.{Header, Separator, Table}
   alias Alaja.Printer
+
+  @doc "Runs the `alaja bar` command from raw argv; prints help on `--help` or no value."
   @spec run([String.t()]) :: :ok | no_return()
   def run(args) do
     {global, rest} = GlobalOpts.parse(args)
