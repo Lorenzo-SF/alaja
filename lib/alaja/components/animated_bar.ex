@@ -209,7 +209,20 @@ defmodule Alaja.Components.AnimatedBar do
   end
 
   defp animate_filled(count, position, :rainbow, char, _opts) do
-    rainbow = [
+    if count == 0 do
+      []
+    else
+      rainbow = rainbow_palette()
+
+      for i <- 0..(count - 1) do
+        idx = rem(i + position, length(rainbow))
+        {char, Enum.at(rainbow, idx)}
+      end
+    end
+  end
+
+  defp rainbow_palette do
+    [
       Alaja.Cell.resolve_theme_color(:happy) || {238, 128, 195},
       Alaja.Cell.resolve_theme_color(:ternary) || {255, 128, 0},
       Alaja.Cell.resolve_theme_color(:primary) || {161, 231, 250},
@@ -218,15 +231,6 @@ defmodule Alaja.Components.AnimatedBar do
       Alaja.Cell.resolve_theme_color(:quaternary) || {155, 66, 226},
       Alaja.Cell.resolve_theme_color(:menu) || {171, 205, 241}
     ]
-
-    if count == 0 do
-      []
-    else
-      for i <- 0..(count - 1) do
-        idx = rem(i + position, length(rainbow))
-        {char, Enum.at(rainbow, idx)}
-      end
-    end
   end
 
   defp animate_filled(count, position, _type, char, opts) do
