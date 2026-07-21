@@ -29,7 +29,7 @@ defmodule Alaja.Components.AnimatedBarTest do
 
     test "handles various animation types" do
       for anim <- [:spinner, :kitt, :pulse, :wave, :rainbow] do
-        assert %Buffer{} = result = AnimatedBar.render_frame(50, 100, 0, animation: anim),
+        assert %Buffer{} = AnimatedBar.render_frame(50, 100, 0, animation: anim),
                "animation #{anim} should return Buffer.t()"
       end
     end
