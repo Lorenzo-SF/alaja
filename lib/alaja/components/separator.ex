@@ -20,7 +20,7 @@ defmodule Alaja.Components.Separator do
   alias Alaja.{Buffer, Cell}
 
   @default_char "─"
-  @default_color {64, 64, 64}
+  @default_color :debug
 
   @doc """
   Prints a separator line directly to stdout.

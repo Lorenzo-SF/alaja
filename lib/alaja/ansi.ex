@@ -46,9 +46,13 @@ defmodule Alaja.ANSI do
   @spec clear_screen() :: String.t()
   def clear_screen, do: "\e[2J"
 
-  @doc "Clears the current line."
+  @doc "Clears from cursor position to end of line."
   @spec clear_line() :: String.t()
   def clear_line, do: "\e[K"
+
+  @doc "Clears the entire current line."
+  @spec clear_entire_line() :: String.t()
+  def clear_entire_line, do: "\e[2K"
 
   @doc "Clears from cursor to the end of the screen."
   @spec clear_line_down() :: String.t()
@@ -65,6 +69,14 @@ defmodule Alaja.ANSI do
   """
   @spec move_to(pos_integer(), pos_integer()) :: String.t()
   def move_to(col, row), do: "\e[#{row};#{col}H"
+
+  @doc "Moves cursor up n lines."
+  @spec cursor_up(pos_integer()) :: String.t()
+  def cursor_up(n), do: "\e[#{n}A"
+
+  @doc "Moves cursor down n lines."
+  @spec cursor_down(pos_integer()) :: String.t()
+  def cursor_down(n), do: "\e[#{n}B"
 
   @doc "Moves cursor to home position (1,1)."
   @spec cursor_home() :: String.t()

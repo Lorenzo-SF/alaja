@@ -39,7 +39,7 @@ defmodule Alaja.Components.Box do
     bold: %{tl: "┏", tr: "┓", bl: "┗", br: "┛", h: "━", v: "┃", mt: "┳", mb: "┻"}
   }
 
-  @default_border_color {0, 180, 216}
+  @default_border_color :primary
 
   @type content :: String.t() | [String.t()] | Buffer.t()
 
@@ -61,7 +61,7 @@ defmodule Alaja.Components.Box do
 
   - `:title` - Optional title in the top border
   - `:border` - Border style (default `:rounded`)
-  - `:border_color` - RGB tuple for border color (default cyan)
+  - `:border_color` - RGB tuple or theme atom for border color (default `:primary`)
   - `:width` - Inner content width (default: auto from content)
   - `:padding` - Inner horizontal padding (default 1)
   """
