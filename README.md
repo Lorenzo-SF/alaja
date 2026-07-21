@@ -1,8 +1,8 @@
 # Alaja — Declarative CLI framework & terminal rendering kit for Elixir
 
-[![Hex version](https://img.shields.io/badge/hex-2.0.0-blue.svg)](https://hex.pm/packages/alaja)
+[![Hex version](https://img.shields.io/badge/hex-2.4.0-blue.svg)](https://hex.pm/packages/alaja)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE.md)
-[![Version](https://img.shields.io/badge/version-2.0.0-blue.svg)](https://github.com/Lorenzo-SF/alaja)
+[![Version](https://img.shields.io/badge/version-2.4.0-blue.svg)](https://github.com/Lorenzo-SF/alaja)
 
 <p align="center">
   <img src="https://raw.githubusercontent.com/Lorenzo-SF/alaja/main/docs/batamantaman_alaja.png" width="400" alt="Alaja" />
@@ -348,16 +348,17 @@ Alaja.CLI.Parser.parse_align("center")
 | `multibar`     | Multi-task progress tracker with parallel bars     |
 | `yesno`        | Interactive yes/no question                        |
 
-**`Alaja.CLI.Commands.Config`** — Configuration management:
+**`Alaja.CLI.Commands.Theme`** — Theme management (replaces the deprecated `config` command):
 
-| Action           | Description                  |
-| ---------------- | ---------------------------- |
-| `init`           | Initialize `~/.config/alaja` |
-| `get KEY`        | Read a configuration value   |
-| `set KEY VALUE`  | Write a configuration value  |
-| `theme list`     | List available themes        |
-| `theme set NAME` | Activate a theme             |
-| `--show`         | Print current configuration  |
+| Action           | Description                                          |
+| ---------------- | ---------------------------------------------------- |
+| `init`           | Install built-in + custom templates to `~/.config/alaja/themes` |
+| `list`           | List installed themes                                |
+| `set NAME`       | Activate a theme by name                            |
+| `show`           | Show the active theme's colour map                   |
+
+The legacy `alaja config` command is deprecated and prints a notice
+pointing at `alaja theme` (see `lib/alaja/cli/commands/config.ex`).
 
 ---
 
