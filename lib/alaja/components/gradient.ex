@@ -59,7 +59,12 @@ defmodule Alaja.Components.Gradient do
 
   Uses Pote.Gradients internally.
   """
-  @spec apply_gradient_text(String.t(), {integer(), integer(), integer()}, {integer(), integer(), integer()}, keyword()) :: String.t() | {:error, String.t()}
+  @spec apply_gradient_text(
+          String.t(),
+          {integer(), integer(), integer()},
+          {integer(), integer(), integer()},
+          keyword()
+        ) :: String.t() | {:error, String.t()}
   def apply_gradient_text(text, from, to, opts \\ []) do
     direction = Keyword.get(opts, :direction, :left_to_right)
     bg = Keyword.get(opts, :bg, false)
@@ -77,7 +82,8 @@ defmodule Alaja.Components.Gradient do
 
   Returns the ANSI-formatted string with reset appended.
   """
-  @spec apply_multicolor_text(String.t(), [{integer(), integer(), integer()}], keyword()) :: String.t()
+  @spec apply_multicolor_text(String.t(), [{integer(), integer(), integer()}], keyword()) ::
+          String.t()
   def apply_multicolor_text(text, color_steps, opts \\ []) do
     bg = Keyword.get(opts, :bg, false)
     text_color = Keyword.get(opts, :text_color)
@@ -142,10 +148,12 @@ defmodule Alaja.Components.Gradient do
   def render_horizontal_gradient(lines, opts, colors_str, bg, text_color) do
     case colors_str do
       nil ->
-        [from, to] = parse_from_to_colors(
-          Keyword.get(opts, :from, "#FF0000"),
-          Keyword.get(opts, :to, "#0000FF")
-        )
+        [from, to] =
+          parse_from_to_colors(
+            Keyword.get(opts, :from, "#FF0000"),
+            Keyword.get(opts, :to, "#0000FF")
+          )
+
         apply_gradient_text(Enum.join(lines, "\n"), from, to,
           direction: :left_to_right,
           bg: bg,
@@ -159,10 +167,12 @@ defmodule Alaja.Components.Gradient do
               Alaja.ANSI.reset_attributes()
 
           _ ->
-            [from, to] = parse_from_to_colors(
-              Keyword.get(opts, :from, "#FF0000"),
-              Keyword.get(opts, :to, "#0000FF")
-            )
+            [from, to] =
+              parse_from_to_colors(
+                Keyword.get(opts, :from, "#FF0000"),
+                Keyword.get(opts, :to, "#0000FF")
+              )
+
             apply_gradient_text(Enum.join(lines, "\n"), from, to,
               direction: :left_to_right,
               bg: bg,

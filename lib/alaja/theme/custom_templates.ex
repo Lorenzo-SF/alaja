@@ -33,8 +33,8 @@ defmodule Alaja.Theme.CustomTemplates do
       "gradient_5" => {249, 226, 175},
       "gradient_6" => {250, 179, 135}
     }
-   }
- 
+  }
+
   @catppuccin_mocha %Pote.Theme.Theme{
     name: "catppuccin_mocha",
     description: "Catppuccin Mocha — warm pastel on deep brown-black",
@@ -67,7 +67,7 @@ defmodule Alaja.Theme.CustomTemplates do
       "crust" => {17, 17, 27}
     }
   }
- 
+
   @catppuccin_frappe %Pote.Theme.Theme{
     name: "catppuccin_frappe",
     description: "Catppuccin Frappe — precision palette with balanced luminance",
@@ -100,7 +100,7 @@ defmodule Alaja.Theme.CustomTemplates do
       "crust" => {35, 38, 52}
     }
   }
- 
+
   @catppuccin_latte %Pote.Theme.Theme{
     name: "catppuccin_latte",
     description: "Catppuccin Latte — warm pastel on deep brown-black",
@@ -133,7 +133,7 @@ defmodule Alaja.Theme.CustomTemplates do
       "crust" => {213, 213, 213}
     }
   }
- 
+
   @catppuccin_macchiato %Pote.Theme.Theme{
     name: "catppuccin_macchiato",
     description: "Catppuccin Macchiato — warm pastel on deep brown-black",
@@ -166,9 +166,8 @@ defmodule Alaja.Theme.CustomTemplates do
       "crust" => {24, 25, 38}
     }
   }
- 
-   @solarized %Pote.Theme.Theme{
 
+  @solarized %Pote.Theme.Theme{
     name: "solarized-dark",
     description: "Solarized Dark — precision palette with balanced luminance",
     colors: %{
@@ -491,12 +490,11 @@ defmodule Alaja.Theme.CustomTemplates do
   @spec all :: [Pote.Theme.Theme.t()]
   def all do
     [
-       @catppuccin,
-       @catppuccin_mocha,
-       @catppuccin_frappe,
-       @catppuccin_latte,
-       @catppuccin_macchiato,
-
+      @catppuccin,
+      @catppuccin_mocha,
+      @catppuccin_frappe,
+      @catppuccin_latte,
+      @catppuccin_macchiato,
       @solarized,
       @gruvbox,
       @tokyo_night,
