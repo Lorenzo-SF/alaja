@@ -48,7 +48,12 @@ defmodule Alaja.Components.List do
 
   The header is rendered as a plain line above the bullet items.
   """
-  @spec build_with_header(String.t(), [String.t()], {integer(), integer(), integer()} | nil, atom()) :: IO.chardata()
+  @spec build_with_header(
+          String.t(),
+          [String.t()],
+          {integer(), integer(), integer()} | nil,
+          atom()
+        ) :: IO.chardata()
   def build_with_header(header, items, color, align \\ :left) do
     header_line = "  #{header}"
     item_lines = Enum.map_join(items, "\n", &format_item(&1, color, align))
@@ -58,7 +63,8 @@ defmodule Alaja.Components.List do
   @doc """
   Builds a list without a header.
   """
-  @spec build_items([String.t()], {integer(), integer(), integer()} | nil, atom()) :: IO.chardata()
+  @spec build_items([String.t()], {integer(), integer(), integer()} | nil, atom()) ::
+          IO.chardata()
   def build_items(items, color, align \\ :left) do
     items
     |> Enum.map_join("\n", &format_item(&1, color, align))

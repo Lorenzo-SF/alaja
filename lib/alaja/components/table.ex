@@ -445,7 +445,7 @@ defmodule Alaja.Components.Table do
     rest = String.slice(skipped, 5, byte_size(skipped) - 5)
 
     with {n, ""} <- Integer.parse(rest),
-          rgb when rgb != nil <- Map.get(Alaja.ANSI.standard_colors(), n) do
+         rgb when rgb != nil <- Map.get(Alaja.ANSI.standard_colors(), n) do
       rgb
     else
       _ -> @no_fg_change

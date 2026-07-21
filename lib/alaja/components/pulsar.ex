@@ -268,6 +268,7 @@ defmodule Alaja.Components.Pulsar do
       opts
       |> Keyword.get(:colors, @default_colors)
       |> Enum.map(&resolve_pulsar_color/1)
+
     direction = Keyword.get(opts, :direction, :out)
     content_x = Keyword.get(opts, :content_position_x, nil)
     content_y = Keyword.get(opts, :content_position_y, nil)

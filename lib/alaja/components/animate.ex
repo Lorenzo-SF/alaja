@@ -102,7 +102,15 @@ defmodule Alaja.Components.Animate do
     * `verbose` — if true, print all frames as separate lines
     * `colors` — list of RGB tuples for gradient coloring
   """
-  @spec run_animation([String.t()], pos_integer(), pos_integer(), String.t(), {integer(), integer(), integer()}, boolean(), [{integer(), integer(), integer()}]) :: :ok
+  @spec run_animation(
+          [String.t()],
+          pos_integer(),
+          pos_integer(),
+          String.t(),
+          {integer(), integer(), integer()},
+          boolean(),
+          [{integer(), integer(), integer()}]
+        ) :: :ok
   def run_animation(frames, duration, speed, text, {cr, cg, cb}, verbose, colors) do
     iterations = duration * div(1000, speed)
     total = length(frames)
@@ -143,7 +151,13 @@ defmodule Alaja.Components.Animate do
       frames = Alaja.Components.Animate.frames("spinner")
       frame = Alaja.Components.Animate.render_frame(frames, 1, "Loading", nil, nil)
   """
-  @spec render_frame([String.t()], non_neg_integer(), String.t(), {integer(), integer(), integer()} | nil, [{integer(), integer(), integer()}] | nil) :: String.t()
+  @spec render_frame(
+          [String.t()],
+          non_neg_integer(),
+          String.t(),
+          {integer(), integer(), integer()} | nil,
+          [{integer(), integer(), integer()}] | nil
+        ) :: String.t()
   def render_frame(frames, frame_index, text, base_color \\ nil, colors \\ []) do
     total = length(frames)
     fidx = rem(frame_index, total)
@@ -158,7 +172,15 @@ defmodule Alaja.Components.Animate do
 
   Creates a KITT (Knight Rider) style scanning effect across the text.
   """
-  @spec run_kitt(String.t(), pos_integer(), pos_integer(), {integer(), integer(), integer()}, boolean(), [String.t()], [{integer(), integer(), integer()}]) :: :ok
+  @spec run_kitt(
+          String.t(),
+          pos_integer(),
+          pos_integer(),
+          {integer(), integer(), integer()},
+          boolean(),
+          [String.t()],
+          [{integer(), integer(), integer()}]
+        ) :: :ok
   def run_kitt(text, duration, speed, {cr, cg, cb}, verbose, frames, colors) do
     text_len = String.length(text)
     iterations = duration * div(1000, speed)
@@ -186,7 +208,14 @@ defmodule Alaja.Components.Animate do
   The KITT effect scans a light across the text characters, with
   brightness falling off at the edges.
   """
-  @spec build_kitt_frame(String.t(), non_neg_integer(), non_neg_integer(), {integer(), integer(), integer()}, [String.t()], [{integer(), integer(), integer()}]) :: String.t()
+  @spec build_kitt_frame(
+          String.t(),
+          non_neg_integer(),
+          non_neg_integer(),
+          {integer(), integer(), integer()},
+          [String.t()],
+          [{integer(), integer(), integer()}]
+        ) :: String.t()
   def build_kitt_frame(text, text_len, frame, {cr, cg, cb}, frames, colors) do
     width = text_len
     cycle = rem(frame, max(width * 2, 1))
@@ -221,7 +250,11 @@ defmodule Alaja.Components.Animate do
   If `colors` (gradient list) is non-empty and the index is in range,
   returns the color from the gradient list. Otherwise returns `base`.
   """
-  @spec frame_color(non_neg_integer(), [{integer(), integer(), integer()}], {integer(), integer(), integer()}) :: {integer(), integer(), integer()}
+  @spec frame_color(
+          non_neg_integer(),
+          [{integer(), integer(), integer()}],
+          {integer(), integer(), integer()}
+        ) :: {integer(), integer(), integer()}
   def frame_color(idx, colors, base) do
     if colors != [] and idx < length(colors), do: Enum.at(colors, idx), else: base
   end

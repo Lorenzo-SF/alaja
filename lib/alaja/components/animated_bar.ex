@@ -165,7 +165,9 @@ defmodule Alaja.Components.AnimatedBar do
     anim_color = resolve_color(opts[:animation_color])
     filled_color = resolve_color(opts[:filled_color])
     kitt_width = Keyword.get(opts, :kitt_width, 3)
-    {ar, ag, ab} = anim_color || filled_color || Alaja.Cell.resolve_theme_color(:primary) || {161, 231, 250}
+
+    {ar, ag, ab} =
+      anim_color || filled_color || Alaja.Cell.resolve_theme_color(:primary) || {161, 231, 250}
 
     if count == 0 do
       []
