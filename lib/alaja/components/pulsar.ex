@@ -27,7 +27,7 @@ defmodule Alaja.Components.Pulsar do
   alias Alaja.ImageRenderer
 
   @default_pulse_chars ["░", "▒", "▓", "█"]
-  @default_colors [{0, 180, 216}]
+  @default_colors [:primary]
   @default_width 40
   @default_height 7
 
@@ -49,7 +49,11 @@ defmodule Alaja.Components.Pulsar do
         chars -> chars
       end)
 
-    colors = Keyword.get(opts, :colors, @default_colors)
+    colors =
+      opts
+      |> Keyword.get(:colors, @default_colors)
+      |> Enum.map(&resolve_pulsar_color/1)
+
     direction = Keyword.get(opts, :direction, :out)
     content_type = Keyword.get(opts, :content_type, :text)
     content_x = Keyword.get(opts, :content_position_x, nil)
@@ -222,6 +226,12 @@ defmodule Alaja.Components.Pulsar do
     buffer
   end
 
+  defp resolve_pulsar_color(term) when is_atom(term) and not is_nil(term) do
+    Alaja.Cell.resolve_theme_color(term) || {0, 0, 0}
+  end
+
+  defp resolve_pulsar_color(term), do: term
+
   @doc false
   @deprecated "Use render_buffer/1 directly. Kept for backward compat."
   def render_buffer_iodata(buffer) do
@@ -254,7 +264,10 @@ defmodule Alaja.Components.Pulsar do
         chars -> chars
       end)
 
-    colors = Keyword.get(opts, :colors, @default_colors)
+    colors =
+      opts
+      |> Keyword.get(:colors, @default_colors)
+      |> Enum.map(&resolve_pulsar_color/1)
     direction = Keyword.get(opts, :direction, :out)
     content_x = Keyword.get(opts, :content_position_x, nil)
     content_y = Keyword.get(opts, :content_position_y, nil)

@@ -19,9 +19,9 @@ defmodule Alaja.Components.Breadcrumbs do
   alias Alaja.{Buffer, Cell}
 
   @default_separator "›"
-  @default_item_color {0, 180, 216}
-  @default_current_color {255, 255, 255}
-  @default_separator_color {100, 100, 100}
+  @default_item_color :primary
+  @default_current_color :no_color
+  @default_separator_color :debug
 
   @doc """
   Prints breadcrumbs to stdout.

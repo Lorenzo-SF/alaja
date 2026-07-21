@@ -23,8 +23,8 @@ defmodule Alaja.Components.Bar do
 
   @filled_char "▓"
   @empty_char "░"
-  @default_filled_color {0, 180, 216}
-  @default_empty_color {50, 50, 50}
+  @default_filled_color :success
+  @default_empty_color :background
 
   @doc """
   Prints a progress bar directly to stdout.
