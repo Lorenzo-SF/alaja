@@ -32,7 +32,7 @@ defmodule Alaja.CLI.Commands.Config do
   The function exists only so that dispatch tests can still call
   `Alaja.CLI.Commands.Config.run/1`.
   """
-  @spec run(Keyword.t() | list()) :: :ok
+  @spec run(Keyword.t() | list()) :: :error
   def run(_opts) do
     IO.puts(:stderr, "config is deprecated, use 'alaja theme' instead")
     :error

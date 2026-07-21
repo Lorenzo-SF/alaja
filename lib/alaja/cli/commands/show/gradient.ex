@@ -56,11 +56,7 @@ defmodule Alaja.CLI.Commands.Show.Gradient do
     ]
 
     result = Gradient.render(text, render_opts)
-
-    case result do
-      {:error, _} -> IO.puts(:stderr, "Invalid color format")
-      output -> Printer.print_raw(output, printer_opts(global))
-    end
+    Printer.print_raw(result, printer_opts(global))
   end
 
   defp parse_color(nil), do: nil
