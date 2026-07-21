@@ -14,6 +14,7 @@ defmodule Alaja.CLI.Commands.Show.Multibar do
   @default_bar_width 35
   @tick_ms 200
 
+  @doc "Runs the `alaja multibar` command — drives all bars concurrently until each finishes or its duration elapses."
   @spec run([String.t()]) :: :ok | no_return()
   def run(args) do
     {global, rest} = GlobalOpts.parse(args)

@@ -5,6 +5,7 @@ defmodule Alaja.CLI.Commands.Show.Menu do
   alias Alaja.Components.{Header, Separator, Table}
   alias Alaja.Printer
 
+  @doc "Runs the `alaja menu` command from raw argv — shows an interactive menu and prints the selected item."
   @spec run([String.t()]) :: :ok | no_return()
   def run(args) do
     {global, rest} = GlobalOpts.parse(args)

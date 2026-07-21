@@ -5,6 +5,8 @@ defmodule Alaja.CLI.Commands.Show.Json do
   alias Alaja.Components.{Header, Separator, Table}
   alias Alaja.Components.Json, as: JsonComp
   alias Alaja.Printer
+
+  @doc "Runs the `alaja json` command from raw argv — pretty-prints a JSON string from argv or stdin."
   @spec run([String.t()]) :: :ok | no_return()
   def run(args) do
     {global, rest} = GlobalOpts.parse(args)

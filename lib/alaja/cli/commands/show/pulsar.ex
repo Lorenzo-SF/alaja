@@ -13,6 +13,7 @@ defmodule Alaja.CLI.Commands.Show.Pulsar do
 
   @default_pulse_chars ["░", "▒", "▓", "█"]
 
+  @doc "Runs the `alaja pulsar` command — renders the radar/pulse animation for `--duration` ms."
   @spec run([String.t()]) :: :ok | no_return()
   def run(args) do
     {global, rest} = GlobalOpts.parse(args)

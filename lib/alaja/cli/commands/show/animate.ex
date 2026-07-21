@@ -4,6 +4,7 @@ defmodule Alaja.CLI.Commands.Show.Animate do
   alias Alaja.CLI.GlobalOpts
   alias Alaja.Components.{Animate, Header, Separator, Table}
 
+  @doc "Runs the `alaja animate` command from raw argv; prints help on `--help`."
   @spec run([String.t()]) :: :ok | no_return()
   def run(args) do
     {global, rest} = GlobalOpts.parse(args)

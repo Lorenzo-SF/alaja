@@ -5,6 +5,7 @@ defmodule Alaja.CLI.Commands.Show.Ask do
   alias Alaja.Components.{Header, Separator, Table}
   alias Alaja.Printer
 
+  @doc "Runs the `alaja ask` command — interactively prompts a question read from stdin."
   @spec run([String.t()]) :: :ok | no_return()
   def run(args) do
     {global, rest} = GlobalOpts.parse(args)
