@@ -7,6 +7,53 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **Component defaults switched to theme atoms** — `AnimatedBar`, `Bar`,
+  `Box`, `Breadcrumbs`, `Header`, `Pulsar`, and `Separator` now
+  default to Pote theme atoms (`:primary`, `:success`, `:background`,
+  `:debug`, `:no_color`) instead of hardcoded RGB tuples. A new
+  public helper `Alaja.Cell.resolve_theme_color/1` (renamed from the
+  private `safe_pote_color/1`) is exported so callers can resolve
+  a theme atom or fall back gracefully for non-atom inputs.
+- **New ANSI helpers** — `clear_entire_line/0`, `cursor_up/1`,
+  `cursor_down/1` in `Alaja.ANSI`. The `clear_line/0` doc clarifies
+  that it clears from cursor to end of line.
+- **Concise `@doc` strings** for the `run/1` of 11 `Show` modules
+  and all 30 `Alaja.CLI.Dispatch` helpers.
+
+### Fixed
+- **Dialyzer**: resolve three contract / pattern-match errors —
+  `Alaja.CLI.Commands.Config.run/1` returns `:error` (was documented
+  `:ok`); `Alaja.Components.Gradient.apply_gradient_text/4` returns
+  iodata (was documented as `String.t() | {:error, String.t()}`);
+  `Alaja.CLI.Commands.Show.Gradient.render/3` had an unreachable
+  `{:error, _}` branch in its caller that was deleted.
+- **`.dialyzer-ignore-warnings`** — three stale entries removed.
+- **Credo strict (cyclomatic 10)** — `Alaja.Components.AnimatedBar.
+  animate_filled/5 :rainbow` clause extracted into a `rainbow_palette/0`
+  helper so the rainbow case stays at cyclomatic ≤ 9.
+- **Test warnings** — drop unused `result` binding in
+  `animated_bar_test.exs:32` and unused `Buffer` alias in
+  `print_raw_buffer_test.exs:19`. The two `ColorWheel.show_*`
+  tests stay on purpose: they exist as backstops for the deprecated
+  API contract.
+
+### Changed
+- **Snapshots** under `test/snapshots/` regenerated to reflect the
+  new theme-aware default colours (`bar_*`, `box_*`, `breadcrumbs_*`,
+  `header_*`, `separator_*`). All 18 `SnapshotTest` assertions pass.
+- **`mix format`** — reformatted `animate.ex`, `animated_bar.ex`,
+  `gradient.ex`, `list.ex`, `pulsar.ex`, `table.ex`, and
+  `theme/custom_templates.ex` (mostly `@spec` lines that exceeded
+  the 120-char threshold).
+
+### Documentation
+- **`README.md`** — version badge updated from 2.0.0 to 2.4.0;
+  the "Built-in commands reference" table now describes
+  `Alaja.CLI.Commands.Theme` (`init | list | set NAME | show`)
+  instead of the deprecated `Config`.
+- **`docs/README_ES.md`** — same badge + table updates.
+
 - **Test coverage added for Base and Show command modules**
 
 ## [2.3.0] - 2026-07-08
