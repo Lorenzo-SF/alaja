@@ -168,7 +168,13 @@ defmodule Alaja.CLI.DispatchTest do
       # The action command may attempt to read stdin (triggering a GenServer
       # crash in StringIO when there is no TTY). We use safe_call to suppress
       # the crash and simply verify the dispatch does not raise synchronously.
-      assert :ok = safe_call(fn -> Dispatch.action(%{_args: []}) end)
+      #
+      # NOTE: This test previously hung the whole ExUnit suite because
+      # Dispatch.action/1 -> read_stdin/0 -> IO.binread(:stdio, :eof) blocks
+      # indefinitely when there is no TTY. We wrap in Task.async with a 2s
+      # timeout so the test fails fast instead of timing out at 60s.
+      task = Task.async(fn -> safe_call(fn -> Dispatch.action(%{_args: []}) end) end)
+      assert :ok = Task.await(task, 2_000)
     end
 
     defp safe_call(fun) do
