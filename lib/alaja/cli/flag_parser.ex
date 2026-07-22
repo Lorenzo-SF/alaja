@@ -26,9 +26,11 @@ defmodule Alaja.CLI.FlagParser do
 
   @spec match_flag([map()], [String.t()]) :: map() | nil
   def match_flag([], _args), do: nil
+
   def match_flag([flag | rest], [arg | _]) do
     if flag_matches?(flag, arg), do: flag, else: match_flag(rest, [arg])
   end
+
   def match_flag(_flags, []), do: nil
 
   defp flag_matches?(%{name: name}, arg) do
@@ -38,6 +40,7 @@ defmodule Alaja.CLI.FlagParser do
       _ -> false
     end
   end
+
   defp flag_matches?(_flag, _arg), do: false
 
   # ─── Internal: recursive flag parsing ─────────────────────────────
@@ -100,18 +103,21 @@ defmodule Alaja.CLI.FlagParser do
   defp hd_or_default([]), do: ""
 
   defp cast(:string, value, _default), do: value
+
   defp cast(:integer, value, default) do
     case Integer.parse(value) do
       {n, ""} -> n
       _ -> default
     end
   end
+
   defp cast(:float, value, default) do
     case Float.parse(value) do
       {f, ""} -> f
       _ -> default
     end
   end
+
   defp cast(:boolean, value, default) do
     case value do
       "true" -> true
@@ -119,6 +125,7 @@ defmodule Alaja.CLI.FlagParser do
       _ -> default
     end
   end
+
   defp cast(:atom, value, default) do
     try do
       String.to_existing_atom(value)
@@ -126,5 +133,6 @@ defmodule Alaja.CLI.FlagParser do
       ArgumentError -> default
     end
   end
+
   defp cast(_, value, _default), do: value
 end
