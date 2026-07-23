@@ -21,7 +21,6 @@ defmodule Alaja.CLI.Commands.Show.Table do
   ]
 
   alias Alaja.CLI.GlobalOpts
-  alias Alaja.Components.{Header, Separator}
   alias Alaja.Components.Table, as: TableComp
 
   alias Alaja.Printer

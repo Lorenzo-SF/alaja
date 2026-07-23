@@ -30,7 +30,6 @@ defmodule Alaja.CLI.Commands.Action do
   ]
 
   alias Alaja.CLI.GlobalOpts
-  alias Alaja.Components.{Header, Separator, Table}
 
   @doc """
   Runs the `alaja action` command.

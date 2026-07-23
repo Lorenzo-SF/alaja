@@ -10,7 +10,7 @@ defmodule Alaja.CLI.Commands.Show.Breadcrumbs do
   alias Alaja.Buffer
   alias Alaja.CLI.GlobalOpts
   alias Alaja.Components.Breadcrumbs, as: BCComp
-  alias Alaja.Components.{Header, Separator, Table}
+
   alias Alaja.Printer
 
   @doc "Runs the `alaja breadcrumbs` command from raw argv; prints help on `--help` or no items."

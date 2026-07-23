@@ -9,7 +9,7 @@ defmodule Alaja.CLI.Commands.Show.Header do
 
   alias Alaja.CLI.GlobalOpts
   alias Alaja.Components.Header, as: HeaderComp
-  alias Alaja.Components.{Separator, Table}
+
   alias Alaja.Printer
 
   @doc """

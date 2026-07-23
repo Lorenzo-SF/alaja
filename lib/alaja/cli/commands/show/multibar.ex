@@ -15,7 +15,7 @@ defmodule Alaja.CLI.Commands.Show.Multibar do
   alias Alaja.CLI.Commands.Show.Multibar.{Data, Renderer}
   alias Alaja.CLI.GlobalOpts
   alias Alaja.CLI.Parser
-  alias Alaja.Components.{Header, MultiBar, Separator, Table}
+  alias Alaja.Components.MultiBar
 
   @default_duration 5
   @default_bar_width 35

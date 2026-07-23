@@ -15,7 +15,7 @@ defmodule Alaja.CLI.Commands.Show.Message do
 
   alias Alaja.CLI.GlobalOpts
   alias Alaja.CLI.Parser
-  alias Alaja.Components.{Box, Header, Separator, Table}
+  alias Alaja.Components.Box
   alias Alaja.Printer
   alias Alaja.Structures.{ChunkText, MessageInfo}
 

@@ -15,7 +15,6 @@ defmodule Alaja.CLI.Commands.Show.Pulsar do
   alias Alaja.CLI.Commands.Show.Pulsar.{Data, Renderer}
   alias Alaja.CLI.GlobalOpts
   alias Alaja.CLI.Parser
-  alias Alaja.Components.{Header, Separator, Table}
 
   @doc "Runs the `alaja pulsar` command — renders the radar/pulse animation for `--duration` ms."
   @spec run([String.t()]) :: :ok | no_return()

@@ -13,7 +13,6 @@ defmodule Alaja.Components.ColorWheel.Info do
   @doc """
   Displays detailed color information: swatch, formats, and optional variants.
   """
-  @deprecated "Use render_color_formats/2 and render_color_variants/1 instead"
   @spec show_color_info(Orchestrator.color_input(), keyword()) :: :ok
   def show_color_info(color, opts \\ []) do
     show_formats = Keyword.get(opts, :show_formats, true)
@@ -37,7 +36,6 @@ defmodule Alaja.Components.ColorWheel.Info do
   capabilities. Falls back to ASCII half-block when the terminal does not
   support native image protocols.
   """
-  @deprecated "Use render_ascii_wheel/3 and render_swatch_list/1 instead"
   @spec show_harmony_ring(Orchestrator.color_input(), atom(), keyword()) :: :ok
   def show_harmony_ring(base_color, harmony_type \\ :triad, opts \\ []) do
     base_rgb = resolve_rgb(base_color)
@@ -58,7 +56,6 @@ defmodule Alaja.Components.ColorWheel.Info do
   @doc """
   Shows a list of colors as linear swatches.
   """
-  @deprecated "Use render_swatch_list/1 instead"
   @spec show_swatches([Orchestrator.color_input()], keyword()) :: :ok
   def show_swatches(colors, opts \\ []) do
     per_row = Keyword.get(opts, :per_row, 4)

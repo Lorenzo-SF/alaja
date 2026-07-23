@@ -18,9 +18,6 @@ defmodule Alaja.CLI.Commands.Color do
   alias Alaja.Buffer
   alias Alaja.CLI.GlobalOpts
   alias Alaja.Components.ColorWheel
-  alias Alaja.Components.Header
-  alias Alaja.Components.Separator
-  alias Alaja.Components.Table
   alias Alaja.Components.Table, as: TableComp
   alias Alaja.Printer
   alias Pote.Converters.Advanced

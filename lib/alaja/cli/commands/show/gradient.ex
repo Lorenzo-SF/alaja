@@ -9,7 +9,7 @@ defmodule Alaja.CLI.Commands.Show.Gradient do
   ]
 
   alias Alaja.CLI.{GlobalOpts, Parser}
-  alias Alaja.Components.{Gradient, Header, Separator, Table}
+  alias Alaja.Components.Gradient
   alias Alaja.Printer
 
   @doc """

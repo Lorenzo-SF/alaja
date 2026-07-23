@@ -5,7 +5,6 @@ defmodule Alaja.Components.Table.Builder do
 
   @default_border_style :normal
   @default_padding 1
-  @default_align :left
   @default_table_align :left
 
   @spec extract_headers_rows(list()) :: {list(), list()}

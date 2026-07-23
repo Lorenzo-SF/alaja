@@ -8,7 +8,7 @@ defmodule Alaja.CLI.Commands.Show.Ask do
   ]
 
   alias Alaja.CLI.GlobalOpts
-  alias Alaja.Components.{Header, Separator, Table}
+
   alias Alaja.Printer
 
   @doc "Runs the `alaja ask` command — interactively prompts a question read from stdin."

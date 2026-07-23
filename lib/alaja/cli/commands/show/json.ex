@@ -8,7 +8,7 @@ defmodule Alaja.CLI.Commands.Show.Json do
   ]
 
   alias Alaja.CLI.GlobalOpts
-  alias Alaja.Components.{Header, Separator, Table}
+
   alias Alaja.Components.Json, as: JsonComp
   alias Alaja.Printer
 

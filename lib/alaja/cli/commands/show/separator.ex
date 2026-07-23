@@ -8,7 +8,7 @@ defmodule Alaja.CLI.Commands.Show.Separator do
   ]
 
   alias Alaja.CLI.GlobalOpts
-  alias Alaja.Components.{Header, Table}
+
   alias Alaja.Components.Separator, as: SepComp
 
   alias Alaja.Printer

@@ -8,7 +8,7 @@ defmodule Alaja.CLI.Commands.Show.YesNo do
   ]
 
   alias Alaja.CLI.GlobalOpts
-  alias Alaja.Components.{Header, Separator, Table}
+
   alias Alaja.Printer
 
   @doc "Runs the `alaja yesno` command — interactively reads a y/n answer from stdin and prints it."
