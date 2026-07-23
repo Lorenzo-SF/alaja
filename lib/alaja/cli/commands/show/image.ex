@@ -1,6 +1,12 @@
 defmodule Alaja.CLI.Commands.Show.Image do
   @moduledoc "`alaja image` — Display images in terminal."
 
+  @help_data [
+    title: "Alaja Image",
+    subtitle: "Display images in the terminal",
+    size: :small
+  ]
+
   alias Alaja.CLI.GlobalOpts
   alias Alaja.Components.{Header, Separator, Table}
   alias Alaja.ImageRenderer
@@ -120,133 +126,5 @@ defmodule Alaja.CLI.Commands.Show.Image do
   defp maybe_put(list, key, value), do: Keyword.put(list, key, value)
 
   @spec help() :: :ok
-  def help do
-    Header.print("Alaja Image", subtitle: "Display images in the terminal", size: :small)
-    IO.puts("")
-
-    Separator.print("DESCRIPTION", char: "━", width: 50, color: {0, 180, 216})
-    IO.puts("  Display an image file in the terminal. Supports multiple rendering")
-    IO.puts("  protocols (kitty, iterm2, sixel, ascii). Automatically detects the")
-    IO.puts("  best protocol, or you can force one with --protocol.")
-    IO.puts("  Also supports ASCII art conversion with --to-ascii-art.")
-    IO.puts("")
-
-    Separator.print("USAGE", char: "━", width: 50, color: {0, 180, 216})
-    IO.puts("  alaja image --path <file> [options]")
-    IO.puts("  alaja image --path <file> --to-ascii-art [options]")
-    IO.puts("")
-
-    Separator.print("OPTIONS", char: "━", width: 50, color: {0, 180, 216})
-
-    Table.print(
-      headers: ["Option", "Type", "Values", "Default", "Description"],
-      rows: [
-        ["--path FILE", "string", "", "", "Path to the image file (required)"],
-        ["--width N", "integer", "1+", "40", "Target width in terminal cells"],
-        ["--height N", "integer", "1+", "auto", "Target height in terminal cells"],
-        [
-          "--protocol TYPE",
-          "string",
-          "kitty, iterm2, sixel, ascii",
-          "auto",
-          "Force a specific rendering protocol"
-        ],
-        [
-          "--to-ascii-art",
-          "boolean",
-          "",
-          "false",
-          "Convert image to ASCII art (PNG natively; other formats need ImageMagick)"
-        ],
-        [
-          "--ascii-style TYPE",
-          "string",
-          "blocks, detailed, simple, braille",
-          "blocks",
-          "Character set preset for ASCII art"
-        ],
-        [
-          "--ascii-chars CHARS",
-          "string",
-          "",
-          "",
-          "Custom character string (overrides --ascii-style)"
-        ],
-        ["--ascii-color BOOL", "boolean", "", "true", "Colorize ASCII art output"],
-        [
-          "--ascii-saturation N",
-          "float",
-          "0.0-1.0",
-          "1.0",
-          "Color saturation (0=grayscale, 1=full color)"
-        ]
-      ],
-      table_border: :none,
-      padding: 1
-    )
-
-    IO.puts("")
-
-    Separator.print("GLOBAL OPTIONS", char: "━", width: 50, color: {0, 180, 216})
-
-    Table.print(
-      headers: ["Option", "Type", "Values", "Default", "Description"],
-      rows: [
-        ["--raw", "boolean", "", "false", "Print at raw coordinates"],
-        ["--pos-x N", "integer", "0+", "0", "X coordinate (with --raw)"],
-        ["--pos-y N", "integer", "0+", "0", "Y coordinate (with --raw)"],
-        ["--verbose", "boolean", "", "false", "Return raw ANSI string instead of printing"],
-        ["--box", "boolean", "", "false", "Wrap output in a bordered box"],
-        ["--box-title TEXT", "string", "", "", "Box title (requires --box)"],
-        [
-          "--box-border TYPE",
-          "string",
-          "rounded, single, double, bold, none",
-          "rounded",
-          "Border style (requires --box)"
-        ],
-        ["--box-color COLOR", "string", "Any color format", "", "Border color (requires --box)"]
-      ],
-      table_border: :none,
-      padding: 1
-    )
-
-    IO.puts("")
-
-    Separator.print("EXAMPLES", char: "━", width: 50, color: {0, 180, 216})
-
-    Table.print(
-      headers: ["Command", "Description"],
-      rows: [
-        ["alaja image --path photo.png", "Basic image display"],
-        ["alaja image --path screenshot.jpg --width 60 --height 30", "Custom dimensions"],
-        ["alaja image --path logo.png --protocol ascii", "Force ASCII rendering"],
-        [
-          "alaja image --path banner.png --protocol kitty --width 80",
-          "Force kitty protocol"
-        ],
-        [
-          "alaja image --path icon.png --width 20 --height 10 --raw --pos-x 10 --pos-y 5",
-          "Raw positioning"
-        ],
-        [
-          "alaja image --path preview.png --width 50 --height 25 --box --box-title \"Image\" --box-border rounded --box-color \"#00B4D8\"",
-          "With box wrapper"
-        ],
-        [
-          "alaja image --path photo.png --to-ascii-art --width 60",
-          "ASCII art conversion"
-        ],
-        [
-          "alaja image --path photo.png --to-ascii-art --ascii-style detailed --ascii-color true --ascii-saturation 0.5",
-          "ASCII art with custom style and saturation"
-        ]
-      ],
-      table_border: :none,
-      padding: 1
-    )
-
-    IO.puts("")
-    :ok
-  end
+  def help, do: @help_data
 end

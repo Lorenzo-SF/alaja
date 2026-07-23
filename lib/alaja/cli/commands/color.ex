@@ -9,6 +9,12 @@ defmodule Alaja.CLI.Commands.Color do
   and renders a visual colour wheel when possible.
   """
 
+  @help_data [
+    title: "Alaja Color",
+    subtitle: "Color analysis, harmonies, conversions, and tone manipulation",
+    size: :small
+  ]
+
   alias Alaja.Buffer
   alias Alaja.CLI.GlobalOpts
   alias Alaja.Components.ColorWheel
@@ -378,124 +384,5 @@ defmodule Alaja.CLI.Commands.Color do
   Prints help for the `alaja color` command.
   """
   @spec help() :: :ok
-  def help do
-    Header.print("Alaja Color",
-      subtitle: "Color analysis, harmonies, conversions, and tone manipulation",
-      size: :small
-    )
-
-    IO.puts("")
-
-    Separator.print("DESCRIPTION", char: "━", width: 50, color: {0, 180, 216})
-    IO.puts("  Analyze colors in any supported format. Display conversions across")
-    IO.puts("  all colour spaces, generate harmonies, compute WCAG contrast ratios,")
-    IO.puts("  render visual color wheels, and list theme colors.")
-    IO.puts("")
-
-    Separator.print("USAGE", char: "━", width: 50, color: {0, 180, 216})
-    IO.puts("  alaja color <color> [options]")
-    IO.puts("")
-
-    Separator.print("ARGUMENTS", char: "━", width: 50, color: {0, 180, 216})
-
-    Table.print(
-      headers: ["Argument", "Required", "Description"],
-      rows: [
-        [
-          "<color>",
-          "Yes*",
-          "Color in any format (hex: #FF0000, rgb: 255,0,0, named: red, theme:primary, xterm:196, hsl: hsl:120,50,50)"
-        ]
-      ],
-      table_border: :none,
-      padding: 1
-    )
-
-    IO.puts("")
-
-    Separator.print("OPTIONS", char: "━", width: 50, color: {0, 180, 216})
-
-    Table.print(
-      headers: ["Option", "Type", "Description"],
-      rows: [
-        [
-          "--harmony TYPE",
-          "string",
-          "Color harmony: triad, complementary, analogous, square, monochromatic, compound, split-complementary"
-        ],
-        ["--darken N", "integer", "Darken by N steps (1-10)"],
-        ["--lighten N", "integer", "Lighten by N steps (1-10)"],
-        ["--lab", "boolean", "Include CIELAB values in output"],
-        ["--xyz", "boolean", "Include CIE XYZ values in output"],
-        ["--kelvin", "boolean", "Include color temperature in Kelvin"],
-        ["--pantone", "boolean", "Show closest Pantone approximation"],
-        [
-          "--contrast COLOR",
-          "string",
-          "Calculate WCAG contrast ratio and Delta E against another color"
-        ]
-      ],
-      table_border: :none,
-      padding: 1
-    )
-
-    IO.puts("")
-
-    Separator.print("HARMONY TYPES", char: "━", width: 50, color: {0, 180, 216})
-    IO.puts("  triad, complementary, analogous, square, monochromatic,")
-    IO.puts("  compound, split-complementary")
-    IO.puts("")
-
-    Separator.print("COLOR FORMATS", char: "━", width: 50, color: {0, 180, 216})
-
-    Table.print(
-      headers: ["Format", "Example"],
-      rows: [
-        ["Hex 6 digits", "#FF0000"],
-        ["Hex 3 digits", "#F00"],
-        ["RGB tuple", "rgb:255,0,0 or 255,0,0"],
-        ["Named CSS", "red, blue, cyan, magenta, yellow, green"],
-        ["Theme color", "theme:primary, theme:secondary"],
-        ["XTerm256", "xterm:196 or just 196"],
-        ["HSL", "hsl:120,50,50"],
-        ["HSV", "hsv:120,100,100"],
-        ["CMYK", "cmyk:0,100,100,0"],
-        ["ARGB", "argb:255,255,0,0"],
-        ["Elixir atom", ":red (internal)"]
-      ],
-      table_border: :none,
-      padding: 1
-    )
-
-    IO.puts("")
-
-    Separator.print("GLOBAL OPTIONS", char: "━", width: 50, color: {0, 180, 216})
-
-    Table.print(
-      headers: ["Option", "Type", "Description"],
-      rows: [
-        ["--raw", "boolean", "Print at raw coordinates"],
-        ["--pos-x N", "integer", "X coordinate (with --raw)"],
-        ["--pos-y N", "integer", "Y coordinate (with --raw)"],
-        ["--verbose", "boolean", "Return raw ANSI string instead of printing"],
-        ["--box", "boolean", "Wrap output in a bordered box"],
-        ["--box-title TEXT", "string", "Box title (requires --box)"],
-        ["--box-border TYPE", "string", "Border style: rounded, single, double, bold, none"],
-        ["--box-color COLOR", "string", "Border color (requires --box)"]
-      ],
-      table_border: :none,
-      padding: 1
-    )
-
-    IO.puts("")
-
-    Separator.print("EXAMPLES", char: "━", width: 50, color: {0, 180, 216})
-
-    IO.puts(
-      "# Analyze a color\n  alaja color \"#FF0000\"\n\n# Analyze with hex shorthand\n  alaja color \"#FF8000\"\n\n# Using a named color\n  alaja color red\n\n# Get CIELAB, XYZ, and Kelvin info\n  alaja color \"#FF8000\" --lab --xyz --kelvin\n\n# Include Pantone approximation\n  alaja color \"#FF8000\" --pantone\n\n# Generate harmonies\n  alaja color \"#FF0000\" --harmony triad\n  alaja color \"#FF0000\" --harmony complementary\n  alaja color \"#FF0000\" --harmony analogous\n  alaja color \"#FF0000\" --harmony square\n  alaja color \"#FF0000\" --harmony monochromatic\n  alaja color \"#FF0000\" --harmony compound\n  alaja color \"#FF0000\" --harmony split-complementary\n\n# Darken or lighten\n  alaja color \"#FF8000\" --darken 3\n  alaja color \"#FF8000\" --lighten 2\n\n# WCAG contrast and Delta E\n  alaja color \"#FF0000\" --contrast \"#FFFFFF\"\n  alaja color \"#FF0000\" --contrast \"#000000\" --lab --pantone\n\n# Verbose mode (raw JSON output)\n  alaja color \"#FF8000\" --verbose\n\n# Raw positioning\n  alaja color \"#FF8000\" --raw --pos-x 10 --pos-y 5\n\n# Box wrapper\n  alaja color \"#FF8000\" --box --box-title \"Color Info\" --box-border double --box-color cyan"
-    )
-
-    IO.puts("")
-    :ok
-  end
+  def help, do: @help_data
 end

@@ -1,6 +1,12 @@
 defmodule Alaja.CLI.Commands.Show.Breadcrumbs do
   @moduledoc "`alaja breadcrumbs` — Display navigation breadcrumbs."
 
+  @help_data [
+    title: "Alaja Breadcrumbs",
+    subtitle: "Display navigation breadcrumbs",
+    size: :small
+  ]
+
   alias Alaja.Buffer
   alias Alaja.CLI.GlobalOpts
   alias Alaja.Components.Breadcrumbs, as: BCComp
@@ -54,127 +60,5 @@ defmodule Alaja.CLI.Commands.Show.Breadcrumbs do
   defp printer_opts(g), do: GlobalOpts.to_printer_opts(g)
 
   @spec help() :: :ok
-  def help do
-    Header.print("Alaja Breadcrumbs",
-      subtitle: "Display navigation breadcrumbs",
-      size: :small
-    )
-
-    IO.puts("")
-
-    Separator.print("DESCRIPTION", char: "━", width: 50, color: {0, 180, 216})
-    IO.puts("  Display a navigation breadcrumb trail with customizable")
-    IO.puts("  separators, colors, and styling.")
-    IO.puts("")
-
-    Separator.print("USAGE", char: "━", width: 50, color: {0, 180, 216})
-    IO.puts("  alaja breadcrumbs <item1> [item2 ...] [options]")
-    IO.puts("")
-
-    Separator.print("ARGUMENTS", char: "━", width: 50, color: {0, 180, 216})
-
-    Table.print(
-      headers: ["Argument", "Required", "Description"],
-      rows: [
-        ["<items>", "Yes", "Navigation path items (space-separated, e.g.: Home Projects App)"]
-      ],
-      table_border: :none,
-      padding: 1
-    )
-
-    IO.puts("")
-
-    Separator.print("OPTIONS", char: "━", width: 50, color: {0, 180, 216})
-
-    Table.print(
-      headers: ["Option", "Type", "Values", "Default", "Description"],
-      rows: [
-        [
-          "--separator TEXT",
-          "string",
-          "Any text",
-          "›",
-          "Separator text between breadcrumb items"
-        ],
-        [
-          "--color COLOR",
-          "string",
-          "Any color format",
-          "cyan",
-          "Color of the breadcrumb item text"
-        ],
-        [
-          "--current-color COLOR",
-          "string",
-          "Any color format",
-          "white",
-          "Color of the last (current) breadcrumb item"
-        ],
-        [
-          "--separator-color COLOR",
-          "string",
-          "Any color format",
-          "gray",
-          "Color of the separator characters"
-        ]
-      ],
-      table_border: :none,
-      padding: 1
-    )
-
-    IO.puts("")
-
-    Separator.print("GLOBAL OPTIONS", char: "━", width: 50, color: {0, 180, 216})
-
-    Table.print(
-      headers: ["Option", "Type", "Values", "Default", "Description"],
-      rows: [
-        ["--raw", "boolean", "", "false", "Print at raw coordinates"],
-        ["--pos-x N", "integer", "0+", "0", "X coordinate (with --raw)"],
-        ["--pos-y N", "integer", "0+", "0", "Y coordinate (with --raw)"],
-        ["--verbose", "boolean", "", "false", "Return raw ANSI string instead of printing"],
-        ["--box", "boolean", "", "false", "Wrap output in a bordered box"],
-        ["--box-title TEXT", "string", "", "", "Box title (requires --box)"],
-        [
-          "--box-border TYPE",
-          "string",
-          "rounded, single, double, bold, none",
-          "rounded",
-          "Border style (requires --box)"
-        ],
-        ["--box-color COLOR", "string", "Any color format", "", "Border color (requires --box)"]
-      ],
-      table_border: :none,
-      padding: 1
-    )
-
-    IO.puts("")
-
-    Separator.print("EXAMPLES", char: "━", width: 50, color: {0, 180, 216})
-
-    Table.print(
-      headers: ["Command", "Description"],
-      rows: [
-        ["alaja breadcrumbs Home Projects Alaja", "Basic breadcrumbs"],
-        ["alaja breadcrumbs / home users admin --separator \"/\"", "Custom separator"],
-        [
-          "alaja breadcrumbs Home Dashboard Settings --color cyan --current-color white --separator-color gray",
-          "Custom colors"
-        ],
-        [
-          "alaja breadcrumbs Home App --color green --current-color yellow --separator \"→\" --separator-color yellow --raw --pos-x 5 --pos-y 3",
-          "Raw positioning"
-        ],
-        [
-          "alaja breadcrumbs Home Projects Alaja --color \"#00B4D8\" --current-color \"#FFFFFF\" --separator \"›\" --separator-color \"#90E0EF\" --box --box-title \"Navigation\" --box-border rounded",
-          "With box wrapper"
-        ]
-      ],
-      table_border: :none,
-      padding: 1
-    )
-
-    IO.puts("")
-    :ok
-  end
+  def help, do: @help_data
 end

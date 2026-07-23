@@ -1,6 +1,12 @@
 defmodule Alaja.CLI.Commands.Show.YesNo do
   @moduledoc "`alaja yesno` — Ask a Yes/No question."
 
+  @help_data [
+    title: "Alaja YesNo",
+    subtitle: "Ask an interactive Yes/No question",
+    size: :small
+  ]
+
   alias Alaja.CLI.GlobalOpts
   alias Alaja.Components.{Header, Separator, Table}
   alias Alaja.Printer
@@ -58,99 +64,5 @@ defmodule Alaja.CLI.Commands.Show.YesNo do
   end
 
   @spec help() :: :ok
-  def help do
-    Header.print("Alaja YesNo",
-      subtitle: "Ask an interactive Yes/No question",
-      size: :small
-    )
-
-    IO.puts("")
-
-    Separator.print("DESCRIPTION", char: "━", width: 50, color: {0, 180, 216})
-    IO.puts("  Prompt the user with a Yes/No question. Returns 'yes' or 'no'")
-    IO.puts("  to stdout. Supports default answer, color, and alignment.")
-    IO.puts("")
-
-    Separator.print("USAGE", char: "━", width: 50, color: {0, 180, 216})
-    IO.puts("  alaja yesno <question> [options]")
-    IO.puts("")
-
-    Separator.print("ARGUMENTS", char: "━", width: 50, color: {0, 180, 216})
-
-    Table.print(
-      headers: ["Argument", "Required", "Description"],
-      rows: [
-        ["<question>", "Yes", "Question text to display to the user"]
-      ],
-      table_border: :none,
-      padding: 1
-    )
-
-    IO.puts("")
-
-    Separator.print("OPTIONS", char: "━", width: 50, color: {0, 180, 216})
-
-    Table.print(
-      headers: ["Option", "Type", "Values", "Default", "Description"],
-      rows: [
-        ["--default TYPE", "string", "yes, no, y", "no", "Default answer if user presses Enter"],
-        ["--color COLOR", "string", "Any color format", "", "Color of the question text"],
-        ["--align TYPE", "string", "left, center, right", "left", "Text alignment"]
-      ],
-      table_border: :none,
-      padding: 1
-    )
-
-    IO.puts("")
-
-    Separator.print("GLOBAL OPTIONS", char: "━", width: 50, color: {0, 180, 216})
-
-    Table.print(
-      headers: ["Option", "Type", "Values", "Default", "Description"],
-      rows: [
-        ["--raw", "boolean", "", "false", "Print at raw coordinates"],
-        ["--pos-x N", "integer", "0+", "0", "X coordinate (with --raw)"],
-        ["--pos-y N", "integer", "0+", "0", "Y coordinate (with --raw)"],
-        ["--verbose", "boolean", "", "false", "Return raw ANSI string instead of printing"],
-        ["--box", "boolean", "", "false", "Wrap output in a bordered box"],
-        ["--box-title TEXT", "string", "", "", "Box title (requires --box)"],
-        [
-          "--box-border TYPE",
-          "string",
-          "rounded, single, double, bold, none",
-          "rounded",
-          "Border style (requires --box)"
-        ],
-        ["--box-color COLOR", "string", "Any color format", "", "Border color (requires --box)"]
-      ],
-      table_border: :none,
-      padding: 1
-    )
-
-    IO.puts("")
-
-    Separator.print("EXAMPLES", char: "━", width: 50, color: {0, 180, 216})
-
-    Table.print(
-      headers: ["Command", "Description"],
-      rows: [
-        ["alaja yesno \"Do you want to continue?\"", "Basic yes/no question"],
-        ["alaja yesno \"Delete all files?\" --default yes", "With default yes"],
-        [
-          "alaja yesno \"Are you sure?\" --color red --align center",
-          "Colored and centered"
-        ],
-        ["alaja yesno \"Proceed?\" --default y --color cyan", "Short default"],
-        [
-          "alaja yesno \"Confirm action\" --default no --color yellow --box --box-title \"Confirmation\" --box-border double --box-color \"#FF6B6B\"",
-          "With box wrapper"
-        ]
-      ],
-      table_border: :none,
-      padding: 1
-    )
-
-    IO.puts("")
-    :ok
-  end
+  def help, do: @help_data
 end
