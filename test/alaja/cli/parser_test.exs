@@ -18,6 +18,31 @@ defmodule Alaja.CLI.ParserTest do
       result = Parser.collect_repeated(["--other", "value"], "--name")
       assert result == []
     end
+
+    test "collects quoted --flag=value forms" do
+      result = Parser.collect_repeated([~s(--name="alice"), ~s(--name="bob")], "--name")
+      assert result == ["alice", "bob"]
+    end
+
+    test "collects single-quoted --flag value forms" do
+      result = Parser.collect_repeated(["--name", "'alice'", "--name", "'bob'"], "--name")
+      assert result == ["alice", "bob"]
+    end
+
+    test "collects multi-word values until next flag" do
+      result = Parser.collect_repeated(["--name", "hello", "world", "--other"], "--name")
+      assert result == ["hello world"]
+    end
+
+    test "collects values across multiple args inside quotes" do
+      result = Parser.collect_repeated(["--name", ~S("alice), ~S(bob")], "--name")
+      assert result == ["alice bob"]
+    end
+
+    test "returns empty list when flag has no value at end" do
+      result = Parser.collect_repeated(["--name"], "--name")
+      assert result == []
+    end
   end
 
   describe "parse_color/1" do
@@ -37,6 +62,18 @@ defmodule Alaja.CLI.ParserTest do
       result = Parser.parse_color("not_a_color")
       assert elem(result, 0) == :error
     end
+
+    test "parses colors with surrounding whitespace" do
+      assert Parser.parse_color("  #FF8000  ") == {:ok, {255, 128, 0}}
+    end
+
+    test "parses colors with surrounding double quotes" do
+      assert Parser.parse_color(~s("#FF8000")) == {:ok, {255, 128, 0}}
+    end
+
+    test "parses colors with surrounding single quotes" do
+      assert Parser.parse_color("'#FF8000'") == {:ok, {255, 128, 0}}
+    end
   end
 
   describe "parse_color_opt/1" do
@@ -46,6 +83,10 @@ defmodule Alaja.CLI.ParserTest do
 
     test "returns nil for nil input" do
       assert Parser.parse_color_opt(nil) == nil
+    end
+
+    test "returns nil for invalid colors" do
+      assert Parser.parse_color_opt("not_a_color") == nil
     end
   end
 
@@ -63,11 +104,27 @@ defmodule Alaja.CLI.ParserTest do
       result = Parser.parse_color_list("red;invalid")
       assert elem(result, 0) == :error
     end
+
+    test "parses colors with extra whitespace around semicolons" do
+      assert Parser.parse_color_list("red ; green ; blue") ==
+               {:ok, [{255, 0, 0}, {0, 255, 0}, {0, 0, 255}]}
+    end
+
+    test "handles empty segments in the list" do
+      assert Parser.parse_color_list("red;;blue") ==
+               {:ok, [{255, 0, 0}, {0, 0, 255}]}
+    end
+
+    test "returns error with color-specific message" do
+      result = Parser.parse_color_list("red;invalid1;invalid2")
+      assert elem(result, 0) == :error
+      assert String.contains?(elem(result, 1), "invalid1")
+      assert String.contains?(elem(result, 1), "invalid2")
+    end
   end
 
   describe "parse_env_pair/1" do
     test "parses KEY=VALUE when atom exists" do
-      # Ensure the atom exists first (must match case)
       _ = :FOO
       assert Parser.parse_env_pair("FOO=bar") == {:FOO, "bar"}
     end
@@ -79,6 +136,20 @@ defmodule Alaja.CLI.ParserTest do
 
     test "returns nil for invalid format" do
       assert Parser.parse_env_pair("invalid") == nil
+    end
+
+    test "parses KEY=VALUE with multiple = signs" do
+      _ = :EQUALS
+      assert Parser.parse_env_pair("EQUALS=a=b=c") == {:EQUALS, "a=b=c"}
+    end
+
+    test "parses KEY=VALUE with empty value" do
+      _ = :EMPTYVAL
+      assert Parser.parse_env_pair("EMPTYVAL=") == {:EMPTYVAL, ""}
+    end
+
+    test "returns nil for empty string" do
+      assert Parser.parse_env_pair("") == nil
     end
   end
 

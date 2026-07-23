@@ -121,4 +121,61 @@ defmodule BaseTest do
       assert Base.parse_border_opt("foobar") == :normal
     end
   end
+
+  describe "parse_color/1 catch-all" do
+    test "returns nil for non-binary, non-nil input" do
+      assert Base.parse_color(:not_a_string) == nil
+      assert Base.parse_color(123) == nil
+    end
+  end
+
+  describe "parse_color_list/1 catch-all" do
+    test "returns nil for non-binary, non-nil input" do
+      assert Base.parse_color_list(:not_a_string) == nil
+      assert Base.parse_color_list(123) == nil
+    end
+  end
+
+  describe "parse_align/1 catch-all" do
+    test "returns nil for non-binary, non-nil, non-atom input" do
+      assert Base.parse_align(123) == nil
+      assert Base.parse_align(%{}) == nil
+    end
+  end
+
+  describe "parse_align_list/1 catch-all" do
+    test "returns nil for non-binary, non-nil input" do
+      assert Base.parse_align_list(:not_a_string) == nil
+      assert Base.parse_align_list(123) == nil
+    end
+  end
+
+  describe "parse_effects/1 catch-all" do
+    test "returns nil for non-binary, non-nil input" do
+      assert Base.parse_effects(:not_a_string) == nil
+      assert Base.parse_effects(123) == nil
+    end
+  end
+
+  describe "parse_effects_list/1 catch-all" do
+    test "returns nil for non-binary, non-nil input" do
+      assert Base.parse_effects_list(:not_a_string) == nil
+      assert Base.parse_effects_list(123) == nil
+    end
+  end
+
+  describe "apply_align/2 catch-all" do
+    test "returns line unchanged for unsupported align" do
+      assert Base.apply_align("hello", :unsupported) == "hello"
+      assert Base.apply_align("hello", nil) == "hello"
+    end
+  end
+
+  describe "parse_border_opt/1 catch-all" do
+    test "returns :normal for non-binary input" do
+      assert Base.parse_border_opt(:single) == :normal
+      assert Base.parse_border_opt(123) == :normal
+      assert Base.parse_border_opt(nil) == :normal
+    end
+  end
 end
