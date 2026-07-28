@@ -162,10 +162,12 @@ defmodule Alaja.Components.AnimatedBar do
   end
 
   defp animate_filled(count, position, :kitt, char, opts) do
-    anim_color = Keyword.get(opts, :animation_color)
-    filled_color = Keyword.get(opts, :filled_color)
+    anim_color = resolve_color(opts[:animation_color])
+    filled_color = resolve_color(opts[:filled_color])
     kitt_width = Keyword.get(opts, :kitt_width, 3)
-    {ar, ag, ab} = anim_color || filled_color || {0, 180, 216}
+
+    {ar, ag, ab} =
+      anim_color || filled_color || Alaja.Cell.resolve_theme_color(:primary) || {161, 231, 250}
 
     if count == 0 do
       []
@@ -207,19 +209,11 @@ defmodule Alaja.Components.AnimatedBar do
   end
 
   defp animate_filled(count, position, :rainbow, char, _opts) do
-    rainbow = [
-      {255, 0, 0},
-      {255, 127, 0},
-      {255, 255, 0},
-      {0, 255, 0},
-      {0, 0, 255},
-      {75, 0, 130},
-      {143, 0, 255}
-    ]
-
     if count == 0 do
       []
     else
+      rainbow = rainbow_palette()
+
       for i <- 0..(count - 1) do
         idx = rem(i + position, length(rainbow))
         {char, Enum.at(rainbow, idx)}
@@ -231,9 +225,27 @@ defmodule Alaja.Components.AnimatedBar do
     animate_filled(count, position, :spinner, char, opts)
   end
 
+  defp rainbow_palette do
+    [
+      Alaja.Cell.resolve_theme_color(:happy) || {238, 128, 195},
+      Alaja.Cell.resolve_theme_color(:ternary) || {255, 128, 0},
+      Alaja.Cell.resolve_theme_color(:primary) || {161, 231, 250},
+      Alaja.Cell.resolve_theme_color(:success) || {151, 197, 60},
+      Alaja.Cell.resolve_theme_color(:secondary) || {58, 171, 163},
+      Alaja.Cell.resolve_theme_color(:quaternary) || {155, 66, 226},
+      Alaja.Cell.resolve_theme_color(:menu) || {171, 205, 241}
+    ]
+  end
+
   # ---------------------------------------------------------------------------
   # Private helpers
   # ---------------------------------------------------------------------------
+
+  defp resolve_color(term) when is_atom(term) and not is_nil(term) do
+    Alaja.Cell.resolve_theme_color(term)
+  end
+
+  defp resolve_color(term), do: term
 
   defp kitt_position(frame, count, kitt_width) do
     range = count + max(kitt_width, 1) - 1

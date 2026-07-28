@@ -20,8 +20,8 @@ defmodule Alaja.Components.Header do
 
   alias Alaja.{Buffer, Cell}
 
-  @default_color {0, 180, 216}
-  @default_subtitle_color {128, 128, 128}
+  @default_color :primary
+  @default_subtitle_color :debug
 
   @doc """
   Prints a header directly to stdout.

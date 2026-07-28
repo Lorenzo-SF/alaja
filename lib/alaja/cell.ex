@@ -179,7 +179,11 @@ defmodule Alaja.Cell do
   end
 
   def to_ansi(%__MODULE__{} = cell) do
-    [build_ansi_prefix(cell), cell.char, IO.ANSI.reset()]
+    if Alaja.Config.color_enabled?() do
+      [build_ansi_prefix(cell), cell.char, IO.ANSI.reset()]
+    else
+      cell.char
+    end
   end
 
   @doc """
@@ -192,7 +196,11 @@ defmodule Alaja.Cell do
   def to_ansi_prefix(%__MODULE__{fg: nil, bg: nil, effects: []}), do: []
 
   def to_ansi_prefix(%__MODULE__{} = cell) do
-    build_ansi_prefix(cell)
+    if Alaja.Config.color_enabled?() do
+      build_ansi_prefix(cell)
+    else
+      []
+    end
   end
 
   @spec normalize_color(color() | any()) :: color()
@@ -212,18 +220,22 @@ defmodule Alaja.Cell do
 
   @spec build_ansi_prefix(t()) :: iodata()
   defp build_ansi_prefix(%__MODULE__{fg: fg, bg: bg, effects: effects}) do
-    [
-      if(fg, do: ansi_fg(fg), else: []),
-      if(bg, do: ansi_bg(bg), else: []),
-      ansi_effects(effects)
-    ]
+    if Alaja.Config.color_enabled?() do
+      [
+        if(fg, do: ansi_fg(fg), else: []),
+        if(bg, do: ansi_bg(bg), else: []),
+        ansi_effects(effects)
+      ]
+    else
+      []
+    end
   end
 
   @spec ansi_fg({0..255, 0..255, 0..255}) :: String.t()
   defp ansi_fg({r, g, b}), do: "\e[38;2;#{r};#{g};#{b}m"
 
   defp ansi_fg(atom) when is_atom(atom) do
-    case safe_pote_color(atom) do
+    case resolve_theme_color(atom) do
       nil -> []
       {r, g, b} -> "\e[38;2;#{r};#{g};#{b}m"
     end
@@ -235,7 +247,7 @@ defmodule Alaja.Cell do
   defp ansi_bg({r, g, b}), do: "\e[48;2;#{r};#{g};#{b}m"
 
   defp ansi_bg(atom) when is_atom(atom) do
-    case safe_pote_color(atom) do
+    case resolve_theme_color(atom) do
       nil -> []
       {r, g, b} -> "\e[48;2;#{r};#{g};#{b}m"
     end
@@ -256,13 +268,21 @@ defmodule Alaja.Cell do
   # `Pote.resolve_theme_color/1` walks the registered resolver stack
   # first and only falls back to `@default_colors` when no resolver
   # returns a match — so the active theme wins.
-  @spec safe_pote_color(term()) :: {0..255, 0..255, 0..255} | nil
-  defp safe_pote_color(term) do
+  @doc """
+  Resolves a theme colour atom via Pote, or returns `nil` for non-atom values.
+
+  Allows components to accept either a raw RGB triplet or a theme atom
+  such as `:primary`, `:success`, `:muted` etc.
+  """
+  @spec resolve_theme_color(term()) :: {0..255, 0..255, 0..255} | nil
+  def resolve_theme_color(term) when is_atom(term) do
     case Pote.resolve_theme_color(term) do
       {:ok, rgb} -> rgb
       :not_found -> nil
     end
   end
+
+  def resolve_theme_color(_term), do: nil
 
   @spec ansi_effects(effects()) :: iodata()
   defp ansi_effects([]), do: []

@@ -7,9 +7,15 @@ defmodule Alaja.CLI.Commands.Show.Message do
   `message` subcommand with full chunk styling.
   """
 
+  @help_data [
+    title: "Alaja Message",
+    subtitle: "Display formatted text with full styling",
+    size: :small
+  ]
+
   alias Alaja.CLI.GlobalOpts
   alias Alaja.CLI.Parser
-  alias Alaja.Components.{Box, Header, Separator, Table}
+  alias Alaja.Components.Box
   alias Alaja.Printer
   alias Alaja.Structures.{ChunkText, MessageInfo}
 
@@ -305,144 +311,5 @@ defmodule Alaja.CLI.Commands.Show.Message do
   Prints help for the message command.
   """
   @spec help() :: :ok
-  def help do
-    Header.print("Alaja Message",
-      subtitle: "Display formatted text with full styling",
-      size: :small
-    )
-
-    IO.puts("")
-
-    Separator.print("DESCRIPTION", char: "━", width: 50, color: {0, 180, 216})
-    IO.puts("  Display a formatted message with customizable colors, text effects,")
-    IO.puts("  alignment, padding, and optional box wrapping. Supports multi-chunk")
-    IO.puts("  mode for painting a single line with multiple colors and styles.")
-    IO.puts("")
-
-    Separator.print("USAGE", char: "━", width: 50, color: {0, 180, 216})
-    IO.puts("  alaja message <text> [options]")
-    IO.puts("  alaja message --text <text> [options]")
-    IO.puts("  alaja message --chunk \"text|key:val\" --chunk \"more|key:val\" [options]")
-    IO.puts("")
-
-    Separator.print("ARGUMENTS", char: "━", width: 50, color: {0, 180, 216})
-
-    Table.print(
-      headers: ["Argument", "Required", "Description"],
-      rows: [
-        ["<text>", "Yes*", "Text to display (positional, unless --text is used)"],
-        ["--text TEXT", "Yes*", "Text to display (explicit alternative to positional)"]
-      ],
-      table_border: :none,
-      padding: 1
-    )
-
-    IO.puts("")
-
-    Separator.print("COLOR OPTIONS", char: "━", width: 50, color: {0, 180, 216})
-
-    Table.print(
-      headers: ["Option", "Type", "Description"],
-      rows: [
-        ["--color COLOR", "string", "Text color (hex:FF0000, rgb:255,0,0, red, theme:primary)"],
-        ["--bg-color COLOR", "string", "Background color (same format as --color)"]
-      ],
-      table_border: :none,
-      padding: 1
-    )
-
-    IO.puts("")
-
-    Separator.print("TEXT EFFECTS", char: "━", width: 50, color: {0, 180, 216})
-
-    Table.print(
-      headers: ["Option", "Type", "Description"],
-      rows: [
-        ["--bold", "boolean", "Bold text"],
-        ["--italic", "boolean", "Italic text"],
-        ["--underline", "boolean", "Underlined text"],
-        ["--dim", "boolean", "Dim/faint text"],
-        ["--blink", "boolean", "Blinking text"],
-        ["--reverse", "boolean", "Reversed foreground/background colors"],
-        ["--hidden", "boolean", "Hidden text"],
-        ["--strikethrough", "boolean", "Strikethrough text"]
-      ],
-      table_border: :none,
-      padding: 1
-    )
-
-    IO.puts("")
-
-    Separator.print("FORMATTING OPTIONS", char: "━", width: 50, color: {0, 180, 216})
-
-    Table.print(
-      headers: ["Option", "Type", "Values", "Default", "Description"],
-      rows: [
-        ["--align TYPE", "string", "left, center, right", "left", "Text alignment"],
-        ["--padding N", "integer", "0+", "0", "Padding spaces around text"],
-        [
-          "--addline WHEN",
-          "string",
-          "before, after, both, none",
-          "none",
-          "Add blank lines around output"
-        ]
-      ],
-      table_border: :none,
-      padding: 1
-    )
-
-    IO.puts("")
-
-    Separator.print("MULTI-CHUNK MODE", char: "━", width: 50, color: {0, 180, 216})
-
-    Table.print(
-      headers: ["Option", "Description"],
-      rows: [
-        [
-          "--chunk SPEC",
-          "Define a text chunk with inline styles. Format: \"text|key:value|key:value\". Keys: color, bg/bg_color, bold, italic, underline, dim, blink, reverse, hidden, strikethrough. Repeatable."
-        ]
-      ],
-      table_border: :none,
-      padding: 1
-    )
-
-    IO.puts("")
-
-    Separator.print("GLOBAL OPTIONS", char: "━", width: 50, color: {0, 180, 216})
-
-    Table.print(
-      headers: ["Option", "Type", "Values", "Default", "Description"],
-      rows: [
-        ["--raw", "boolean", "", "false", "Print at raw coordinates (requires --pos-x, --pos-y)"],
-        ["--pos-x N", "integer", "0+", "0", "X coordinate (with --raw)"],
-        ["--pos-y N", "integer", "0+", "0", "Y coordinate (with --raw)"],
-        ["--verbose", "boolean", "", "false", "Return raw ANSI string instead of printing"],
-        ["--box", "boolean", "", "false", "Wrap output in a bordered box"],
-        ["--box-title TEXT", "string", "", "", "Title for the box (requires --box)"],
-        [
-          "--box-border TYPE",
-          "string",
-          "rounded, single, double, bold, none",
-          "rounded",
-          "Border style (requires --box)"
-        ],
-        ["--box-color COLOR", "string", "Any color format", "", "Border color (requires --box)"]
-      ],
-      table_border: :none,
-      padding: 1
-    )
-
-    IO.puts("")
-
-    Separator.print("EXAMPLES", char: "━", width: 50, color: {0, 180, 216})
-
-    IO.puts(
-      "# Basic positional text\n  alaja message \"Hello World\"\n\n# Explicit text with color and effect\n  alaja message \"Red bold\" --color red --bold\n\n# With background, alignment, and padding\n  alaja message \"Centered\" --color cyan --bg-color black --align center --padding 2\n\n# All formatting options\n  alaja message \"Styled\" --color \"#FF5733\" --bg-color \"#333\" --bold --underline --align right --padding 1 --addline both\n\n# Raw positioning\n  alaja message \"At coords\" --color green --raw --pos-x 10 --pos-y 5\n\n# Verbose mode (get ANSI string)\n  alaja message \"Hello\" --color blue --verbose\n\n# With box wrapper\n  alaja message \"Boxed\" --color cyan --box --box-title \"Notice\" --box-border double --box-color yellow\n\n# Multi-chunk: rainbow-like text\n  alaja message --chunk \"H|color:#FF0000|bold:true\" --chunk \"e|color:#FF7F00\" --chunk \"l|color:#FFFF00\" --chunk \"l|color:#00FF00\" --chunk \"o|color:#0000FF\"\n\n# Multi-chunk: status line\n  alaja message --chunk \"[|color:gray\" --chunk \"OK|color:green|bold:true\" --chunk \"] Deployed|color:cyan\" --align center --box --box-border rounded --box-color \"#00B4D8\""
-    )
-
-    IO.puts("")
-    :ok
-  end
+  def help, do: @help_data
 end

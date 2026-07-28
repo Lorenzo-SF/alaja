@@ -16,7 +16,7 @@ defmodule Alaja.PrintRawBufferTest do
 
   use ExUnit.Case, async: true
 
-  alias Alaja.{Buffer, Components, Printer}
+  alias Alaja.{Components, Printer}
 
   describe "print_raw/2 with Buffer input + box" do
     test "json buffer + box: true does not crash" do

@@ -134,7 +134,7 @@ defmodule Alaja.MixProject do
 
   defp deps do
     [
-      {:pote, "~> 2.2.0"},
+      {:pote, path: "../pote", override: true},
       {:jason, "~> 1.4"},
       {:credo, "~> 1.7", only: [:dev, :test], runtime: false},
       {:dialyxir, "~> 1.4", only: [:dev, :test], runtime: false},

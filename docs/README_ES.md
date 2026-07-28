@@ -1,7 +1,7 @@
 # Alaja — Framework CLI declarativo y kit de renderizado para terminal en Elixir
 
-[![Hex version](https://img.shields.io/badge/hex-2.0.0-blue.svg)](https://hex.pm/packages/alaja)
-[![Version](https://img.shields.io/badge/version-2.0.0-blue.svg)](https://github.com/Lorenzo-SF/alaja)
+[![Hex version](https://img.shields.io/badge/hex-2.4.0-blue.svg)](https://hex.pm/packages/alaja)
+[![Version](https://img.shields.io/badge/version-2.4.0-blue.svg)](https://github.com/Lorenzo-SF/alaja)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 
 <p align="center">
@@ -354,16 +354,17 @@ Alaja.CLI.Parser.parse_align("center")
 | `multibar`     | Rastreador multi-tarea con barras paralelas        |
 | `yesno`        | Pregunta interactiva sí/no                         |
 
-**`Alaja.CLI.Commands.Config`** — Gestión de configuración:
+**`Alaja.CLI.Commands.Theme`** — Gestión de temas (reemplaza al comando `config` deprecado):
 
-| Acción             | Descripción                        |
-| ------------------ | ---------------------------------- |
-| `init`             | Inicializar `~/.config/alaja`      |
-| `get CLAVE`        | Leer un valor de configuración     |
-| `set CLAVE VALOR`  | Escribir un valor de configuración |
-| `theme list`       | Listar temas disponibles           |
-| `theme set NOMBRE` | Activar un tema                    |
-| `--show`           | Mostrar configuración actual       |
+| Acción             | Descripción                                                  |
+| ------------------ | ------------------------------------------------------------ |
+| `init`             | Instalar plantillas integradas + personalizadas en `~/.config/alaja/themes` |
+| `list`             | Listar temas instalados                                      |
+| `set NOMBRE`       | Activar un tema por nombre                                   |
+| `show`             | Mostrar el mapa de colores del tema activo                   |
+
+El comando heredado `alaja config` está deprecado e imprime un aviso
+apuntando a `alaja theme` (ver `lib/alaja/cli/commands/config.ex`).
 
 ---
 
