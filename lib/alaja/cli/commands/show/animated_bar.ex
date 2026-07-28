@@ -1,10 +1,17 @@
 defmodule Alaja.CLI.Commands.Show.AnimatedBar do
   @moduledoc "`alaja animated-bar` — Display animated progress bar."
 
+  @help_data [
+    title: "Alaja Animated Bar",
+    subtitle: "Display animated progress bar",
+    size: :small
+  ]
+
   alias Alaja.CLI.GlobalOpts
   alias Alaja.Components.AnimatedBar, as: ABComp
-  alias Alaja.Components.{Box, Header, Separator, Table}
+  alias Alaja.Components.Box
 
+  @doc "Runs the `alaja animated-bar` command from raw argv; prints help on `--help` or no value."
   @spec run([String.t()]) :: :ok | no_return()
   def run(args) do
     {global, rest} = GlobalOpts.parse(args)
@@ -217,151 +224,5 @@ defmodule Alaja.CLI.Commands.Show.AnimatedBar do
   defp maybe_add(list, key, value), do: Keyword.put(list, key, value)
 
   @spec help() :: :ok
-  def help do
-    Header.print("Alaja Animated Bar",
-      subtitle: "Display animated progress bar",
-      size: :small
-    )
-
-    IO.puts("")
-
-    Separator.print("DESCRIPTION", char: "━", width: 50, color: {0, 180, 216})
-    IO.puts("  Display an animated progress bar with a static filled portion")
-    IO.puts("  that shows a looping animation. Runs indefinitely until")
-    IO.puts("  killed (Ctrl+C) or another message overwrites it.")
-    IO.puts("")
-
-    Separator.print("USAGE", char: "━", width: 50, color: {0, 180, 216})
-    IO.puts("  alaja animated-bar <value> [options]")
-    IO.puts("  alaja animated-bar --value N [options]")
-    IO.puts("")
-
-    Separator.print("ARGUMENTS", char: "━", width: 50, color: {0, 180, 216})
-
-    Table.print(
-      headers: ["Argument", "Required", "Description"],
-      rows: [
-        [
-          "<value>",
-          "Yes*",
-          "Current progress value (integer). Required unless --value is provided."
-        ]
-      ],
-      table_border: :none,
-      padding: 1
-    )
-
-    IO.puts("")
-
-    Separator.print("OPTIONS", char: "━", width: 50, color: {0, 180, 216})
-
-    Table.print(
-      headers: ["Option", "Type", "Values", "Default", "Description"],
-      rows: [
-        ["--value N", "integer", "0+", "", "Current value (alternative to positional arg)"],
-        ["--max N", "integer", "1+", "100", "Maximum value for the progress bar"],
-        ["--label TEXT", "string", "", "", "Label text displayed alongside the bar"],
-        [
-          "--type TYPE",
-          "string",
-          "spinner, kitt, pulse, wave, rainbow",
-          "spinner",
-          "Animation style for the filled portion"
-        ],
-        ["--width N", "integer", "1+", "40", "Width of the bar in characters"],
-        [
-          "--filled-char CHAR",
-          "string",
-          "Any character",
-          "▓",
-          "Character for the filled portion"
-        ],
-        ["--empty-char CHAR", "string", "Any character", "░", "Character for the empty portion"],
-        ["--filled-color COLOR", "string", "Any color format", "", "Color of the filled portion"],
-        ["--empty-color COLOR", "string", "Any color format", "", "Color of the empty portion"],
-        [
-          "--animation-color COLOR",
-          "string",
-          "Any color format",
-          "",
-          "Color of the animation highlight (kitt type)"
-        ],
-        ["--speed N", "integer", "1+", "100", "Animation speed in milliseconds per frame"],
-        ["--show-percent BOOL", "boolean", "", "true", "Show percentage next to the bar"],
-        ["--kitt-width N", "integer", "1+", "3", "Width of the KITT scanner highlight"],
-        [
-          "--verbose",
-          "boolean",
-          "",
-          "false",
-          "Print 20 sample frames as text instead of animating"
-        ]
-      ],
-      table_border: :none,
-      padding: 1
-    )
-
-    IO.puts("")
-
-    Separator.print("GLOBAL OPTIONS", char: "━", width: 50, color: {0, 180, 216})
-
-    Table.print(
-      headers: ["Option", "Type", "Values", "Default", "Description"],
-      rows: [
-        ["--raw", "boolean", "", "false", "Print at raw coordinates"],
-        ["--pos-x N", "integer", "0+", "0", "X coordinate (with --raw)"],
-        ["--pos-y N", "integer", "0+", "0", "Y coordinate (with --raw)"],
-        ["--verbose", "boolean", "", "false", "Return raw ANSI string instead of printing"],
-        ["--box", "boolean", "", "false", "Wrap output in a bordered box"],
-        ["--box-title TEXT", "string", "", "", "Box title (requires --box)"],
-        [
-          "--box-border TYPE",
-          "string",
-          "rounded, single, double, bold, none",
-          "rounded",
-          "Border style (requires --box)"
-        ],
-        ["--box-color COLOR", "string", "Any color format", "", "Border color (requires --box)"]
-      ],
-      table_border: :none,
-      padding: 1
-    )
-
-    IO.puts("")
-
-    Separator.print("EXAMPLES", char: "━", width: 50, color: {0, 180, 216})
-
-    Table.print(
-      headers: ["Command", "Description"],
-      rows: [
-        ["alaja animated-bar 50", "Basic animated bar (value 50 of 100)"],
-        [
-          "alaja animated-bar 75 --max 100 --label \"Uploading...\"",
-          "With label and custom max"
-        ],
-        [
-          "alaja animated-bar 60 --type kitt --animation-color red",
-          "KITT scanner animation"
-        ],
-        [
-          "alaja animated-bar 80 --filled-char \"█\" --empty-char \"─\" --filled-color green --empty-color gray --width 60",
-          "Custom characters and colors"
-        ],
-        [
-          "alaja animated-bar 30 --speed 50 --label \"Installing\"",
-          "Fast animation"
-        ],
-        ["alaja animated-bar 50 --verbose", "Verbose mode (print sample frames)"],
-        [
-          "alaja animated-bar 45 --label \"Loading\" --filled-color \"#FF6B6B\" --box --box-title \"Progress\" --box-border double --box-color \"#FFE66D\"",
-          "With box wrapper"
-        ]
-      ],
-      table_border: :none,
-      padding: 1
-    )
-
-    IO.puts("")
-    :ok
-  end
+  def help, do: @help_data
 end

@@ -23,8 +23,13 @@ defmodule Alaja.CLI.Commands.Action do
       alaja action --data '{"actions":[...]}' --dry-run
   """
 
+  @help_data [
+    title: "Alaja Action",
+    subtitle: "Execute Alaja commands from JSON input",
+    size: :small
+  ]
+
   alias Alaja.CLI.GlobalOpts
-  alias Alaja.Components.{Header, Separator, Table}
 
   @doc """
   Runs the `alaja action` command.
@@ -315,117 +320,5 @@ defmodule Alaja.CLI.Commands.Action do
   Prints help for the `alaja action` command.
   """
   @spec help() :: :ok
-  def help do
-    Header.print("Alaja Action",
-      subtitle: "Execute Alaja commands from JSON input",
-      size: :small
-    )
-
-    IO.puts("")
-
-    Separator.print("DESCRIPTION", char: "━", width: 50, color: {0, 180, 216})
-    IO.puts("  Execute Alaja commands from JSON input. Accepts JSON from stdin,")
-    IO.puts("  a file, or inline data. Supports single actions and batch")
-    IO.puts("  operations with ordered execution and parallel dispatch.")
-    IO.puts("")
-
-    Separator.print("USAGE", char: "━", width: 50, color: {0, 180, 216})
-    IO.puts("  echo '<json>' | alaja action")
-    IO.puts("  alaja action --file <path>")
-    IO.puts("  alaja action --data <json>")
-    IO.puts("  alaja action --stdin")
-    IO.puts("")
-
-    Separator.print("OPTIONS", char: "━", width: 50, color: {0, 180, 216})
-
-    Table.print(
-      headers: ["Option", "Alias", "Type", "Description"],
-      rows: [
-        ["--file PATH", "-f", "string", "Read JSON from a file"],
-        ["--data JSON", "-d", "string", "Inline JSON string"],
-        ["--stdin", "-s", "boolean", "Force reading from stdin"],
-        ["--parallel N", "", "integer", "Run N actions in parallel (default 1)"],
-        ["--stop-on-error", "", "boolean", "Halt batch on first error (default false)"],
-        ["--dry-run", "", "boolean", "Print actions without executing (default false)"]
-      ],
-      table_border: :none,
-      padding: 1
-    )
-
-    IO.puts("")
-
-    Separator.print("SOURCE PRIORITY", char: "━", width: 50, color: {0, 180, 216})
-    IO.puts("  --stdin > --file > --data > (implicit stdin)")
-    IO.puts("")
-
-    Separator.print("JSON SCHEMA", char: "━", width: 50, color: {0, 180, 216})
-
-    IO.puts("  Single action:")
-
-    IO.puts(
-      "  #{String.replace(~s({\n    "command": "success",\n    "args": ["Done!"]\n  }), "  ", "")}"
-    )
-
-    IO.puts("")
-
-    IO.puts("  Batch actions:")
-
-    IO.puts(
-      "  #{String.replace(~s({\n    "verbose": true,\n    "quiet": false,\n    "actions": [\n      {"command": "info", "args": ["Step 1"], "order": 0},\n      {"command": "success", "args": ["Complete"], "order": 1}\n    ]\n  }), "  ", "")}"
-    )
-
-    IO.puts("")
-
-    Separator.print("FIELD ALIASES", char: "━", width: 50, color: {0, 180, 216})
-
-    Table.print(
-      headers: ["Field", "Alias", "Description"],
-      rows: [
-        ["command", "action", "Command to execute"],
-        ["args", "params", "Arguments for the command"],
-        ["order", "", "Execution order (batch mode)"]
-      ],
-      table_border: :none,
-      padding: 1
-    )
-
-    IO.puts("")
-
-    Separator.print("EXAMPLES", char: "━", width: 50, color: {0, 180, 216})
-
-    IO.puts(~s"""
-    # Pipe JSON to action
-      echo '{"command":"success","args":["OK"]}' | alaja action
-
-    # From a file
-      alaja action --file ./pipeline.json
-
-    # Inline JSON data
-      alaja action --data '{"command":"info","args":["Processing..."]}'
-
-    # Using field aliases
-      alaja action --data '{"action":"warning","params":["Low disk space"]}'
-
-    # Batch actions with ordering
-      alaja action --data '{"actions":[{"command":"info","args":["Step 1"],"order":0},{"command":"success","args":["Done"],"order":1}]}'
-
-    # Parallel batch (4 concurrent actions)
-      alaja action --data '{"actions":[...]}' --parallel 4
-
-    # Stop on first error
-      alaja action --data '{"actions":[...]}' --stop-on-error
-
-    # Dry run: validate the pipeline without executing
-      alaja action --data '{"actions":[...]}' --dry-run
-
-    # With global options
-      alaja action --data '{"command":"message","args":["Hello"],"verbose":true}'
-
-    # Force stdin mode
-      alaja action --stdin < commands.json
-    """)
-
-    IO.puts("")
-    :ok
-  end
+  def help, do: @help_data
 end

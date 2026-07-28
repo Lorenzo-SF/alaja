@@ -126,16 +126,20 @@ defmodule Alaja.Structures.ChunkText do
   """
   @spec render(t()) :: String.t()
   def render(%__MODULE__{text: text, color: color, bg_color: bg_color, effects: effects}) do
-    has_invert = effects && (effects.invert || effects.reverse)
+    if Alaja.Config.color_enabled?() do
+      has_invert = effects && (effects.invert || effects.reverse)
 
-    {color_code, effects_code, reset} =
-      if has_invert && color do
-        render_inverted_mode(color, effects)
-      else
-        render_normal_mode(color, bg_color, effects)
-      end
+      {color_code, effects_code, reset} =
+        if has_invert && color do
+          render_inverted_mode(color, effects)
+        else
+          render_normal_mode(color, bg_color, effects)
+        end
 
-    "#{color_code}#{effects_code}#{text}#{reset}"
+      "#{color_code}#{effects_code}#{text}#{reset}"
+    else
+      text
+    end
   end
 
   # ---------------------------------------------------------------------------

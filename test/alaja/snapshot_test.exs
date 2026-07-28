@@ -63,7 +63,7 @@ defmodule Alaja.SnapshotTest do
   describe "Separator snapshots" do
     test "default" do
       actual = Separator.render() |> to_binary()
-      assert actual == load_snapshot("separator_default")
+      assert_snapshot("separator_default", actual)
     end
 
     test "with text" do
@@ -71,75 +71,75 @@ defmodule Alaja.SnapshotTest do
         Separator.render("HELLO", char: "━", color: {0, 180, 216}, width: 40)
         |> to_binary()
 
-      assert actual == load_snapshot("separator_with_text")
+      assert_snapshot("separator_with_text", actual)
     end
 
     test "thin" do
       actual = Separator.render(nil, char: "─", width: 30) |> to_binary()
-      assert actual == load_snapshot("separator_thin")
+      assert_snapshot("separator_thin", actual)
     end
   end
 
   describe "Bar snapshots" do
     test "50%" do
       actual = Bar.render(50, 100, label: "CPU", width: 20) |> to_binary()
-      assert actual == load_snapshot("bar_50")
+      assert_snapshot("bar_50", actual)
     end
 
     test "75%" do
       actual = Bar.render(75, 100, label: "Upload", width: 40) |> to_binary()
-      assert actual == load_snapshot("bar_75")
+      assert_snapshot("bar_75", actual)
     end
 
     test "0%" do
       actual = Bar.render(0, 100, width: 10) |> to_binary()
-      assert actual == load_snapshot("bar_0")
+      assert_snapshot("bar_0", actual)
     end
 
     test "100%" do
       actual = Bar.render(100, 100, width: 10) |> to_binary()
-      assert actual == load_snapshot("bar_100")
+      assert_snapshot("bar_100", actual)
     end
   end
 
   describe "Breadcrumbs snapshots" do
     test "three items" do
       actual = Breadcrumbs.render(["Home", "Projects", "Zaguan"], []) |> to_binary()
-      assert actual == load_snapshot("breadcrumbs")
+      assert_snapshot("breadcrumbs", actual)
     end
 
     test "two items" do
       actual = Breadcrumbs.render(["A", "B"], []) |> to_binary()
-      assert actual == load_snapshot("breadcrumbs_short")
+      assert_snapshot("breadcrumbs_short", actual)
     end
   end
 
   describe "Header snapshots" do
     test "small" do
       actual = Header.render("Title") |> to_binary()
-      assert actual == load_snapshot("header_small")
+      assert_snapshot("header_small", actual)
     end
 
     test "medium with subtitle" do
       actual = Header.render("Title", subtitle: "Subtitle here") |> to_binary()
-      assert actual == load_snapshot("header_medium")
+      assert_snapshot("header_medium", actual)
     end
 
     test "large" do
       actual = Header.render("Title", size: :large, color: {255, 87, 51}) |> to_binary()
-      assert actual == load_snapshot("header_large")
+      assert_snapshot("header_large", actual)
     end
   end
 
   describe "Box snapshots" do
     test "default with title" do
       actual = Box.render("Hello, world!", title: "Greeting") |> to_binary()
-      assert actual == load_snapshot("box_default")
+      assert_snapshot("box_default", actual)
     end
 
     test "no title" do
       actual = Box.render(["Line 1", "Line 2"], border: :rounded, padding: 2) |> to_binary()
-      assert actual == load_snapshot("box_no_title")
+      assert_snapshot("box_no_title", actual)
     end
 
     test "double border" do
@@ -147,7 +147,7 @@ defmodule Alaja.SnapshotTest do
         Box.render("Content", border: :double, border_color: {72, 187, 120})
         |> to_binary()
 
-      assert actual == load_snapshot("box_double")
+      assert_snapshot("box_double", actual)
     end
   end
 
@@ -183,7 +183,7 @@ defmodule Alaja.SnapshotTest do
         )
         |> to_binary()
 
-      assert actual == load_snapshot("table_simple")
+      assert_snapshot("table_simple", actual)
     end
   end
 end

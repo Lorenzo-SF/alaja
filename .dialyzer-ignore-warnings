@@ -1,4 +1,1 @@
-# Dialyzer ignore list
-lib/alaja/cli/commands/color.ex:429:8:unused_fun
-lib/alaja/cli/commands/color.ex:434:8:unused_fun
-lib/alaja/cli/dispatch.ex:51:7:no_return
+

@@ -3,7 +3,30 @@ defmodule Alaja.CLI.Commands.Theme do
   `alaja theme` — Manage themes (init, set, list, show).
   """
 
-  alias Alaja.CLI.Commands.Config, as: ConfigCmd
+  @help_data """
+    USAGE
+      alaja theme <action>
+
+    ACTIONS
+      init                 Install default themes to ~/.config/alaja/themes
+      set <name>           Activate a theme
+      list                 List available themes
+      show <name>          Show a single theme's colour table
+      show <name> <name>…  Show side-by-side comparison of given themes
+      show list            Show side-by-side comparison of all themes
+      show all             Show all themes sequentially (one after another)
+      all                  Show side-by-side comparison of all themes (alias for `show list`)
+
+    EXAMPLES
+      alaja theme init
+      alaja theme set dracula
+      alaja theme list
+      alaja theme show dracula
+      alaja theme show dracula nord light
+      alaja theme all
+      alaja theme show list
+  """
+
   alias Alaja.{Config, Theme}
 
   @spec run([String.t()]) :: :ok | no_return()
@@ -16,7 +39,23 @@ defmodule Alaja.CLI.Commands.Theme do
     config_path = Path.expand("~/.config/alaja")
     File.mkdir_p!(config_path)
 
-    ConfigCmd.install_theme_templates()
+    Enum.each(Theme.templates(), fn name ->
+      IO.write("  Writing #{name}.json ... ")
+
+      case Theme.install_template(name) do
+        :ok -> IO.puts("\e[38;2;72;187;120m✓\e[0m")
+        {:error, reason} -> IO.puts("\e[38;2;245;101;101m✗ #{inspect(reason)}\e[0m")
+      end
+    end)
+
+    Enum.each(Alaja.Theme.CustomTemplates.all(), fn theme ->
+      IO.write("  Writing #{theme.name}.json ... ")
+
+      case Theme.install!(theme) do
+        :ok -> IO.puts("\e[38;2;72;187;120m✓\e[0m")
+        {:error, reason} -> IO.puts("\e[38;2;245;101;101m✗ #{inspect(reason)}\e[0m")
+      end
+    end)
 
     IO.puts("\n  \e[38;2;72;187;120mThemes initialized at #{config_path}/themes\e[0m\n")
   end
@@ -206,32 +245,7 @@ defmodule Alaja.CLI.Commands.Theme do
   # ── Help ────────────────────────────────────────────────────────────────
 
   @spec help() :: :ok
-  def help do
-    IO.puts("""
-
-    USAGE
-      alaja theme <action>
-
-    ACTIONS
-      init                 Install default themes to ~/.config/alaja/themes
-      set <name>           Activate a theme
-      list                 List available themes
-      show <name>          Show a single theme's colour table
-      show <name> <name>…  Show side-by-side comparison of given themes
-      show list            Show side-by-side comparison of all themes
-      show all             Show all themes sequentially (one after another)
-      all                  Show side-by-side comparison of all themes (alias for `show list`)
-
-    EXAMPLES
-      alaja theme init
-      alaja theme set dracula
-      alaja theme list
-      alaja theme show dracula
-      alaja theme show dracula nord light
-      alaja theme all
-      alaja theme show list
-    """)
-  end
+  def help, do: @help_data
 
   defp build_color_swatches(themes, theme_data, key, _name_col_w, theme_col_w, row) do
     Enum.reduce(themes, row, fn name, acc ->
