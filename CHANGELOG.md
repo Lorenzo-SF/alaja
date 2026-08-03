@@ -1,364 +1,147 @@
 # Changelog
 
-All notable changes to this project will be documented in this file.
+## 3.0.0 (2026-08-03)
 
-The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
-and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
-
-## [Unreleased]
-
-### Added
-- **Component defaults switched to theme atoms** — `AnimatedBar`, `Bar`,
-  `Box`, `Breadcrumbs`, `Header`, `Pulsar`, and `Separator` now
-  default to Pote theme atoms (`:primary`, `:success`, `:background`,
-  `:debug`, `:no_color`) instead of hardcoded RGB tuples. A new
-  public helper `Alaja.Cell.resolve_theme_color/1` (renamed from the
-  private `safe_pote_color/1`) is exported so callers can resolve
-  a theme atom or fall back gracefully for non-atom inputs.
-- **New ANSI helpers** — `clear_entire_line/0`, `cursor_up/1`,
-  `cursor_down/1` in `Alaja.ANSI`. The `clear_line/0` doc clarifies
-  that it clears from cursor to end of line.
-- **Concise `@doc` strings** for the `run/1` of 11 `Show` modules
-  and all 30 `Alaja.CLI.Dispatch` helpers.
-
-### Fixed
-- **Dialyzer**: resolve three contract / pattern-match errors —
-  `Alaja.CLI.Commands.Config.run/1` returns `:error` (was documented
-  `:ok`); `Alaja.Components.Gradient.apply_gradient_text/4` returns
-  iodata (was documented as `String.t() | {:error, String.t()}`);
-  `Alaja.CLI.Commands.Show.Gradient.render/3` had an unreachable
-  `{:error, _}` branch in its caller that was deleted.
-- **`.dialyzer-ignore-warnings`** — three stale entries removed.
-- **Credo strict (cyclomatic 10)** — `Alaja.Components.AnimatedBar.
-  animate_filled/5 :rainbow` clause extracted into a `rainbow_palette/0`
-  helper so the rainbow case stays at cyclomatic ≤ 9.
-- **Test warnings** — drop unused `result` binding in
-  `animated_bar_test.exs:32` and unused `Buffer` alias in
-  `print_raw_buffer_test.exs:19`. The two `ColorWheel.show_*`
-  tests stay on purpose: they exist as backstops for the deprecated
-  API contract.
-
-### Changed
-- **Snapshots** under `test/snapshots/` regenerated to reflect the
-  new theme-aware default colours (`bar_*`, `box_*`, `breadcrumbs_*`,
-  `header_*`, `separator_*`). All 18 `SnapshotTest` assertions pass.
-- **`mix format`** — reformatted `animate.ex`, `animated_bar.ex`,
-  `gradient.ex`, `list.ex`, `pulsar.ex`, `table.ex`, and
-  `theme/custom_templates.ex` (mostly `@spec` lines that exceeded
-  the 120-char threshold).
-
-### Documentation
-- **`README.md`** — version badge updated from 2.0.0 to 2.4.0;
-  the "Built-in commands reference" table now describes
-  `Alaja.CLI.Commands.Theme` (`init | list | set NAME | show`)
-  instead of the deprecated `Config`.
-- **`docs/README_ES.md`** — same badge + table updates.
-
-- **Test coverage added for Base and Show command modules**
-
-## [2.3.0] - 2026-07-08
-
-### Added
-- **12 new colour themes** for `alaja config init`:
-  `catppuccin`, `solarized-dark`, `gruvbox-dark`, `tokyo-night`,
-  `everforest-dark`, `rose-pine`, `ayu-dark`, `synthwave`, `aurora`,
-  `material-ocean`, `outrun`, `kanagawa`.
-- **`Alaja.Theme.CustomTemplates`** — new module shipping extra themes
-  alongside Pote's built-in set. Each theme defines 23 harmonised colours
-  (4 accents, background, text, 6 status colours, 6 gradient stops, menu,
-  debug, happy/sad).
-
-### Changed
-- **`alaja config init`** now installs both Pote's built-in templates and
-  Alaja's own custom templates (17 themes total).
-
-## [2.2.0] - 2026-07-08
-
-### Added
-- **`alaja table` per-row styling**: new `--row-N-color`, `--row-N-align`,
-  `--row-N-effect` CLI flags where N = 1-indexed row number. These override
-  the global `--rows-color/--rows-align/--rows-effects` for a specific row.
-  Supports both `--row-1-color VALUE` and `--row-1-color=VALUE` syntax.
-  Internal row numbers are 0-indexed and mapped automatically.
-
-### Fixed
-- **BUG**: `alaja table` per-row styling was only implemented in the backend
-  (`Alaja.Components.Table`) but had no CLI support. The parser
-  `extract_row_specific_opts/1` already handled `rows_0_color` etc. but no
-  CLI switches exposed them. Fixed by adding `parse_per_row_args/1` which
-  captures `--row-N-{color,align,effect}` from raw args, translates to the
-  backend's `rows_{N-1}_{color,align,effects}` format, and merges them into
-  the option list (global applies first, per-row overrides).
-- **BUG**: theme atom colours (e.g. `:primary`, `:secondary`) resolved to
-  Pote's hardcoded `@default_colors` instead of the user's active Alaja
-  theme. `Cell.ansi_fg/1` and `Cell.ansi_bg/1` called `Pote.color/1` which
-  only does `Map.get(@default_colors, atom)`, completely bypassing the
-  registered theme resolver stack. Fixed by replacing with
-  `Pote.resolve_theme_color/1`, which walks registered resolvers first and
-  only falls back to `@default_colors` as a last resort. Affects any
-  component using `Cell` (Separator, Header, Box, Table via Buffer, etc.).
-
-## [2.1.0] - 2026-07-07
-
-### Fixed
-- **`source_ref` in `mix.exs`** pointed to a non-existent tag (`v0.1.0`).
-  Now points to the canonical `2.0.0` tag (matches the rest of the
-  Lorenzo-SF/* ecosystem after the doc/source_ref sweep).
-- **CHANGELOG** — drop the `v` prefix from tag references in the
-  "A note on history" footer to match the canonical tag convention
-  (no `v` prefix on this repo).
-- **Dep switch**: `pote` is now tracked from `github: "Lorenzo-SF/pote",
-  branch: "main"` again (was `~> 2.0` on Hex). Aligns alaja with the
-  rest of the ecosystem (apero, arrea, candil, botica all use
-  `branch: "main"` for cross-repo deps).
-- **`Alaja.SnapshotHelper`**: align the `Table` pipeline with the Cell
-  Buffer convention (regenerates JSON snapshots after the theme colour
-  change in 2.0.0).
-
-### Changed
-- **JSON test snapshots regenerated** to match the new theme palette
-  introduced in 2.0.0.
-
-### Internal
-- **`mix dialyzer`** config: add `plt_add_apps: [:mix]` so the PLT
-  contains `Mix.shell/0`, `Mix.Project.project_file/0`, and the
-  `Mix.Task` callback info. The `alaja.snapshot` mix task references
-  these and dialyzer was failing with
-  `Function Mix.shell/0 does not exist` against the previous PLT.
-
-## [2.0.0] - 2026-07-01
-
-This release marks a major API shift: alaja is now **Buffer-first**.
-Components that previously returned strings, iodata, or PNG bytes
-expose a canonical `Alaja.Buffer.t/0` entry point. PNG/iodata paths
-still exist but are now explicit (e.g. `render_for_terminal/2`
-returns a tagged tuple) rather than the only option.
-
-This entry consolidates everything between 0.2.0 and the current
-HEAD — including the 0.3.0 Cell/Buffer engine unification, the
-0.3.x hardening pass, the 2.0.0 Wizard + Syntax + Config work, the
-multibar command, and the latest house-keeping. Earlier `0.x` and
-`0.2.0` versions are no longer maintained and have been collapsed
-into this single canonical entry.
+The **3.0** release introduces a TEA-style runtime (`Alaja.App`),
+stateful components, focus management, terminal safety, and a
+renderer that emits minimal diffs. The 2.x CLI is still supported.
 
 ### Added
 
-#### Core rendering
-- **Cell/Buffer engine unification.** Components return `Alaja.Buffer.t()`
-  from their `render/N` entry points (a 2D grid of `Alaja.Cell.t()`)
-  instead of opaque iodata. Single source of truth for 2D layout.
-- **Composition primitives in `Alaja.Buffer`**: `to_iodata/1`
-  (ANSI-coalesced), `overlay/4`, `hstack/2`, `vstack/2`, `crop/5`,
-  `pad/3`, `with_offset/3`.
-- **`Alaja.Printer.print_buffer/2`** — prints a buffer at `(x, y)`
-  with cursor positioning, honoring `buffer.offset_x/offset_y`.
-- **All `Alaja.Components.*` moved to the Cell engine**: `Separator`,
-  `Bar`, `Breadcrumbs`, `Header`, `Json` (tokenizer-based), `Box`
-  (accepts `Buffer.t()` as content), `ColorWheel` (`render/2`,
-  `render_for_terminal/2`, `default_opts/0`), `Table.render_buffer/2`.
+* **`Alaja.App`** — the Elm-Architecture-style runtime. A
+  `GenServer` that calls `init/1`, receives `Msg.t()` events via
+  `update/2`, applies new state, runs any returned `Cmd.t()` list,
+  re-renders via `view/1`, and manages subscriptions. The
+  `use Alaja.App` macro defines `child_spec/1` for supervision trees.
 
-#### CLI framework
-- **Rich DSL from hex 1.0.0**: `command/3`, `subcommand`, `flag`,
-  `argument`, `run {Mod, :fun}`, auto-generated `main/1`. Flag types:
-  `:string, :integer, :float, :boolean, :atom, :path, :url, :color_list`.
-- **`Alaja.CLI.Definition.cast_flag_value/3`** hardened: `:path, :url,
-  :color_list` clauses added; `:integer/:float` no longer crash on
-  garbage input — fall back to the flag's default.
-- **`Alaja.CLI.Dispatch`** centralises dispatch from `Alaja.CLI` into
-  the existing `Alaja.CLI.Commands.*` handlers.
-- **`Alaja.run/1,2`** — unified entry point. Default `cli_module` is
-  `Alaja.CLI`; pass any module built with
-  `use Alaja.CLI.Definition, otp_app: :my_app`.
-- **`halt_on_error: false` default** — `main/1` returns `{:error, reason}`
-  instead of `System.halt(1)`, making the DSL safe as a library.
-- **27 commands wired** (covered by `test/alaja/cli/dispatch_test.exs`).
-- **`alaja multibar`** — multi-task progress tracking with parallel
-  bars. Two modes: demo (animated simulation for `--duration` seconds)
-  and stdin (interactive pipe protocol with `progress`/`success`/
-  `error`/`wait`/`info`/`done`).
+* **`Alaja.Cmd`** — union of plain-data side effects returned by
+  `update/2`: `none/0`, `log/1`, `send_msg/2`, `quit/0`, `batch/1`,
+  `custom/2`. The runtime evaluates them in order after each
+  state update.
 
-#### New components
-- **`Alaja.Wizard`** — declarative multi-field form renderer. Builds
-  a `Buffer.t/0` via five neutral renderers:
-  `:inline, :compact, :stacked, :wizard, :compact_wizard`. Pure:
-  same input, same output. No renderer named after any product,
-  brand, or AI assistant.
-- **`Alaja.Components.MultiBar`** — GenServer-based multi-task
-  progress bar. Four task states (`:running, :success, :error,
-  :wait`), per-task progress tracking, dynamic descriptions, and
-  in-place ANSI repaint via cursor-up.
-- **`Alaja.Components.AnimatedBar`** — animated progress bar (8 styles).
-- **`Alaja.Components.Json`** — pretty-printed JSON with syntax
-  highlighting (tokenizer-based, returns `Buffer.t/0`).
+* **`Alaja.Sub`** — declarative subscription descriptors:
+  `keypress/0`, `tick/1`, `resize/0`, `mouse/0`, `paste/0`,
+  `focus/0`, `custom/2`. The runtime attaches the process on
+  `init` and re-evaluates `subscriptions/1` on each update.
 
-#### Syntax highlighting
-- **`Alaja.Syntax.highlight_buffer/3`** — canonical Buffer-first entry
-  point. Per-line tokenization preserves newlines; ANSI-16 palette is
-  mapped to RGB tuples so Buffer cells carry proper fg colours.
-- **Supported languages**: `:elixir, :json, :markdown, :text`.
+* **`Alaja.Msg`** — event union: `Key`, `Mouse`, `Resize`, `Paste`,
+  `Focus`, `Tick`, `Custom`, `Quit`, `Error`. Built with helpers
+  `key/2`, `mouse/4`, `tick/1`, `resize/2`, `paste/1`, etc.
 
-#### Configuration
-- **`Alaja.Config.load!/1,2`** — path-based config loader with
-  optional `:skip_env` (for deterministic tests). Honours
-  `ALAJAX_COLOR_DEPTH` and `ALAJAX_THEME_ACTIVE` env vars as an
-  overlay on top of the on-disk JSON.
-- **`Alaja.Theme`** — facade generated by `use Pote.Theme, config_app: :alaja`.
-  Exposes `list/0, active/0, activate/1, color/1, colors/0, install!/1,
-  install_template/1, templates/0, register_with_pote/0, storage_dir/0`.
-  Themes are JSON files under `~/.config/alaja/themes/` (or
-  `ALAJA_THEMES_PATH` env var). Auto-registers its resolver with `Pote`
-  on application start so `Pote.parse("theme:<key>")` consults Alaja's
-  active theme.
-- **Five built-in templates** with the full 22-key colour set
-  (`primary, secondary, ternary, quaternary, success, warning, error,
-  info, debug, happy, sad, gradient_1..6, menu, alert, critical,
-  no_color, background`): `default, dracula, monokai, nord, light`.
-- **`Alaja.Application`** — registers Pote's theme resolver on boot
-  so `Pote.parse("theme:<key>")` consults the active theme.
-- **`Alaja.Config.lookup_theme_color/1`** — looks up a key in the
-  active theme (used by Pote's theme resolver bridge).
+* **`Alaja.Input`** — pure parser for raw terminal bytes → `Msg.t()`.
+  Supports ASCII printable, control chars, arrow keys (CSI A/B/C/D),
+  function keys (F1-F12), nav keys (Home, End, PageUp, PageDown,
+  Insert, Delete), SS3 sequences, Alt-? (ESC + char), kitty keyboard
+  protocol (CSI N u with modifiers), Shift+Tab (CSI 1;2 Z), and
+  resize (CSI 8 ; rows ; cols t).
+
+* **`Alaja.Backend.Tty`** — real-terminal backend. Enables alt
+  screen, hides cursor, queries kitty keyboard protocol, enables
+  bracketed paste on init; reverses on shutdown. Uses
+  `Alaja.Renderer.diff/2` for minimal diff rendering. Safe against
+  double-init (idempotent), panic (try/rescue), and BEAM crash
+  (System.at_exit hook).
+
+* **`Alaja.TestBackend`** — virtual N×M grid for tests. Stores
+  frames in a queue; helpers `frame/1`, `frame_text/2`,
+  `frame_string/1`, `send_msg/2`, `all_frames/1`.
+
+* **`Alaja.Renderer.diff/2`** — computes the minimal escape
+  sequence to take a terminal from `prev_frame` to `next_frame`.
+  Walks both frames row by row, finds runs of consecutive changed
+  cells, emits a single CSI CUP `ESC[row;colH` per run followed by
+  the characters. A final `ESC[0m` reset is always appended.
+
+* **`Alaja.Layout`** — flexbox-style layout engine. Supports
+  `:text`, `:column`, `:row`, `:box` (border + padding), `:rule`,
+  `:status_bar` (anchored to bottom row of the root frame), `:grid`.
+  Flex distributes free space proportionally. Gap, padding,
+  alignment, and box-border all supported.
+
+* **`Alaja.Frame`** — N×M terminal frame backed by `Alaja.Buffer`.
+  Facade over `Buffer` adding `put_text/4` (right-padded),
+  `row_text/2` (trimmed), and `cells/1` (raw map).
+
+* **`Alaja.View.Node`** — node tree. Builders: `text/2`, `column/2`,
+  `row/2`, `box/2`, `rule/1`, `status_bar/2`, `grid/2`. Props:
+  `:flex`, `:width`, `:height`, `:align`, `:padding`, `:gap`,
+  `:border`, `:wrap`, `:style`, `:content`, `:columns`. Metadata
+  via `meta/2`, `put_meta/3`.
+
+* **`Alaja.Components`** — stateful UI components:
+    * `ListState` (scrollable, focused selection with `>` marker)
+    * `TabsState` (left/right rotation with `[ name ]` highlight)
+    * `LogState` (append-only with `max_lines` rotation)
+    * `ProgressState` (bar + percent)
+
+* **`Alaja.FocusManager`** — id-based focus stack with `next/1`,
+  `prev/1`, `focus/2`, `focused/1`, `focused?/2`.
+
+* **`Alaja.Text.width/1`** — visible cell-width of a string with
+  CJK and combining-mark awareness.
+
+* **`Alaja.Config`** — extended to honor the `NO_COLOR` environment
+  variable (https://no-color.org/).
+
+* **Examples** under `examples/`:
+    * `counter.exs` — minimal state transition
+    * `list_scroll.exs` — `ListState` with up/down
+    * `tabs.exs` — `TabsState` with left/right
+    * `dashboard.exs` — three `ProgressState` + `Sub.tick/1`
+    * `demo.exs` — combined: focus + tabs + list + log + progress
+
+* **Migration guide** (`MIGRATION.md`) — 2.x → 3.0 cookbook with
+  side-by-side examples.
+
+* **Benchmarks** (`bench/bench.exs`) — layout, renderer, input
+  parse, text width.
+
+* **CHANGELOG.md** — this file.
 
 ### Changed
 
-- **`Alaja.Components.Table.render/2`** now returns `Buffer.t/0` for
-  the canonical entry point. Use `Table.render_iodata/2` for the
-  legacy iodata path (exotic formatting only).
-- **`Alaja.Printer.print_raw/2`** now accepts both `Buffer.t()` and
-  iodata. The Buffer path uses `Buffer.to_iodata/1` internally and
-  applies box wrapping at the Buffer level to preserve ANSI
-  coalescing end-to-end.
-- **`Alaja.Components.ColorWheel`** exposes a canonical `render/2`,
-  `render_for_terminal/2`, and `default_opts/0` API that returns
-  `Buffer.t/0`. The PNG path is reached through
-  `render_for_terminal/2`'s `{:image, iodata}` return value.
-- **`Alaja.Components.Box.render/2`** now returns a `Buffer.t()` and
-  accepts a `Buffer.t()` as content (Buffer-in, Buffer-out pipeline).
-- **`Alaja.CLI.Definition.cast_flag_value/3` failure mode** for bad
-  `:integer/:float` input changed from "raise" to "fall back to default".
-- **`Alaja.Syntax.Renderer.Theme`** is now aliased into `Alaja.Syntax`
-  so `Theme.resolve/3` is reachable from the new `highlight_buffer/3`
-  without a fully-qualified call.
-- **i18n**: translated remaining Spanish docstrings and inline comments
-  to English across the library.
-- **Self-hosting**: `Alaja.CLI` now uses `use Alaja.CLI.Definition`
-  to define its commands (replaces manual `command_dispatch/0` and
-  `command_descriptions/0`).
-- **Dep switch**: `pote` is now pinned to `~> 2.0` on Hex.pm
-  (was `github: "Lorenzo-SF/pote", branch: "main"`). Required for
-  `mix hex.build` to succeed.
-- **`Alaja.Helpers`** no longer exposes the 11 deprecated ANSI
-  wrappers (`move, clear, hide_cursor, show_cursor, clear_line, fg, bg,
-  bold, dim, italic, reset`); internal helpers call `Alaja.ANSI.*`
-  directly.
-- **DSL `run` macro** accepts `{module, function}` tuples instead of
-  arbitrary anonymous functions.
-- **`Pote.Conversions.*`** calls in `Alaja.CLI.Commands.Color` migrated
-  to `Pote.Converters.Advanced.*` and `Pote.Converters.RGB.*`.
+* `Alaja.Backend` behaviour now requires `render/3` (with
+  `prev_frame` as third argument) instead of `render/2`. Backends
+  that only support full-frame writes can ignore the new argument
+  (the default implementation discards it).
+
+* `Alaja.App.update/2` returns `{:ok, state, [Cmd.t()]}` (with
+  optional Cmd list). Apps that don't need Cmds can keep using
+  the 2-tuple form; the runtime accepts both.
+
+* `Alaja.Layout.measure/2` and `render_to_frame/3` are the
+  public entry points. The internal `do_arrange/7` is private.
 
 ### Fixed
 
-- **BUG**: `alaja color <cualquiersa>` crashed with `ArgumentError: not
-  an iodata term` in `Printer.print_raw/2`. Root cause:
-  `Alaja.Components.Table.render/2` was migrated to return `Buffer.t/0`
-  but the CLI Color command still embedded the Buffer inside an
-  iolist. Fixed by applying `Buffer.to_iodata/1` in `build_color_analysis/3`
-  and the extras table block in `lib/alaja/cli/commands/color.ex`
-  (matches the pattern in `multi_bar.ex` and `show/bar.ex`).
-- **BUG**: `Alaja.Components.MultiBar` repaint used fragile DEC SC/RC
-  (`\e7`/`\e8`); replaced with cursor-up (`\r` + `\e[<line_count-1>A` +
-  `\e[J`). Old approach caused frames to accumulate on terminals that
-  don't implement the DEC private save/restore stack reliably (iTerm2,
-  Terminal.app, Kitty).
-- **BUG**: `Alaja.Printer.print_raw/2` crashed with `ArgumentError:
-  not an iodata term` whenever input was `Buffer.t()` and `:box` was
-  set. Fixed by applying box wrapping at the Buffer level so ANSI
-  coalescing is preserved end-to-end.
-- **BUG**: `Alaja.CLI.Definition.main/1` used to call `System.halt/1`
-  on every dispatch error, making the framework unusable as a library.
-  Now returns `{:error, reason}` unless the consumer opts in via
-  `halt_on_error: true`.
-- **BUG**: `question_with_options/3` only matched the user's input
-  against the full display label. Now lists options under the prompt
-  with 1-based indices and matches in order: integer index, exact
-  label (case-insensitive), label prefix (case-insensitive), atom name,
-  or `:error`. New `:default` kwarg picks a 1-based default index.
-  `yesno/2` rewritten on top of it.
-- **BUG**: `alaja config theme set <name>` did not change the colour
-  palette used by `theme:<key>` lookups or atom lookups. `alaja config
-  init` was writing hand-rolled theme JSON in the legacy
-  `{"rgb": [r,g,b]}` format that Pote's resolver didn't recognise.
-  Now uses `Alaja.Theme.install_template/1` with the correct flat
-  `[r,g,b]` format and the full 22-key colour set.
-- **BUG**: every escript started with `:theme_active` unset in
-  Application env, even when the user had persisted a theme choice.
-  `Alaja.Application.start/2` now calls `Alaja.Config.ensure_loaded/0`
-  BEFORE `Theme.register_with_pote/0`. `Config.ensure_loaded/0` is now
-  public.
-- **BUG**: `dispatch_main/1` never started the OTP application, so
-  `Theme.register_with_pote/0` was never invoked in escript mode.
-- **BUG**: `subcommand` DSL macro produced flat `@commands` entries
-  with `subcommands: %{}` — inner `command` macros accumulated at the
-  top level instead of nesting under the parent.
-- **BUG**: 14 `System.halt(1)` calls in library-accessible paths
-  killed the entire BEAM when used as a library; replaced with
-  `exit({:shutdown, 1})`.
-- **BUG**: `Json.render/2` produced non-deterministic key order for
-  maps; keys are now sorted recursively via `Jason.OrderedObject`.
-- **BUG**: division by zero in `Pulsar.render_frame/3` when
-  `pulse_chars: []` was passed.
-- **BUG**: `batamanta` dep version bumped from 1.5.1 to 1.6.0.
-- **LINT**: all Credo `--strict` issues resolved (cyclomatic complexity,
-  alias ordering, `cond` → `if`, implicit `try`/`catch`).
-- **LINT**: all compiler warnings eliminated (unused variables,
-  ungrouped function clauses, never-match patterns, dead code).
-- **LINT**: `__before_compile__/1` macro no longer generates dead
-  `if` block when `@halt_on_error` is `false`.
-- **LINT**: `dispatch/2` has a proper `@spec` so external consumers
-  get a known return type instead of `dynamic()`.
+* `Layout.measure` for `:grid` no longer uses an invalid
+  `Enum.chunk_every/4` call (was passing a list as `step`).
+* `Layout.do_arrange` for `:status_bar` now anchors to the root
+  frame's bottom row, not the local placement's bottom.
+* `Layout.draw_box` no longer drops the border when rendering a
+  child; child frames are now overlaid onto the parent frame at
+  the correct inner offset.
+* `Buffer.put` with a string and no fg/bg no longer leaks any
+  pre-existing style from a previous write.
+* `Cmd.run(%SendMsg{...})` now correctly targets the GenServer
+  via `Alaja.App.update/2` (was hitting `GenServer.cast` directly
+  on the test process and wrapping the message in `:$gen_cast`).
 
-### Migration
+### Backwards compatibility
 
-- If you called `ColorWheel.render/2` (returning iodata), migrate to
-  `ColorWheel.render_for_terminal/2` and pattern-match on the tagged
-  tuple, or use the new `ColorWheel.render/2` which returns
-  `Buffer.t/0`.
-- If you called `Table.render/2` expecting iodata, switch to
-  `Table.render_iodata/2` (or wrap with `Buffer.to_iodata/1`).
-- If you called `Box.render/2` and composed the result with iodata,
-  switch to `Buffer.to_iodata(Box.render(...))` or use `Box.print/2`.
-- If you wrote `cast_flag_value/3` test fixtures, the new `:path, :url,
-  :color_list` types now exist; the failure mode for bad
-  `:integer/:float` input has changed from "raise" to "fall back to
-  default".
-- Downstream consumers (Delfos, Apero, etc.) that only use
-  `X.print(...)` and `Alaja.print_raw(string)` see **zero breaking
-  changes**.
+* The 2.x CLI is unchanged. Existing `mix alaja.*` commands still
+  work.
+* `Alaja.Backend` implementations that only define `render/2` will
+  fail to compile against the new behaviour. To migrate, add
+  `render/3` with `_prev_frame` as the third argument and ignore
+  it. The `Alaja.Backend.render/4` helper calls `mod.render/3`.
 
-## [1.0.0] - 2026-06-10
+### Known issues
 
-### Added
-- Initial open source release: DSL, components, rendering, syntax
-  highlighting, ANSI utilities.
-
-[2.2.0]: https://hex.pm/packages/alaja/2.2.0
-[2.1.0]: https://hex.pm/packages/alaja/2.1.0
-[2.0.0]: https://hex.pm/packages/alaja/2.0.0
-[1.0.0]: https://hex.pm/packages/alaja/1.0.0
-
-
-> ## A note on history
->
-> The git history of this repository was reset as part of a deliberate
-> cleanup effort. The commits you can read here describe the codebase as
-> it stands today — they do not preserve the original chronology of
-> development.
->
-> Anything worth keeping from before the reset was carried forward as
-> tagged releases with explicit `CHANGELOG.md` entries. Anything not
-> preserved is, by the maintainer's choice, no longer part of the
-> canonical development line.
->
-> Tag `1.0.0` points to the initial open-source cut-over; tag `2.0.0`
-> points to the current HEAD and the canonical Buffer-first release.
-> All versioned artifacts on Hex.pm and GitHub Releases follow this
-> convention.
+* Mouse events (CSI M) are parsed by the input parser but the
+  Tty backend doesn't enable mouse tracking by default. Set
+  `Application.put_env(:alaja, :mouse, true)` and the backend
+  will emit the enable sequence.
+* Bracketed paste content is delivered as a single string; the
+  Tty backend doesn't yet split by lines or call the parser on
+  each line.
