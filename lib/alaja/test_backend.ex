@@ -34,7 +34,7 @@ defmodule Alaja.TestBackend do
   end
 
   @doc false
-  def render(state, %Frame{} = frame) do
+  def render(state, %Frame{} = frame, _prev_frame) do
     {:ok, %{state | frames: [frame | state.frames]}}
   end
 

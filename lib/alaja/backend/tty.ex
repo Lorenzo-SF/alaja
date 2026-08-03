@@ -4,35 +4,37 @@ defmodule Alaja.Backend.Tty do
   escape sequences. Wraps each frame write in a CSI ?2026 sync block
   for tear-free updates on terminals that support it.
 
-  The current implementation is intentionally minimal — the full
-  renderer (style changes, cursor moves, skip-N) is implemented in
-  AL-3. This module ships with a `render/2` that writes the frame
-  row-by-row and is sufficient for AL-2's tests.
+  Uses `Alaja.Renderer.diff/2` to emit only the cells that changed
+  between the previous and the next frame.
+
+  The state holds `prev_frame` so consecutive calls produce minimal
+  diffs.
   """
 
   @behaviour Alaja.Backend
 
-  alias Alaja.Frame
+  alias Alaja.{Frame, Renderer}
 
   @type state :: %{
           size: {pos_integer(), pos_integer()},
-          raw_mode: boolean()
+          raw_mode: boolean(),
+          prev_frame: Frame.t() | nil
         }
 
   @doc false
   def init(opts) do
     size = Keyword.get(opts, :size, default_size())
     raw = Keyword.get(opts, :raw_mode, true)
-    {:ok, %{size: size, raw_mode: raw}}
+    {:ok, %{size: size, raw_mode: raw, prev_frame: nil}}
   end
 
   @doc false
-  def render(state, %Frame{} = frame) do
-    rows = render_rows(frame)
+  def render(state, %Frame{} = frame, _prev_frame) do
+    diff = Renderer.diff(state.prev_frame, frame)
     IO.write(:stdio, "\e[?2026h")
-    IO.write(:stdio, ["\e[H", rows])
+    IO.write(:stdio, diff)
     IO.write(:stdio, "\e[?2026l")
-    {:ok, state}
+    {:ok, %{state | prev_frame: frame}}
   end
 
   @doc false
@@ -45,14 +47,6 @@ defmodule Alaja.Backend.Tty do
   def shutdown(state) do
     IO.write(:stdio, "\e[0m\e[?25h\e[?1049l")
     {:ok, state}
-  end
-
-  defp render_rows(%Frame{} = f) do
-    1..f.buffer.height
-    |> Enum.map(fn row ->
-      Frame.row_text(f, row)
-    end)
-    |> Enum.join("\r\n")
   end
 
   defp default_size do

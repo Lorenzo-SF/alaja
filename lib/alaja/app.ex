@@ -304,8 +304,9 @@ defmodule Alaja.App do
   defp after_update(s, state, cmds) do
     new_view = run_view(s.mod, state)
     new_frame = render_view(new_view, s.size, s.opts)
+    prev_frame = s.last_frame
 
-    case Backend.render(s.backend_mod, s.backend_state, new_frame) do
+    case Backend.render(s.backend_mod, s.backend_state, new_frame, prev_frame) do
       {:ok, backend_state} ->
         Enum.each(cmds, fn cmd -> Cmd.run(cmd, self()) end)
         new_subs = run_subs(s.mod, state)
@@ -314,7 +315,7 @@ defmodule Alaja.App do
         %{s |
           state: state,
           backend_state: backend_state,
-          prev_frame: s.last_frame,
+          prev_frame: prev_frame,
           last_view: new_view,
           last_frame: new_frame,
           subs: new_subs

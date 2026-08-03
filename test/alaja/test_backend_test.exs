@@ -16,10 +16,10 @@ defmodule Alaja.TestBackendTest do
     assert state.size == {80, 24}
   end
 
-  test "render/2 stores frame in state" do
+  test "render/3 stores frame in state" do
     {:ok, state} = TestBackend.init(width: 10, height: 5)
     frame = Frame.new(10, 5)
-    {:ok, state} = TestBackend.render(state, frame)
+    {:ok, state} = TestBackend.render(state, frame, nil)
     assert TestBackend.frame(state) == frame
   end
 
@@ -27,15 +27,15 @@ defmodule Alaja.TestBackendTest do
     {:ok, state} = TestBackend.init(width: 4, height: 2)
     f1 = Layout.render_to_frame(Node.text("one"), 4, 2)
     f2 = Layout.render_to_frame(Node.text("two"), 4, 2)
-    {:ok, state} = TestBackend.render(state, f1)
-    {:ok, state} = TestBackend.render(state, f2)
+    {:ok, state} = TestBackend.render(state, f1, nil)
+    {:ok, state} = TestBackend.render(state, f2, f1)
     assert [^f2, ^f1] = TestBackend.all_frames(state)
   end
 
   test "frame_text/2 returns row text" do
     {:ok, state} = TestBackend.init(width: 10, height: 2)
     frame = Layout.render_to_frame(Node.text("hi"), 10, 2)
-    {:ok, state} = TestBackend.render(state, frame)
+    {:ok, state} = TestBackend.render(state, frame, nil)
     assert TestBackend.frame_text(state, 1) == "hi"
   end
 
@@ -48,7 +48,7 @@ defmodule Alaja.TestBackendTest do
         2
       )
 
-    {:ok, state} = TestBackend.render(state, frame)
+    {:ok, state} = TestBackend.render(state, frame, nil)
     assert TestBackend.frame_string(state) == "hi\nok"
   end
 

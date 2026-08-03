@@ -23,7 +23,7 @@ defmodule Alaja.Backend do
         @impl true
         def init(opts), do: ...
         @impl true
-        def render(state, frame), do: ...
+        def render(state, frame, prev_frame), do: ...
         @impl true
         def size(state), do: ...
         @impl true
@@ -36,7 +36,7 @@ defmodule Alaja.Backend do
   alias Alaja.{Frame, Msg}
 
   @callback init(keyword()) :: {:ok, term()} | {:error, term()}
-  @callback render(term(), Frame.t()) :: {:ok, term()} | {:error, term()}
+  @callback render(term(), Frame.t(), Frame.t() | nil) :: {:ok, term()} | {:error, term()}
   @callback size(term()) :: {pos_integer(), pos_integer()}
   @callback read_event(term()) :: {:ok, Msg.t()} | {:error, term()}
   @callback shutdown(term()) :: :ok
@@ -55,9 +55,9 @@ defmodule Alaja.Backend do
   @spec init(module(), keyword()) :: {:ok, term()} | {:error, term()}
   def init(mod, opts), do: mod.init(opts)
 
-  @doc "Helper: calls `render/2`."
-  @spec render(module(), term(), Frame.t()) :: {:ok, term()} | {:error, term()}
-  def render(mod, state, frame), do: mod.render(state, frame)
+  @doc "Helper: calls `render/3` with prev_frame."
+  @spec render(module(), term(), Frame.t(), Frame.t() | nil) :: {:ok, term()} | {:error, term()}
+  def render(mod, state, frame, prev_frame \\ nil), do: mod.render(state, frame, prev_frame)
 
   @doc "Helper: calls `size/1`."
   @spec size(module(), term()) :: {pos_integer(), pos_integer()}
