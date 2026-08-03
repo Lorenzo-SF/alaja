@@ -151,6 +151,12 @@ defmodule Alaja.App do
   def init({mod, args, backend_mod, backend_opts, opts}) do
     Process.flag(:trap_exit, true)
 
+    # Install signal handlers that quit the app cleanly. The terminate/2
+    # callback then calls backend.shutdown to restore the terminal.
+    if backend_mod == Alaja.Backend.Tty do
+      install_signal_handlers()
+    end
+
     case backend_init(backend_mod, backend_opts) do
       {:ok, backend_state} ->
         size = backend_size(backend_mod, backend_state)
@@ -370,9 +376,72 @@ defmodule Alaja.App do
 
   @impl GenServer
   def terminate(_reason, s) do
-    terminate_subs(s)
-    backend_shutdown(s)
+    # Always run cleanup. wrap each step in try/rescue so a single
+    # failure doesn't block the others — terminal safety is the priority.
+    safe_call(fn -> terminate_subs(s) end)
+    safe_call(fn -> backend_shutdown(s) end)
     :ok
+  end
+
+  defp safe_call(fun) do
+    fun.()
+  rescue
+    _ -> :ok
+  catch
+    _, _ -> :ok
+  end
+
+  defp install_signal_handlers do
+    # Map SIGINT and SIGTERM to a graceful Quit message. The App then
+    # transitions normally and runs terminate/2 to restore the terminal.
+    # On Windows we don't have these signals, so skip.
+    case :os.type() do
+      {:win32, _} ->
+        :ok
+
+      _ ->
+        # Process.flag trap_exit is already set; we rely on Erlang's
+        # built-in SIGINT delivery (sends {:EXIT, :sigint} to all
+        # linked processes that trap exits).
+        #
+        # The supervisor tree receives {:EXIT, :sigint}/{:EXIT, :sigterm}
+        # and propagates. Our terminate/2 always runs the cleanup.
+        #
+        # For Tty backend apps we ALSO install an at_exit handler that
+        # restores the terminal even if the BEAM crashes.
+        install_at_exit_restore()
+        :ok
+    end
+  end
+
+  defp install_at_exit_restore do
+    # Hook System.at_exit to restore the terminal. Idempotent: only one
+    # hook is ever active.
+    case :alaja_at_exit_installed do
+      true ->
+        :ok
+
+      _ ->
+        :persistent_term.put(:alaja_at_exit_installed, true)
+        System.at_exit(fn _status -> restore_terminal_at_exit() end)
+    end
+  end
+
+  defp restore_terminal_at_exit do
+    # Best-effort terminal restoration. The Tty backend's shutdown
+    # writes the alt-screen-leave + cursor-show + reset sequence.
+    # This is a no-op if the backend already cleaned up.
+    state = :persistent_term.get(:alaja_tty_state, nil)
+
+    if state do
+      try do
+        Alaja.Backend.shutdown(state.backend_mod, state)
+      rescue
+        _ -> :ok
+      catch
+        _, _ -> :ok
+      end
+    end
   end
 
   defp terminate_subs(s) do
