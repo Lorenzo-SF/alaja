@@ -59,6 +59,6 @@ defmodule Alaja.CLI.Commands.Show.Breadcrumbs do
 
   defp printer_opts(g), do: GlobalOpts.to_printer_opts(g)
 
-  @spec help() :: :ok
+  @spec help() :: keyword()
   def help, do: @help_data
 end

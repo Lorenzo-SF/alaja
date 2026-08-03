@@ -226,6 +226,6 @@ defmodule Alaja.CLI.Commands.Show.Table do
   @doc """
   Prints help for the table command.
   """
-  @spec help() :: :ok
+  @spec help() :: keyword()
   def help, do: @help_data
 end

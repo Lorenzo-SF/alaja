@@ -244,7 +244,7 @@ defmodule Alaja.CLI.Commands.Theme do
 
   # ── Help ────────────────────────────────────────────────────────────────
 
-  @spec help() :: :ok
+  @spec help() :: String.t()
   def help, do: @help_data
 
   defp build_color_swatches(themes, theme_data, key, _name_col_w, theme_col_w, row) do

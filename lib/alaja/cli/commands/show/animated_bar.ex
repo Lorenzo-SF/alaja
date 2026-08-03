@@ -223,6 +223,6 @@ defmodule Alaja.CLI.Commands.Show.AnimatedBar do
   defp maybe_add(list, _key, nil), do: list
   defp maybe_add(list, key, value), do: Keyword.put(list, key, value)
 
-  @spec help() :: :ok
+  @spec help() :: keyword()
   def help, do: @help_data
 end

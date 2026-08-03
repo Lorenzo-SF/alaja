@@ -56,6 +56,6 @@ defmodule Alaja.CLI.Commands.Show.Separator do
   @doc """
   Prints help for the separator command.
   """
-  @spec help() :: :ok
+  @spec help() :: keyword()
   def help, do: @help_data
 end

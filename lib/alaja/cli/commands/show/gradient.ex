@@ -73,6 +73,6 @@ defmodule Alaja.CLI.Commands.Show.Gradient do
   @doc """
   Prints help for the gradient command.
   """
-  @spec help() :: :ok
+  @spec help() :: keyword()
   def help, do: @help_data
 end

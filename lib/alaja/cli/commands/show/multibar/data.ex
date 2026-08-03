@@ -174,7 +174,12 @@ defmodule Alaja.CLI.Commands.Show.Multibar.Data do
     {:error, "info <task_id> <message>"}
   end
 
+  # credo:disable-for-next-line Credo.Check.Warning.StringToAtom
   defp safe_atom(task_id) do
+    # Dynamic atom: task IDs come from the user, so we cannot use
+    # String.to_existing_atom/1 (which would crash for new IDs).
+    # The set of atoms created is bounded by the set of user-supplied IDs
+    # and persists for the application lifetime.
     {:ok, String.to_atom(task_id)}
   end
 

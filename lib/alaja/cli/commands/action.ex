@@ -319,6 +319,6 @@ defmodule Alaja.CLI.Commands.Action do
   @doc """
   Prints help for the `alaja action` command.
   """
-  @spec help() :: :ok
+  @spec help() :: keyword()
   def help, do: @help_data
 end

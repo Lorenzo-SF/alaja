@@ -19,7 +19,8 @@ defmodule Alaja.CLI.FlagParser do
   (presence = `true`), while typed flags consume the next arg as their
   value (unless the current arg uses `=value` syntax).
   """
-  @spec parse([map()], [String.t()]) :: {:ok, [{atom(), term()}]} | {:error, String.t()}
+  @spec parse([map()], [String.t()]) ::
+          {:ok, [{atom(), term()}], [String.t()]} | {:error, String.t()}
   def parse(flags, args) do
     do_parse(flags, args, [])
   end

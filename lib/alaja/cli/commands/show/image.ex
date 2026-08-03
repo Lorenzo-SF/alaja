@@ -125,6 +125,6 @@ defmodule Alaja.CLI.Commands.Show.Image do
   defp maybe_put(list, _key, nil), do: list
   defp maybe_put(list, key, value), do: Keyword.put(list, key, value)
 
-  @spec help() :: :ok
+  @spec help() :: keyword()
   def help, do: @help_data
 end

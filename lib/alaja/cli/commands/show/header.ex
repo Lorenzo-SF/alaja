@@ -69,6 +69,6 @@ defmodule Alaja.CLI.Commands.Show.Header do
   @doc """
   Prints help for the header command.
   """
-  @spec help() :: :ok
+  @spec help() :: keyword()
   def help, do: @help_data
 end

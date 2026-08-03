@@ -113,6 +113,20 @@ defmodule Alaja.Components.Table do
 
   defmodule Config do
     @moduledoc false
+
+    @type t :: %__MODULE__{
+            border_style: atom(),
+            border_chars: map() | nil,
+            padding: non_neg_integer(),
+            table_align: atom(),
+            border_color: term(),
+            border_effects: list(),
+            offset_spaces: non_neg_integer(),
+            offset_str: String.t(),
+            horizontal_segments: list(),
+            rendered_vertical: String.t()
+          }
+
     defstruct [
       :border_style,
       :border_chars,

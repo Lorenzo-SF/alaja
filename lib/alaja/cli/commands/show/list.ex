@@ -46,6 +46,6 @@ defmodule Alaja.CLI.Commands.Show.List do
     end
   end
 
-  @spec help() :: :ok
+  @spec help() :: keyword()
   def help, do: @help_data
 end
