@@ -264,6 +264,12 @@ defmodule Alaja.CLI.Definition do
             ["help"] ->
               render_full_help()
 
+            ["--version" | _] ->
+              render_version()
+
+            ["-v" | _] ->
+              render_version()
+
             _ ->
               Alaja.CLI.Definition.dispatch(@commands |> Enum.reverse(), args)
           end
@@ -285,6 +291,12 @@ defmodule Alaja.CLI.Definition do
           |> Enum.map(fn %{name: name, description: desc} -> {name, desc} end)
 
         Alaja.CLI.Help.summary(descriptions)
+        :ok
+      end
+
+      defp render_version do
+        vsn = Application.spec(:alaja, :vsn) |> to_string()
+        IO.puts("alaja #{vsn}")
         :ok
       end
     end

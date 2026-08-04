@@ -367,6 +367,12 @@ defmodule Alaja.CLI.HelpRuntimeTest do
     assert capture =~ "50%"
   end
 
+  test "main --version prints the version" do
+    capture = capture_io(fn -> Alaja.CLI.main(["--version"]) end)
+    assert capture =~ "alaja "
+    assert capture =~ ~r/\d+\.\d+\.\d+/
+  end
+
   defp capture_io(fun) do
     ExUnit.CaptureIO.capture_io(fn ->
       try do
