@@ -26,11 +26,16 @@ defmodule Alaja.CLI.HelpRuntimeTest do
         {Alaja.CLI.Commands.Show.Image, "image"},
         {Alaja.CLI.Commands.Show.Json, "json"},
         {Alaja.CLI.Commands.Show.List, "list"},
+        {Alaja.CLI.Commands.Show.Log, "log"},
         {Alaja.CLI.Commands.Show.Menu, "menu"},
+        {Alaja.CLI.Commands.Show.Message, "message"},
         {Alaja.CLI.Commands.Show.Multibar, "multibar"},
+        {Alaja.CLI.Commands.Show.Progress, "progress"},
         {Alaja.CLI.Commands.Show.Pulsar, "pulsar"},
+        {Alaja.CLI.Commands.Show.Scroll, "scroll"},
         {Alaja.CLI.Commands.Show.Separator, "separator"},
         {Alaja.CLI.Commands.Show.Table, "table"},
+        {Alaja.CLI.Commands.Show.Tabs, "tabs"},
         {Alaja.CLI.Commands.Show.YesNo, "yesno"}
       ] do
     test "#{cmd} --help does not crash" do
@@ -302,6 +307,64 @@ defmodule Alaja.CLI.HelpRuntimeTest do
       end)
 
     assert capture =~ "multibar"
+  end
+
+  test "scroll with --select and --max-visible renders" do
+    capture =
+      capture_io(fn ->
+        Alaja.CLI.Commands.Show.Scroll.run([
+          "a",
+          "b",
+          "c",
+          "--select",
+          "1",
+          "--max-visible",
+          "10"
+        ])
+      end)
+
+    assert capture =~ "b"
+    assert capture =~ "> "
+  end
+
+  test "tabs with --active renders" do
+    capture =
+      capture_io(fn ->
+        Alaja.CLI.Commands.Show.Tabs.run(["one", "two", "--active", "1"])
+      end)
+
+    assert capture =~ "one"
+    assert capture =~ "two"
+  end
+
+  test "log with --max-lines renders and trims" do
+    capture =
+      capture_io(fn ->
+        Alaja.CLI.Commands.Show.Log.run(["a", "b", "c", "--max-lines", "2"])
+      end)
+
+    assert capture =~ "b"
+    assert capture =~ "c"
+    refute capture =~ "a"
+  end
+
+  test "progress with --current, --total, --width, --label renders" do
+    capture =
+      capture_io(fn ->
+        Alaja.CLI.Commands.Show.Progress.run([
+          "--current",
+          "50",
+          "--total",
+          "100",
+          "--width",
+          "20",
+          "--label",
+          "build"
+        ])
+      end)
+
+    assert capture =~ "build"
+    assert capture =~ "50%"
   end
 
   defp capture_io(fun) do

@@ -21,12 +21,16 @@ defmodule Alaja.CLI.HelpCoverageTest do
     {Alaja.CLI.Commands.Show.Image, "image"},
     {Alaja.CLI.Commands.Show.Json, "json"},
     {Alaja.CLI.Commands.Show.List, "list"},
+    {Alaja.CLI.Commands.Show.Log, "log"},
     {Alaja.CLI.Commands.Show.Menu, "menu"},
     {Alaja.CLI.Commands.Show.Message, "message"},
     {Alaja.CLI.Commands.Show.Multibar, "multibar"},
+    {Alaja.CLI.Commands.Show.Progress, "progress"},
     {Alaja.CLI.Commands.Show.Pulsar, "pulsar"},
+    {Alaja.CLI.Commands.Show.Scroll, "scroll"},
     {Alaja.CLI.Commands.Show.Separator, "separator"},
     {Alaja.CLI.Commands.Show.Table, "table"},
+    {Alaja.CLI.Commands.Show.Tabs, "tabs"},
     {Alaja.CLI.Commands.Show.YesNo, "yesno"}
   ]
 

@@ -248,11 +248,44 @@ defmodule Alaja.CLI.Definition do
         Application.ensure_all_started(:alaja)
         Application.ensure_all_started(__otp_app__())
 
-        result = Alaja.CLI.Definition.dispatch(@commands |> Enum.reverse(), args)
+        # Top-level help: `alaja`, `alaja --help`, `alaja -h`, and `alaja help`
+        # all render the full help instead of trying to dispatch to a command.
+        result =
+          case args do
+            [] ->
+              render_full_help()
+
+            ["--help" | _] ->
+              render_full_help()
+
+            ["-h" | _] ->
+              render_full_help()
+
+            ["help"] ->
+              render_full_help()
+
+            _ ->
+              Alaja.CLI.Definition.dispatch(@commands |> Enum.reverse(), args)
+          end
 
         unquote(halt_block)
 
         result
+      end
+
+      defp render_full_help do
+        Alaja.CLI.Help.full()
+
+        # Print the available commands list as well, formatted like a
+        # one-screen reference, so callers see what's available without
+        # having to dig into the formatted tables.
+        descriptions =
+          @commands
+          |> Enum.reverse()
+          |> Enum.map(fn %{name: name, description: desc} -> {name, desc} end)
+
+        Alaja.CLI.Help.summary(descriptions)
+        :ok
       end
     end
   end

@@ -26,11 +26,15 @@ defmodule Alaja.CLI.Dispatch do
     Image,
     Json,
     List,
+    Log,
     Menu,
     Multibar,
+    Progress,
     Pulsar,
+    Scroll,
     Separator,
     Table,
+    Tabs,
     YesNo
   }
 
@@ -84,6 +88,14 @@ defmodule Alaja.CLI.Dispatch do
   def image(opts), do: Image.run(opts._args)
   @doc "Dispatches the `alaja list` command."
   def list(opts), do: List.run(opts._args)
+  @doc "Dispatches the `alaja scroll` command (FASE-2 component)."
+  def scroll(opts), do: Scroll.run(opts._args)
+  @doc "Dispatches the `alaja tabs` command (FASE-2 component)."
+  def tabs(opts), do: Tabs.run(opts._args)
+  @doc "Dispatches the `alaja log` command (FASE-2 component)."
+  def log(opts), do: Log.run(opts._args)
+  @doc "Dispatches the `alaja progress` command (FASE-2 component)."
+  def progress(opts), do: Progress.run(opts._args)
   @doc "Dispatches the `alaja ask` command."
   def ask(opts), do: Ask.run(opts._args)
   @doc "Dispatches the `alaja menu` command."
