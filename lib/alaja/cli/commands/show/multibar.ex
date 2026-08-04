@@ -6,16 +6,39 @@ defmodule Alaja.CLI.Commands.Show.Multibar do
   independent task with states: running, success, error, wait, info.
   """
 
+  alias Alaja.CLI.Commands.Show.Multibar.{Data, Renderer}
+  alias Alaja.CLI.GlobalOpts
+  alias Alaja.CLI.HelpFormatter
+  alias Alaja.CLI.Parser
+  alias Alaja.Components.MultiBar
+  alias Alaja.Helpers
+
   @help_data [
     title: "Alaja Multibar",
     subtitle: "Multi-task progress tracker with parallel bars",
-    size: :small
+    usage:
+      "alaja multibar --tasks 'id1:Title 1,id2:Title 2' [--title T] [--duration N] [--stdin] [--border normal|rounded|double|none] [--bar-width N] [--bar-color C] [--bar-empty-char C] [--bar-filled-char C] [--table-border normal|rounded|double|none] [--table-align left|center|right] [--status-color C]",
+    description: """
+    Drives multiple parallel progress bars. Without `--stdin`, runs a
+    5-second demo. With `--stdin`, reads commands like
+    `progress <id> <pct>` from stdin for scripting.
+    """,
+    options: [
+      {:tasks, :string, nil, "Comma-separated list of `id:Title` pairs (required)"},
+      {:title, :string, nil, "Optional title above the table"},
+      {:duration, :integer, 5, "Total demo duration in seconds"},
+      {:stdin, :boolean, false, "Read commands from stdin instead of demo mode"},
+      {:border, :string, "rounded", "Outer box border style"},
+      {:bar_width, :integer, 35, "Width of each bar in chars"},
+      {:bar_color, :string, nil, "Color of the bar fill"},
+      {:bar_empty_char, :string, "░", "Character for empty bar segments"},
+      {:bar_filled_char, :string, "▓", "Character for filled bar segments"},
+      {:table_border, :string, "normal", "Inner table border style"},
+      {:table_align, :string, "left", "Column alignment in the table"},
+      {:status_color, :string, nil,
+       "Comma-separated per-status colors (running,success,error,wait,info)"}
+    ]
   ]
-
-  alias Alaja.CLI.Commands.Show.Multibar.{Data, Renderer}
-  alias Alaja.CLI.GlobalOpts
-  alias Alaja.CLI.Parser
-  alias Alaja.Components.MultiBar
 
   @default_duration 5
   @default_bar_width 35
@@ -35,7 +58,12 @@ defmodule Alaja.CLI.Commands.Show.Multibar do
           stdin: :boolean,
           border: :string,
           bar_width: :integer,
-          bar_color: :string
+          bar_color: :string,
+          bar_empty_char: :string,
+          bar_filled_char: :string,
+          table_border: :string,
+          table_align: :string,
+          status_color: :string
         ]
       )
 
@@ -66,17 +94,26 @@ defmodule Alaja.CLI.Commands.Show.Multibar do
   defp run_multibar_with_tasks(opts, global, tasks) do
     title = Keyword.get(opts, :title)
     duration = Keyword.get(opts, :duration, @default_duration)
-    border = Data.parse_border(Keyword.get(opts, :border, "rounded"))
+    _border = Data.parse_border(Keyword.get(opts, :border, "rounded"))
     bar_width = Keyword.get(opts, :bar_width, @default_bar_width)
     bar_color = Parser.parse_color_opt(Keyword.get(opts, :bar_color))
+    bar_empty_char = Keyword.get(opts, :bar_empty_char)
+    bar_filled_char = Keyword.get(opts, :bar_filled_char)
+    table_border = Data.parse_border(Keyword.get(opts, :table_border, "normal"))
+    table_align = parse_align(Keyword.get(opts, :table_align))
+    status_color = parse_color(Keyword.get(opts, :status_color))
 
     multibar_opts =
       [
         tasks: tasks,
         title: title,
-        table_border: border,
+        table_border: table_border,
+        table_align: table_align,
         bar_width: bar_width,
-        bar_color: bar_color
+        bar_color: bar_color,
+        bar_empty_char: bar_empty_char,
+        bar_filled_char: bar_filled_char,
+        status_color: status_color
       ]
       |> Enum.reject(fn {_, v} -> is_nil(v) end)
 
@@ -158,6 +195,19 @@ defmodule Alaja.CLI.Commands.Show.Multibar do
     end
   end
 
-  @spec help() :: keyword()
-  def help, do: @help_data
+  defp parse_color(nil), do: nil
+
+  defp parse_color(s) do
+    case Pote.Orchestrator.parse_color(s) do
+      {:ok, c} -> c
+      _ -> nil
+    end
+  end
+
+  defp parse_align(nil), do: nil
+  defp parse_align(s) when is_binary(s), do: Helpers.safe_string_to_atom(s)
+  defp parse_align(_), do: nil
+
+  @spec help() :: :ok
+  def help, do: HelpFormatter.render(@help_data)
 end

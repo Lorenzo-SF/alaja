@@ -1,20 +1,32 @@
-# credo:disable-for-this-file Credo.Check.Readability.StringSigils
 defmodule Alaja.CLI.Commands.Show.Gradient do
   @moduledoc "`alaja gradient` — Display gradient-colored text."
 
-  @help_data [
-    title: "Alaja Gradient",
-    subtitle: "Display gradient-colored text",
-    size: :small
-  ]
-
-  alias Alaja.CLI.{GlobalOpts, Parser}
-  alias Alaja.Components.Gradient
+  alias Alaja.CLI.GlobalOpts
+  alias Alaja.CLI.HelpFormatter
+  alias Alaja.Components.Gradient, as: GradComp
   alias Alaja.Printer
 
-  @doc """
-  Runs the gradient command.
-  """
+  @help_data [
+    title: "Alaja Gradient",
+    subtitle: "Gradient-colored text (multi-color support)",
+    usage:
+      "alaja gradient <text> [--from C] [--to C] [--colors C,C,C] [--direction horizontal|vertical] [--bg] [--text-color C]",
+    description: """
+    Renders text with a gradient color treatment. Specify either
+    `--from` and `--to` (linear interpolation) or a `--colors` list
+    specifying the gradient stops.
+    """,
+    options: [
+      {:from, :string, nil, "Start color (hex, rgb(), or named)"},
+      {:to, :string, nil, "End color (hex, rgb(), or named)"},
+      {:colors, :string, nil, "Comma-separated gradient stops"},
+      {:direction, :string, "horizontal", "horizontal or vertical"},
+      {:bg, :boolean, false, "Apply the gradient to the background instead of the foreground"},
+      {:text_color, :string, nil, "Override the gradient with a single text color"}
+    ]
+  ]
+
+  @doc "Runs the gradient command."
   @spec run([String.t()]) :: :ok
   def run(args) do
     {global, rest} = GlobalOpts.parse(args)
@@ -34,45 +46,44 @@ defmodule Alaja.CLI.Commands.Show.Gradient do
     if global.help or Keyword.get(opts, :help, false) do
       help()
     else
-      case positional do
-        [] -> help()
-        lines -> render(Enum.join(lines, "\n"), opts, global)
-      end
+      text = Enum.join(positional, " ")
+      render(text, opts, global)
     end
   end
 
   defp render(text, opts, global) do
-    direction =
-      case Alaja.Helpers.safe_string_to_atom(Keyword.get(opts, :direction, "left_to_right")) do
-        {:ok, atom} -> atom
-        {:error, _} -> :left_to_right
-      end
+    grad_opts =
+      [
+        from: parse_color(Keyword.get(opts, :from)),
+        to: parse_color(Keyword.get(opts, :to)),
+        # Pass the raw string to the back-end; the component parses it.
+        colors: Keyword.get(opts, :colors),
+        direction: parse_direction(Keyword.get(opts, :direction)),
+        bg: Keyword.get(opts, :bg, false),
+        text_color: parse_color(Keyword.get(opts, :text_color))
+      ]
+      |> Enum.reject(fn {_, v} -> is_nil(v) end)
 
-    bg = Keyword.get(opts, :bg, false)
-    text_color = parse_color(Keyword.get(opts, :text_color))
-    colors_str = Keyword.get(opts, :colors)
-
-    render_opts = [
-      direction: direction,
-      bg: bg,
-      text_color: text_color,
-      colors: colors_str,
-      from: Keyword.get(opts, :from, "#FF0000"),
-      to: Keyword.get(opts, :to, "#0000FF")
-    ]
-
-    result = Gradient.render(text, render_opts)
-    Printer.print_raw(result, printer_opts(global))
+    rendered = GradComp.render(text, grad_opts)
+    Printer.print_raw(rendered, printer_opts(global))
   end
 
   defp parse_color(nil), do: nil
-  defp parse_color(s), do: Parser.parse_color_opt(s)
+
+  defp parse_color(s) do
+    case Pote.Orchestrator.parse_color(s) do
+      {:ok, c} -> c
+      _ -> nil
+    end
+  end
+
+  defp parse_direction(nil), do: :horizontal
+  defp parse_direction("horizontal"), do: :horizontal
+  defp parse_direction("vertical"), do: :vertical
+  defp parse_direction(_), do: :horizontal
 
   defp printer_opts(g), do: GlobalOpts.to_printer_opts(g)
 
-  @doc """
-  Prints help for the gradient command.
-  """
-  @spec help() :: keyword()
-  def help, do: @help_data
+  @spec help() :: :ok
+  def help, do: HelpFormatter.render(@help_data)
 end

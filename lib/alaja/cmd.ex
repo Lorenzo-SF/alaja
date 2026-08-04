@@ -107,7 +107,9 @@ defmodule Alaja.Cmd do
   @spec run(t(), pid()) :: :ok | {:error, term()}
   def run(%None{}, _app), do: :ok
   def run(%Log{message: msg}, _app), do: IO.puts(:stderr, msg) && :ok
-  def run(%SendMsg{target: target, msg: msg}, _app) when (is_pid(target) or is_atom(target)) and is_map(msg) do
+
+  def run(%SendMsg{target: target, msg: msg}, _app)
+      when (is_pid(target) or is_atom(target)) and is_map(msg) do
     Alaja.App.update(target, msg)
     :ok
   end
@@ -132,6 +134,7 @@ defmodule Alaja.Cmd do
   def run(other, _app), do: {:error, {:unknown_cmd, other}}
 
   defp run_list([], _app), do: :ok
+
   defp run_list([cmd | rest], app) do
     case run(cmd, app) do
       :ok -> run_list(rest, app)

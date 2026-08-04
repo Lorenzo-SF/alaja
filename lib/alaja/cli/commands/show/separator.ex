@@ -1,17 +1,23 @@
 defmodule Alaja.CLI.Commands.Show.Separator do
   @moduledoc "`alaja separator` — Display horizontal separator lines."
 
+  alias Alaja.CLI.GlobalOpts
+  alias Alaja.CLI.HelpFormatter
+  alias Alaja.Components.Separator, as: SepComp
+  alias Alaja.Printer
+
   @help_data [
     title: "Alaja Separator",
     subtitle: "Display horizontal separator lines",
-    size: :small
+    usage: "alaja separator [--char C] [--width N] [--text T] [--color C]",
+    description: "Draws a horizontal rule of the given character, optionally with embedded text.",
+    options: [
+      {:char, :string, "─", "Character used to draw the line"},
+      {:width, :integer, 60, "Total width in characters"},
+      {:text, :string, nil, "Optional text embedded in the line"},
+      {:color, :string, nil, "Color of the line"}
+    ]
   ]
-
-  alias Alaja.CLI.GlobalOpts
-
-  alias Alaja.Components.Separator, as: SepComp
-
-  alias Alaja.Printer
 
   @doc """
   Runs the separator command.
@@ -53,9 +59,7 @@ defmodule Alaja.CLI.Commands.Show.Separator do
 
   defp printer_opts(g), do: GlobalOpts.to_printer_opts(g)
 
-  @doc """
-  Prints help for the separator command.
-  """
-  @spec help() :: keyword()
-  def help, do: @help_data
+  @doc "Prints help for the separator command."
+  @spec help() :: :ok
+  def help, do: HelpFormatter.render(@help_data)
 end

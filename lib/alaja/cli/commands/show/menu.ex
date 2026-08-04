@@ -1,15 +1,23 @@
 defmodule Alaja.CLI.Commands.Show.Menu do
   @moduledoc "`alaja menu` — Display an interactive selection menu."
 
+  alias Alaja.CLI.GlobalOpts
+  alias Alaja.CLI.HelpFormatter
+  alias Alaja.Printer
+
   @help_data [
     title: "Alaja Menu",
     subtitle: "Display an interactive selection menu",
-    size: :small
+    usage:
+      "alaja menu [--header T] <item1> <item2> ... <itemN> [--color C] [--align left|center|right]",
+    description:
+      "Interactive menu: the first arg is the header (or use `--header`), the rest are the choices. The selected item is printed to stdout.",
+    options: [
+      {:header, :string, nil, "Header / prompt (defaults to first positional)"},
+      {:color, :string, nil, "Color of the menu items"},
+      {:align, :string, "left", "Alignment: left, center, right"}
+    ]
   ]
-
-  alias Alaja.CLI.GlobalOpts
-
-  alias Alaja.Printer
 
   @doc "Runs the `alaja menu` command from raw argv — shows an interactive menu and prints the selected item."
   @spec run([String.t()]) :: :ok | no_return()
@@ -64,6 +72,6 @@ defmodule Alaja.CLI.Commands.Show.Menu do
     end
   end
 
-  @spec help() :: keyword()
-  def help, do: @help_data
+  @spec help() :: :ok
+  def help, do: HelpFormatter.render(@help_data)
 end

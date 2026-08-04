@@ -6,15 +6,38 @@ defmodule Alaja.CLI.Commands.Show.Pulsar do
   pulsing characters that create a radar/wave effect.
   """
 
+  alias Alaja.CLI.Commands.Show.Pulsar.{Data, Renderer}
+  alias Alaja.CLI.GlobalOpts
+  alias Alaja.CLI.HelpFormatter
+  alias Alaja.CLI.Parser
+
   @help_data [
     title: "Alaja Pulsar",
     subtitle: "Pulsar/radar animation with gradient wave effect",
-    size: :small
+    usage:
+      "alaja pulsar <text> [--width N] [--height N] [--pulse-chars C] [--colors C,C,C] [--color C] [--speed N] [--align left|center|right] [--chars C] [--direction in|out] [--content-position-x N] [--content-position-y N] [--content-type text|image] [--image-path FILE]",
+    description: """
+    Renders a pulsar/radar animation. The text is drawn in the center
+    surrounded by a pulsing gradient ring/box. Useful as a long-running
+    indicator; Ctrl+C to cancel.
+    """,
+    options: [
+      {:text, :string, nil, "Text drawn in the center (or positional arg)"},
+      {:width, :integer, 40, "Width in cells"},
+      {:height, :integer, 7, "Height in rows"},
+      {:pulse_chars, :string, "•·∙●", "Characters used for the pulse ring"},
+      {:colors, :string, nil, "Comma-separated gradient colors"},
+      {:color, :string, nil, "Single color for the pulse"},
+      {:speed, :integer, 100, "Frames per second"},
+      {:align, :string, "center", "Text alignment"},
+      {:chars, :string, nil, "Custom pulse ramp chars (alt to pulse_chars)"},
+      {:direction, :string, "out", "Pulse direction: in (collapse) or out (expand)"},
+      {:content_position_x, :integer, nil, "Override content X position"},
+      {:content_position_y, :integer, nil, "Override content Y position"},
+      {:content_type, :string, "text", "Content type: text or image"},
+      {:image_path, :string, nil, "Path to image (when content_type=image)"}
+    ]
   ]
-
-  alias Alaja.CLI.Commands.Show.Pulsar.{Data, Renderer}
-  alias Alaja.CLI.GlobalOpts
-  alias Alaja.CLI.Parser
 
   @doc "Runs the `alaja pulsar` command — renders the radar/pulse animation for `--duration` ms."
   @spec run([String.t()]) :: :ok | no_return()
@@ -97,6 +120,6 @@ defmodule Alaja.CLI.Commands.Show.Pulsar do
     end
   end
 
-  @spec help() :: keyword()
-  def help, do: @help_data
+  @spec help() :: :ok
+  def help, do: HelpFormatter.render(@help_data)
 end

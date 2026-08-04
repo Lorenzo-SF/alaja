@@ -22,7 +22,7 @@ defmodule Alaja.TestBackend do
           width: pos_integer(),
           height: pos_integer(),
           frames: [Frame.t()],
-          events: [{pid(), Msg.t()}],
+          events: [{pid(), term()}],
           size: {pos_integer(), pos_integer()}
         }
 
@@ -72,7 +72,8 @@ defmodule Alaja.TestBackend do
   @spec frame_string(state()) :: String.t()
   def frame_string(state) do
     case frame(state) do
-      nil -> ""
+      nil ->
+        ""
 
       %Frame{} = f ->
         1..f.buffer.height
@@ -82,7 +83,7 @@ defmodule Alaja.TestBackend do
   end
 
   @doc "Injects a Msg into the test backend (for apps using `Alaja.App.update/2`)."
-  @spec send_msg(state(), Msg.t() | map()) :: :ok
+  @spec send_msg(state(), term()) :: {:ok, state()}
   def send_msg(state, msg) when is_map(msg) do
     {:ok, %{state | events: [{self(), msg} | state.events]}}
   end

@@ -145,10 +145,17 @@ defmodule Alaja.Input do
   defp handle_csi("u", params, acc, mods) do
     # kitty keyboard protocol: CSI <keycode> [; <modifiers> [; <base>]] u
     case params do
-      [kcode_digits] -> [Msg.key(kitty_decode(kcode_digits), modifiers: mods) | acc]
-      [kcode_digits, mod] -> [Msg.key(kitty_decode(kcode_digits), modifiers: mods ++ parse_mods(mod)) | acc]
-      [kcode_digits, mod, _base] -> [Msg.key(kitty_decode(kcode_digits), modifiers: mods ++ parse_mods(mod)) | acc]
-      _ -> acc
+      [kcode_digits] ->
+        [Msg.key(kitty_decode(kcode_digits), modifiers: mods) | acc]
+
+      [kcode_digits, mod] ->
+        [Msg.key(kitty_decode(kcode_digits), modifiers: mods ++ parse_mods(mod)) | acc]
+
+      [kcode_digits, mod, _base] ->
+        [Msg.key(kitty_decode(kcode_digits), modifiers: mods ++ parse_mods(mod)) | acc]
+
+      _ ->
+        acc
     end
   end
 
@@ -176,8 +183,11 @@ defmodule Alaja.Input do
   defp handle_csi("t", params, acc, _mods) do
     # CSI 8 ; rows ; cols t (resize)
     case params do
-      [[8], rows_digits, cols_digits] -> [Msg.resize(to_int(cols_digits), to_int(rows_digits)) | acc]
-      _ -> acc
+      [[8], rows_digits, cols_digits] ->
+        [Msg.resize(to_int(cols_digits), to_int(rows_digits)) | acc]
+
+      _ ->
+        acc
     end
   end
 
@@ -242,6 +252,7 @@ defmodule Alaja.Input do
 
   defp parse_mods(digits) do
     n = to_int(digits)
+
     []
     |> maybe_add(:shift, Bitwise.band(n, 1) != 0)
     |> maybe_add(:alt, Bitwise.band(n, 2) != 0)

@@ -26,7 +26,8 @@ defmodule Alaja.Frame do
 
   @doc "Creates a new frame of the given size."
   @spec new(non_neg_integer(), non_neg_integer()) :: t()
-  def new(width, height) when is_integer(width) and width >= 0 and is_integer(height) and height >= 0 do
+  def new(width, height)
+      when is_integer(width) and width >= 0 and is_integer(height) and height >= 0 do
     %__MODULE__{buffer: Buffer.new(width, height)}
   end
 
@@ -44,7 +45,8 @@ defmodule Alaja.Frame do
 
   @doc "Writes a single character at (x, y)."
   @spec put(t(), pos_integer(), pos_integer(), String.t() | Cell.t()) :: t()
-  def put(%__MODULE__{} = f, x, y, char) when is_integer(x) and x > 0 and is_integer(y) and y > 0 do
+  def put(%__MODULE__{} = f, x, y, char)
+      when is_integer(x) and x > 0 and is_integer(y) and y > 0 do
     new_buf =
       case char do
         %Cell{} = cell -> Buffer.put(f.buffer, x - 1, y - 1, cell)
@@ -56,7 +58,8 @@ defmodule Alaja.Frame do
 
   @doc "Writes a string at (x, y), padding with spaces to the frame width."
   @spec put_text(t(), pos_integer(), pos_integer(), String.t()) :: t()
-  def put_text(%__MODULE__{} = f, x, y, text) when is_binary(text) and is_integer(x) and x > 0 and is_integer(y) and y > 0 do
+  def put_text(%__MODULE__{} = f, x, y, text)
+      when is_binary(text) and is_integer(x) and x > 0 and is_integer(y) and y > 0 do
     width = f.buffer.width
     start_col = x - 1
     row = y - 1

@@ -41,6 +41,7 @@ defmodule Alaja.TestBackendTest do
 
   test "frame_string/1 joins rows" do
     {:ok, state} = TestBackend.init(width: 4, height: 2)
+
     frame =
       Layout.render_to_frame(
         Node.column([Node.text("hi"), Node.text("ok")]),

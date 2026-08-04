@@ -1,17 +1,33 @@
 defmodule Alaja.CLI.Commands.Show.Bar do
   @moduledoc "`alaja bar` — Display progress bars."
 
-  @help_data [
-    title: "Alaja Bar",
-    subtitle: "Display progress bars",
-    size: :small
-  ]
-
   alias Alaja.Buffer
   alias Alaja.CLI.GlobalOpts
+  alias Alaja.CLI.HelpFormatter
   alias Alaja.Components.Bar, as: BarComp
 
   alias Alaja.Printer
+
+  @help_data [
+    title: "Alaja Bar",
+    subtitle: "Display progress bars",
+    usage:
+      "alaja bar <value> [--max N] [--label T] [--width N] [--filled-char C] [--empty-char C] [--filled-color C] [--empty-color C] [--show-percent]",
+    description: """
+    Renders a single horizontal progress bar. `value` is the absolute
+    progress; `max` is the upper bound. The bar fills proportionally.
+    """,
+    options: [
+      {:max, :integer, 100, "Maximum value (default 100)"},
+      {:label, :string, nil, "Optional label drawn to the left of the bar"},
+      {:width, :integer, 40, "Bar width in characters"},
+      {:filled_char, :string, "▓", "Character used for the filled portion"},
+      {:empty_char, :string, "░", "Character used for the empty portion"},
+      {:filled_color, :string, "success", "Color of the filled portion"},
+      {:empty_color, :string, "background", "Color of the empty portion"},
+      {:show_percent, :boolean, true, "Show the percent label at the right"}
+    ]
+  ]
 
   @doc "Runs the `alaja bar` command from raw argv; prints help on `--help` or no value."
   @spec run([String.t()]) :: :ok | no_return()
@@ -86,6 +102,6 @@ defmodule Alaja.CLI.Commands.Show.Bar do
 
   defp printer_opts(g), do: GlobalOpts.to_printer_opts(g)
 
-  @spec help() :: keyword()
-  def help, do: @help_data
+  @spec help() :: :ok
+  def help, do: HelpFormatter.render(@help_data)
 end

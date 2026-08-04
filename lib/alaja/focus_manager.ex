@@ -55,6 +55,7 @@ defmodule Alaja.FocusManager do
   @doc "Returns the currently focused component id."
   @spec focused(t()) :: atom() | nil
   def focused(%__MODULE__{ids: []}), do: nil
+
   def focused(%__MODULE__{ids: ids, current: current}) do
     Enum.at(ids, current)
   end
@@ -75,6 +76,7 @@ defmodule Alaja.FocusManager do
   @doc "Rotates focus to the next component (wraps around)."
   @spec next(t()) :: t()
   def next(%__MODULE__{ids: []} = fm), do: fm
+
   def next(%__MODULE__{ids: ids, current: current} = fm) do
     %{fm | current: rem(current + 1, length(ids))}
   end
@@ -82,6 +84,7 @@ defmodule Alaja.FocusManager do
   @doc "Rotates focus to the previous component (wraps around)."
   @spec prev(t()) :: t()
   def prev(%__MODULE__{ids: []} = fm), do: fm
+
   def prev(%__MODULE__{ids: ids, current: current} = fm) do
     max = length(ids)
     %{fm | current: rem(current - 1 + max, max)}

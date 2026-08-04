@@ -104,8 +104,12 @@ defmodule Alaja.Backend.Tty do
     # Returns {:ok, msgs, state} where msgs is a list of Alaja.Msg.t()
     # parsed from accumulated bytes.
     case read_stdin_chunk() do
-      :eof -> {:error, :eof}
-      :no_input -> {:error, :no_input}
+      :eof ->
+        {:error, :eof}
+
+      :no_input ->
+        {:error, :no_input}
+
       {:ok, chunk} ->
         buf = state.input_buffer <> chunk
         {msgs, rest} = split_messages(buf)
@@ -196,8 +200,12 @@ defmodule Alaja.Backend.Tty do
   defp read_stdin_chunk do
     # In test environments there's no stdin; return no_input.
     case :erlang.port_info(0) do
-      :undefined -> :no_input
-      nil -> :no_input
+      :undefined ->
+        :no_input
+
+      nil ->
+        :no_input
+
       _ ->
         case :io.get_chars(:stdio, "", 0) do
           :eof -> :eof
@@ -218,14 +226,18 @@ defmodule Alaja.Backend.Tty do
 
   defp default_size do
     case :io.columns() do
-      {:error, _} -> 80
+      {:error, _} ->
+        80
+
       cols when is_integer(cols) and cols > 0 ->
         case :io.rows() do
           {:error, _} -> {cols, 24}
           rows when is_integer(rows) and rows > 0 -> {cols, rows}
           _ -> {cols, 24}
         end
-      _ -> {80, 24}
+
+      _ ->
+        {80, 24}
     end
   end
 end

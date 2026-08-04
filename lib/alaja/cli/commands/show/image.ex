@@ -1,15 +1,32 @@
 defmodule Alaja.CLI.Commands.Show.Image do
   @moduledoc "`alaja image` — Display images in terminal."
 
+  alias Alaja.CLI.GlobalOpts
+  alias Alaja.CLI.HelpFormatter
+  alias Alaja.ImageRenderer
+
   @help_data [
     title: "Alaja Image",
     subtitle: "Display images in the terminal",
-    size: :small
+    usage:
+      "alaja image --path FILE [--width N] [--height N] [--protocol auto|kitty|iterm2|sixel] [--to-ascii-art] [--ascii-chars C] [--ascii-color] [--ascii-saturation N] [--ascii-style blocks|detailed|simple|braille]",
+    description: """
+    Renders an image file. The protocol is auto-detected unless overridden.
+    `--to-ascii-art` falls back to an ASCII representation regardless of
+    the terminal's graphics protocol.
+    """,
+    options: [
+      {:path, :string, nil, "Path to the image file (required)"},
+      {:width, :integer, 40, "Target width in cells"},
+      {:height, :integer, 20, "Target height in cells"},
+      {:protocol, :string, "auto", "Graphics protocol: auto, kitty, iterm2, sixel"},
+      {:to_ascii_art, :boolean, false, "Force ASCII art output"},
+      {:ascii_chars, :string, nil, "Custom ASCII ramp characters"},
+      {:ascii_color, :boolean, true, "Use ANSI color in ASCII art"},
+      {:ascii_saturation, :float, 1.0, "Saturation factor (0.0-1.0)"},
+      {:ascii_style, :string, "detailed", "ASCII art style: blocks, detailed, simple, braille"}
+    ]
   ]
-
-  alias Alaja.CLI.GlobalOpts
-
-  alias Alaja.ImageRenderer
 
   @doc "Runs the `alaja image` command from raw argv; picks ascii or imgcat based on protocol and renders the image."
   @spec run([String.t()]) :: :ok | no_return()
@@ -81,7 +98,6 @@ defmodule Alaja.CLI.Commands.Show.Image do
   end
 
   defp parse_ascii_style(nil), do: nil
-
   defp parse_ascii_style("blocks"), do: :blocks
   defp parse_ascii_style("detailed"), do: :detailed
   defp parse_ascii_style("simple"), do: :simple
@@ -125,6 +141,6 @@ defmodule Alaja.CLI.Commands.Show.Image do
   defp maybe_put(list, _key, nil), do: list
   defp maybe_put(list, key, value), do: Keyword.put(list, key, value)
 
-  @spec help() :: keyword()
-  def help, do: @help_data
+  @spec help() :: :ok
+  def help, do: HelpFormatter.render(@help_data)
 end

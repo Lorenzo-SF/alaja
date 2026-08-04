@@ -104,6 +104,7 @@ defmodule Alaja.Sub do
   """
   @spec attach(t(), pid()) :: {:ok, pid()} | {:error, term()}
   def attach(%Keypress{}, _app), do: {:ok, spawn(fn -> :ok end)}
+
   def attach(%Tick{interval_ms: ms}, app) when is_integer(ms) and ms > 0 do
     pid =
       spawn_link(fn ->
@@ -132,7 +133,12 @@ defmodule Alaja.Sub do
   @spec detach(t(), pid() | nil) :: :ok
   def detach(%Keypress{}, _pid), do: :ok
   def detach(%Tick{}, nil), do: :ok
-  def detach(%Tick{}, pid) when is_pid(pid), do: Process.exit(pid, :normal) && :ok
+
+  def detach(%Tick{}, pid) when is_pid(pid) do
+    Process.exit(pid, :normal)
+    :ok
+  end
+
   def detach(%Resize{}, _pid), do: :ok
   def detach(%Mouse{}, _pid), do: :ok
   def detach(%Paste{}, _pid), do: :ok

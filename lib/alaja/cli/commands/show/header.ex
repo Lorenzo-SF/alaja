@@ -1,16 +1,26 @@
 defmodule Alaja.CLI.Commands.Show.Header do
   @moduledoc "`alaja header` — Display styled headers."
 
+  alias Alaja.CLI.GlobalOpts
+  alias Alaja.CLI.HelpFormatter
+  alias Alaja.Components.Header, as: HeaderComp
+  alias Alaja.Printer
+
   @help_data [
     title: "Alaja Header",
     subtitle: "Display styled headers with optional subtitle",
-    size: :small
+    usage:
+      "alaja header <title> [--subtitle T] [--size small|medium|large] [--color C] [--subtitle-color C] [--width N]",
+    description:
+      "Renders a styled header with optional subtitle. The title is drawn from the first positional argument.",
+    options: [
+      {:subtitle, :string, nil, "Subtitle text below the title"},
+      {:size, :string, "medium", "Size: small, medium, large"},
+      {:color, :string, nil, "Title color"},
+      {:subtitle_color, :string, nil, "Subtitle color"},
+      {:width, :integer, 80, "Width in characters"}
+    ]
   ]
-
-  alias Alaja.CLI.GlobalOpts
-  alias Alaja.Components.Header, as: HeaderComp
-
-  alias Alaja.Printer
 
   @doc """
   Runs the header command.
@@ -66,9 +76,7 @@ defmodule Alaja.CLI.Commands.Show.Header do
 
   defp printer_opts(g), do: GlobalOpts.to_printer_opts(g)
 
-  @doc """
-  Prints help for the header command.
-  """
-  @spec help() :: keyword()
-  def help, do: @help_data
+  @doc "Prints help for the header command."
+  @spec help() :: :ok
+  def help, do: HelpFormatter.render(@help_data)
 end

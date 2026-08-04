@@ -30,12 +30,14 @@ defmodule Alaja.FocusManagerTest do
     fm = FocusManager.new([:a, :b, :c]) |> FocusManager.next()
     assert FocusManager.focused(fm) == :b
     fm2 = fm |> FocusManager.next() |> FocusManager.next()
-    assert FocusManager.focused(fm2) == :a  # wrap
+    # wrap
+    assert FocusManager.focused(fm2) == :a
   end
 
   test "prev rotates" do
     fm = FocusManager.new([:a, :b, :c]) |> FocusManager.prev()
-    assert FocusManager.focused(fm) == :c  # wrap
+    # wrap
+    assert FocusManager.focused(fm) == :c
   end
 
   test "empty manager returns nil focused" do

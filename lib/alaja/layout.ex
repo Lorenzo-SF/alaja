@@ -61,7 +61,9 @@ defmodule Alaja.Layout do
   end
 
   def measure(%Node{tag: :rule}, _constraints), do: {1, 1}
-  def measure(%Node{tag: :status_bar, props: props}, _constraints), do: {String.length(Keyword.get(props, :content, "")), 1}
+
+  def measure(%Node{tag: :status_bar, props: props}, _constraints),
+    do: {String.length(Keyword.get(props, :content, "")), 1}
 
   def measure(%Node{tag: :box, children: [child | _], props: props}, constraints) do
     {cw, ch} = measure(child, constraints)
@@ -109,7 +111,7 @@ defmodule Alaja.Layout do
       Enum.map(children, fn c -> measure(c, constraints) end)
 
     # chunk into rows of `cols` to measure per-row width/height
-      {cw, rh} =
+    {cw, rh} =
       child_measurements
       |> Enum.chunk_every(cols)
       |> Enum.reduce({0, 0}, fn row, {mw, mh} ->
@@ -131,7 +133,15 @@ defmodule Alaja.Layout do
 
   Placements are returned bottom-up so callers can walk in render order.
   """
-  @spec arrange(Node.t(), constraints()) :: [%{node: Node.t(), x: pos_integer(), y: pos_integer(), w: pos_integer(), h: pos_integer()}]
+  @spec arrange(Node.t(), constraints()) :: [
+          %{
+            node: Node.t(),
+            x: pos_integer(),
+            y: pos_integer(),
+            w: pos_integer(),
+            h: pos_integer()
+          }
+        ]
   def arrange(node, constraints) do
     do_arrange(node, 1, 1, constraints.width, constraints.height, :start, constraints.height)
   end
@@ -154,7 +164,15 @@ defmodule Alaja.Layout do
     [%{node: node, x: x, y: frame_h, w: String.length(content), h: 1}]
   end
 
-  defp do_arrange(%Node{tag: :box, children: [child | _], props: props} = node, x, y, w, h, align, frame_h) do
+  defp do_arrange(
+         %Node{tag: :box, children: [child | _], props: props} = node,
+         x,
+         y,
+         w,
+         h,
+         align,
+         frame_h
+       ) do
     border = Keyword.get(props, :border, :none)
     pad = Keyword.get(props, :padding, 0)
 
@@ -181,7 +199,15 @@ defmodule Alaja.Layout do
     [%{node: %Node{tag: :box}, x: x, y: y, w: max(w, 0), h: max(h, 0)}]
   end
 
-  defp do_arrange(%Node{tag: :column, children: children, props: props} = _node, x, y, w, h, align, frame_h) do
+  defp do_arrange(
+         %Node{tag: :column, children: children, props: props} = _node,
+         x,
+         y,
+         w,
+         h,
+         align,
+         frame_h
+       ) do
     gap = Keyword.get(props, :gap, 0)
     pad = Keyword.get(props, :padding, 0)
     avail_h = max(h - 2 * pad, 0)
@@ -190,6 +216,7 @@ defmodule Alaja.Layout do
 
     # If we have a status_bar child, reserve the last row for it
     sb_idx = status_bar_index(children)
+
     {sb_reserved, non_sb_children} =
       if sb_idx do
         {1, List.delete_at(children, sb_idx)}
@@ -241,7 +268,15 @@ defmodule Alaja.Layout do
     sb_placements ++ placements
   end
 
-  defp do_arrange(%Node{tag: :row, children: children, props: props} = _node, x, y, w, h, align, frame_h) do
+  defp do_arrange(
+         %Node{tag: :row, children: children, props: props} = _node,
+         x,
+         y,
+         w,
+         h,
+         align,
+         frame_h
+       ) do
     gap = Keyword.get(props, :gap, 0)
     pad = Keyword.get(props, :padding, 0)
     avail_w = max(w - 2 * pad, 0)
@@ -279,7 +314,15 @@ defmodule Alaja.Layout do
     placements
   end
 
-  defp do_arrange(%Node{tag: :grid, children: children, props: props} = _node, x, y, w, h, align, frame_h) do
+  defp do_arrange(
+         %Node{tag: :grid, children: children, props: props} = _node,
+         x,
+         y,
+         w,
+         h,
+         align,
+         frame_h
+       ) do
     cols = max(Keyword.get(props, :columns, 1), 1)
     gap = Keyword.get(props, :gap, 0)
     pad = Keyword.get(props, :padding, 0)

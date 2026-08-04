@@ -1,17 +1,26 @@
 defmodule Alaja.CLI.Commands.Show.Breadcrumbs do
   @moduledoc "`alaja breadcrumbs` — Display navigation breadcrumbs."
 
+  alias Alaja.Buffer
+  alias Alaja.CLI.GlobalOpts
+  alias Alaja.CLI.HelpFormatter
+  alias Alaja.Components.Breadcrumbs, as: BCComp
+  alias Alaja.Printer
+
   @help_data [
     title: "Alaja Breadcrumbs",
     subtitle: "Display navigation breadcrumbs",
-    size: :small
+    usage:
+      "alaja breadcrumbs <item1> <item2> ... <itemN> [--separator C] [--color C] [--separator-color C] [--current-color C]",
+    description:
+      "Draws a horizontal trail of items separated by a separator character. The last item is highlighted as `current`.",
+    options: [
+      {:separator, :string, "›", "Separator character between items"},
+      {:color, :string, nil, "Color for items (item_color in back)"},
+      {:separator_color, :string, nil, "Color of the separator"},
+      {:current_color, :string, nil, "Color of the last (current) item"}
+    ]
   ]
-
-  alias Alaja.Buffer
-  alias Alaja.CLI.GlobalOpts
-  alias Alaja.Components.Breadcrumbs, as: BCComp
-
-  alias Alaja.Printer
 
   @doc "Runs the `alaja breadcrumbs` command from raw argv; prints help on `--help` or no items."
   @spec run([String.t()]) :: :ok | no_return()
@@ -59,6 +68,6 @@ defmodule Alaja.CLI.Commands.Show.Breadcrumbs do
 
   defp printer_opts(g), do: GlobalOpts.to_printer_opts(g)
 
-  @spec help() :: keyword()
-  def help, do: @help_data
+  @spec help() :: :ok
+  def help, do: HelpFormatter.render(@help_data)
 end

@@ -67,7 +67,8 @@ defmodule Alaja.App do
       @behaviour Alaja.App
 
       @doc false
-      def child_spec(args), do: Alaja.App.child_spec(args, unquote(Macro.escape(__CALLER__.module)))
+      def child_spec(args),
+        do: Alaja.App.child_spec(args, unquote(Macro.escape(__CALLER__.module)))
     end
   end
 
@@ -100,6 +101,7 @@ defmodule Alaja.App do
   @spec child_spec({module(), term()} | module(), keyword()) :: Supervisor.child_spec()
   def child_spec(app, opts) do
     name = Keyword.get(opts, :name, elem_or_module(app))
+
     %{
       id: name,
       start: {__MODULE__, :start_link, [app, opts]},
@@ -188,6 +190,7 @@ defmodule Alaja.App do
           {:halt, state} ->
             # init returned halt; render once so caller can inspect, then stop
             render = build_render_with_state(mod, state, size, opts)
+
             {:ok,
              %{
                mod: mod,
@@ -318,13 +321,14 @@ defmodule Alaja.App do
         new_subs = run_subs(s.mod, state)
         reattach_subs(s, new_subs)
 
-        %{s |
-          state: state,
-          backend_state: backend_state,
-          prev_frame: prev_frame,
-          last_view: new_view,
-          last_frame: new_frame,
-          subs: new_subs
+        %{
+          s
+          | state: state,
+            backend_state: backend_state,
+            prev_frame: prev_frame,
+            last_view: new_view,
+            last_frame: new_frame,
+            subs: new_subs
         }
 
       {:error, _reason} ->

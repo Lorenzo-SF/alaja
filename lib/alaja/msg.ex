@@ -21,12 +21,18 @@ defmodule Alaja.Msg do
 
   @type modifier :: :ctrl | :alt | :shift | :meta
   @type key_name :: String.t()
-  @type mouse_action :: :press | :release | :move | :drag | :wheel_up | :wheel_down | :wheel_left | :wheel_right
+  @type mouse_action ::
+          :press | :release | :move | :drag | :wheel_up | :wheel_down | :wheel_left | :wheel_right
   @type mouse_button :: :left | :right | :middle | :none
 
   @type t ::
           %Key{key: key_name(), modifiers: [modifier()], raw: binary()}
-          | %Mouse{action: mouse_action(), button: mouse_button(), x: pos_integer(), y: pos_integer()}
+          | %Mouse{
+              action: mouse_action(),
+              button: mouse_button(),
+              x: pos_integer(),
+              y: pos_integer()
+            }
           | %Resize{width: pos_integer(), height: pos_integer()}
           | %Paste{content: String.t()}
           | %Focus{id: term(), gain: boolean()}

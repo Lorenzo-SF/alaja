@@ -14,16 +14,36 @@ defmodule Alaja.CLI.Commands.Show.Table do
   defdelegate parse_border_opt(s), to: Base, as: :parse_border_opt, arity: 1
   @moduledoc "`alaja table` — Display formatted tables."
 
+  alias Alaja.CLI.GlobalOpts
+  alias Alaja.CLI.HelpFormatter
+  alias Alaja.Components.Table, as: TableComp
+  alias Alaja.Printer
+
   @help_data [
     title: "Alaja Table",
     subtitle: "Display formatted tables with borders and styling",
-    size: :small
+    usage:
+      "alaja table --headers 'col1,col2,col3' --rows 'a,b,c;d,e,f' [--border S] [--padding N] [--border-color C] [--border-effects E,E] [--headers-color C] [--headers-align left|center|right] [--headers-effects E,E] [--rows-color C] [--rows-align left|center|right] [--rows-effects E,E] [--table-align left|center|right]",
+    description: """
+    Renders a multi-column table. Headers and rows are passed as
+    semicolon-separated lists; column-aligned values are accepted.
+    """,
+    options: [
+      {:headers, :string, nil, "Comma-separated header titles"},
+      {:rows, :keep, nil, "Semicolon-separated rows; each row is comma-separated cells"},
+      {:border, :string, "rounded", "Border style (normal, rounded, double, single, bold, none)"},
+      {:padding, :integer, 1, "Cell padding"},
+      {:border_color, :string, nil, "Border color"},
+      {:border_effects, :string, nil, "Comma-separated border effects (bold, dim, etc.)"},
+      {:headers_color, :string, nil, "Header cell color"},
+      {:headers_align, :string, nil, "Header cell alignment"},
+      {:headers_effects, :string, nil, "Header cell effects"},
+      {:rows_color, :string, nil, "Body row color"},
+      {:rows_align, :string, nil, "Body row alignment"},
+      {:rows_effects, :string, nil, "Body row effects"},
+      {:table_align, :string, nil, "Default alignment for all cells"}
+    ]
   ]
-
-  alias Alaja.CLI.GlobalOpts
-  alias Alaja.Components.Table, as: TableComp
-
-  alias Alaja.Printer
 
   @doc """
   Runs the table command.
@@ -226,6 +246,6 @@ defmodule Alaja.CLI.Commands.Show.Table do
   @doc """
   Prints help for the table command.
   """
-  @spec help() :: keyword()
-  def help, do: @help_data
+  @spec help() :: :ok
+  def help, do: HelpFormatter.render(@help_data)
 end

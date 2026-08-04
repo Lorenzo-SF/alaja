@@ -1,10 +1,38 @@
 defmodule Alaja.CLI.Commands.Show.AnimatedBar do
-  @moduledoc "`alaja animated-bar` — Display animated progress bar."
+  @moduledoc "`alaja animated-bar` — Animated progress bar."
+
+  alias Alaja.CLI.HelpFormatter
 
   @help_data [
     title: "Alaja Animated Bar",
-    subtitle: "Display animated progress bar",
-    size: :small
+    subtitle: "Animated progress bar",
+    usage:
+      "alaja animated-bar <value> [--max N] [--type spinner|kitt|pulse|wave|rainbow] [--label T] [--width N] [--filled-char C] [--empty-char C] [--filled-color C] [--empty-color C] [--animation-color C] [--speed N] [--duration N] [--max-iterations N] [--spinner N] [--show-percent] [--kitt-width N] [--verbose]",
+    description: """
+    Renders an animated horizontal progress bar. Animates `value` (or any
+    value passed positionally) using the chosen animation type. `--duration`
+    in seconds terminates the animation; `--max-iterations` caps the frame
+    loop independently of duration.
+    """,
+    options: [
+      {:value, :integer, nil, "Numeric value (or pass as positional arg)"},
+      {:max, :integer, 100, "Maximum value"},
+      {:type, :string, "spinner", "Animation type: spinner, kitt, pulse, wave, rainbow"},
+      {:label, :string, nil, "Optional label"},
+      {:width, :integer, 40, "Bar width in characters"},
+      {:filled_char, :string, "▓", "Filled portion character"},
+      {:empty_char, :string, "░", "Empty portion character"},
+      {:filled_color, :string, "success", "Filled portion color"},
+      {:empty_color, :string, "background", "Empty portion color"},
+      {:animation_color, :string, nil, "Color of the animation character"},
+      {:speed, :integer, 100, "Frames per second"},
+      {:duration, :integer, nil, "Stop after N seconds (omit for unlimited)"},
+      {:max_iterations, :integer, nil, "Hard cap on frame count"},
+      {:spinner, :integer, nil, "Spinner variant index"},
+      {:show_percent, :boolean, true, "Show percent label"},
+      {:kitt_width, :integer, 3, "Width of the kitt animation tail"},
+      {:verbose, :boolean, false, "Dump 20 frames to stdout instead of animating"}
+    ]
   ]
 
   alias Alaja.CLI.GlobalOpts
@@ -32,7 +60,10 @@ defmodule Alaja.CLI.Commands.Show.AnimatedBar do
           speed: :integer,
           duration: :integer,
           show_percent: :boolean,
-          kitt_width: :integer
+          kitt_width: :integer,
+          max_iterations: :integer,
+          spinner: :string,
+          verbose: :boolean
         ]
       )
 
@@ -65,7 +96,8 @@ defmodule Alaja.CLI.Commands.Show.AnimatedBar do
     max = Keyword.get(opts, :max, 100)
     speed = Keyword.get(opts, :speed, 100)
     duration = Keyword.get(opts, :duration)
-    max_frames = compute_max_frames(duration, speed)
+    max_iterations = Keyword.get(opts, :max_iterations)
+    max_frames = compute_max_frames(duration, speed, max_iterations)
 
     bar_opts =
       [
@@ -202,14 +234,20 @@ defmodule Alaja.CLI.Commands.Show.AnimatedBar do
   # When no duration is set we return 100_000 to preserve the original
   # "animation runs forever" behaviour while still capping runaway loops
   # (the smoke tests pass `--duration 500` to terminate cleanly).
-  defp compute_max_frames(nil, _speed), do: 100_000
+  # `--max-iterations` overrides the cap when provided.
+  defp compute_max_frames(_nil, _speed, nil), do: 100_000
 
-  defp compute_max_frames(duration_ms, speed)
+  defp compute_max_frames(duration_ms, speed, nil)
        when is_integer(duration_ms) and duration_ms > 0 do
     max(1, div(duration_ms + speed - 1, speed))
   end
 
-  defp compute_max_frames(_, _), do: 100_000
+  defp compute_max_frames(_duration, _speed, max_iter)
+       when is_integer(max_iter) and max_iter > 0 do
+    max_iter
+  end
+
+  defp compute_max_frames(_, _, _), do: 100_000
 
   defp parse_color(nil), do: nil
 
@@ -223,6 +261,6 @@ defmodule Alaja.CLI.Commands.Show.AnimatedBar do
   defp maybe_add(list, _key, nil), do: list
   defp maybe_add(list, key, value), do: Keyword.put(list, key, value)
 
-  @spec help() :: keyword()
-  def help, do: @help_data
+  @spec help() :: :ok
+  def help, do: HelpFormatter.render(@help_data)
 end

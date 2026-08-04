@@ -1,15 +1,22 @@
 defmodule Alaja.CLI.Commands.Show.YesNo do
   @moduledoc "`alaja yesno` — Ask a Yes/No question."
 
+  alias Alaja.CLI.GlobalOpts
+  alias Alaja.CLI.HelpFormatter
+  alias Alaja.Printer
+
   @help_data [
     title: "Alaja YesNo",
     subtitle: "Ask an interactive Yes/No question",
-    size: :small
+    usage: "alaja yesno <question> [--default yes|no] [--color C] [--align left|center|right]",
+    description:
+      "Reads a yes/no answer from stdin and prints `yes` or `no` to stdout. Suitable for shell scripts.",
+    options: [
+      {:default, :string, "no", "Default answer if input is empty (yes/no, y/n)"},
+      {:color, :string, nil, "Prompt color"},
+      {:align, :string, "left", "Alignment: left, center, right"}
+    ]
   ]
-
-  alias Alaja.CLI.GlobalOpts
-
-  alias Alaja.Printer
 
   @doc "Runs the `alaja yesno` command — interactively reads a y/n answer from stdin and prints it."
   @spec run([String.t()]) :: :ok | no_return()
@@ -63,6 +70,6 @@ defmodule Alaja.CLI.Commands.Show.YesNo do
     end
   end
 
-  @spec help() :: keyword()
-  def help, do: @help_data
+  @spec help() :: :ok
+  def help, do: HelpFormatter.render(@help_data)
 end

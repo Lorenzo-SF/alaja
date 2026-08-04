@@ -25,6 +25,7 @@ defmodule Alaja.Components do
   defmodule ListState do
     @moduledoc false
     defstruct items: [], selected: 0, offset: 0, focused: false, max_visible: 10
+
     @type t :: %__MODULE__{
             items: [String.t()],
             selected: non_neg_integer(),
@@ -159,6 +160,7 @@ defmodule Alaja.Components do
   defmodule ProgressState do
     @moduledoc false
     defstruct current: 0, total: 100, width: 20, label: ""
+
     @type t :: %__MODULE__{
             current: non_neg_integer(),
             total: pos_integer(),
@@ -192,6 +194,7 @@ defmodule Alaja.Components do
     Alaja.View.Node.text(text)
   end
 
-  @spec progress_update(ProgressState.t(), Alaja.Msg.t()) :: {:ok, ProgressState.t(), [Alaja.Cmd.t()]}
+  @spec progress_update(ProgressState.t(), Alaja.Msg.t()) ::
+          {:ok, ProgressState.t(), [Alaja.Cmd.t()]}
   def progress_update(s, _), do: {:ok, s, []}
 end

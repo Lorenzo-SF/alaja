@@ -7,17 +7,41 @@ defmodule Alaja.CLI.Commands.Show.Message do
   `message` subcommand with full chunk styling.
   """
 
-  @help_data [
-    title: "Alaja Message",
-    subtitle: "Display formatted text with full styling",
-    size: :small
-  ]
-
   alias Alaja.CLI.GlobalOpts
+  alias Alaja.CLI.HelpFormatter
   alias Alaja.CLI.Parser
   alias Alaja.Components.Box
   alias Alaja.Printer
   alias Alaja.Structures.{ChunkText, MessageInfo}
+
+  @help_data [
+    title: "Alaja Message",
+    subtitle: "Display formatted text with full styling",
+    usage:
+      "alaja message <text> [--text T] [--color C] [--bg-color C] [--bold] [--italic] [--underline] [--dim] [--blink] [--reverse] [--hidden] [--strikethrough] [--padding N] [--addline C] [--chunk K=V]...",
+    description: """
+    Renders a styled message. Pass plain text as a positional argument,
+    or use `--text` plus styling switches. Use `--chunk key=value` to
+    emit multiple styled chunks with their own colors and effects.
+    """,
+    options: [
+      {:text, :string, nil, "Message text (or pass positional text)"},
+      {:color, :string, nil, "Foreground color"},
+      {:bg_color, :string, nil, "Background color"},
+      {:bold, :boolean, false, "Bold"},
+      {:italic, :boolean, false, "Italic"},
+      {:underline, :boolean, false, "Underline"},
+      {:dim, :boolean, false, "Dim"},
+      {:blink, :boolean, false, "Blink"},
+      {:reverse, :boolean, false, "Reverse video"},
+      {:hidden, :boolean, false, "Hidden"},
+      {:strikethrough, :boolean, false, "Strikethrough"},
+      {:padding, :integer, nil, "Padding around the message"},
+      {:addline, :string, nil, "Char to insert between chunks (eg space, comma)"},
+      {:chunk, :keep, nil, "key=value for a styled chunk (use multiple times)"},
+      {:align, :string, nil, "Override alignment (else uses --align global)"}
+    ]
+  ]
 
   @message_types ~w(success error warning info debug notice critical alert emergency happy sad)
 
@@ -310,6 +334,6 @@ defmodule Alaja.CLI.Commands.Show.Message do
   @doc """
   Prints help for the message command.
   """
-  @spec help() :: keyword()
-  def help, do: @help_data
+  @spec help() :: :ok
+  def help, do: HelpFormatter.render(@help_data)
 end

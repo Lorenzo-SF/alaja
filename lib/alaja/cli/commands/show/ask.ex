@@ -1,15 +1,21 @@
 defmodule Alaja.CLI.Commands.Show.Ask do
   @moduledoc "`alaja ask` — Ask an interactive question."
 
+  alias Alaja.CLI.GlobalOpts
+  alias Alaja.CLI.HelpFormatter
+  alias Alaja.Printer
+
   @help_data [
     title: "Alaja Ask",
     subtitle: "Ask an interactive text question",
-    size: :small
+    usage: "alaja ask <question> [--color C] [--align left|center|right]",
+    description:
+      "Reads a line of text from stdin and prints it to stdout. Suitable for shell scripts.",
+    options: [
+      {:color, :string, nil, "Prompt color"},
+      {:align, :string, "left", "Alignment: left, center, right"}
+    ]
   ]
-
-  alias Alaja.CLI.GlobalOpts
-
-  alias Alaja.Printer
 
   @doc "Runs the `alaja ask` command — interactively prompts a question read from stdin."
   @spec run([String.t()]) :: :ok | no_return()
@@ -55,6 +61,6 @@ defmodule Alaja.CLI.Commands.Show.Ask do
     end
   end
 
-  @spec help() :: keyword()
-  def help, do: @help_data
+  @spec help() :: :ok
+  def help, do: HelpFormatter.render(@help_data)
 end

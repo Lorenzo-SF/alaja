@@ -90,7 +90,14 @@ defmodule Alaja.ComponentsTest do
 
     test "append respects max_lines" do
       s = Components.log_init(max_lines: 3)
-      s2 = s |> Components.log_append("a") |> Components.log_append("b") |> Components.log_append("c") |> Components.log_append("d")
+
+      s2 =
+        s
+        |> Components.log_append("a")
+        |> Components.log_append("b")
+        |> Components.log_append("c")
+        |> Components.log_append("d")
+
       assert s2.lines == ["b", "c", "d"]
     end
 
