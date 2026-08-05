@@ -23,6 +23,10 @@ defmodule Alaja.CLI.Commands.Show.Animate do
       {:speed, :integer, 100, "Frames per second"},
       {:chars, :string, nil, "Custom spinner characters (overrides the type defaults)"},
       {:colors, :string, nil, "Comma-separated list of colors for multi-color animations"}
+    ],
+    examples: [
+      {"Spinner con texto", "alaja animate --type dots --text \"working\" --duration 2000"},
+      {"Spinner de línea", "alaja animate --type line --text \"loading\" --color cyan --duration 1500"}
     ]
   ]
 

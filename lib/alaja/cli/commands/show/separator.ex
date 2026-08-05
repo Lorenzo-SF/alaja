@@ -16,6 +16,10 @@ defmodule Alaja.CLI.Commands.Show.Separator do
       {:width, :integer, 60, "Total width in characters"},
       {:text, :string, nil, "Optional text embedded in the line"},
       {:color, :string, nil, "Color of the line"}
+    ],
+    examples: [
+      {"Separador con título", "alaja separator \"DEPLOY\" --width 60 --color cyan"},
+      {"Línea simple con carácter propio", "alaja separator --char \"*\" --width 40"}
     ]
   ]
 

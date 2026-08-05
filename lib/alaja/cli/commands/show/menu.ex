@@ -16,6 +16,10 @@ defmodule Alaja.CLI.Commands.Show.Menu do
       {:header, :string, nil, "Header / prompt (defaults to first positional)"},
       {:color, :string, nil, "Color of the menu items"},
       {:align, :string, "left", "Alignment: left, center, right"}
+    ],
+    examples: [
+      {"Menú de opciones", "alaja menu \"¿Qué build?\" build test deploy"},
+      {"Menú con header", "alaja menu \"Selecciona\" --header \"Entorno\" --color cyan"}
     ]
   ]
 

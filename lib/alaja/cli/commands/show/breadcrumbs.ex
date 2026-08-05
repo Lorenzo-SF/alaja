@@ -19,6 +19,10 @@ defmodule Alaja.CLI.Commands.Show.Breadcrumbs do
       {:color, :string, nil, "Color for items (item_color in back)"},
       {:separator_color, :string, nil, "Color of the separator"},
       {:current_color, :string, nil, "Color of the last (current) item"}
+    ],
+    examples: [
+      {"Ruta de navegación", "alaja breadcrumbs home lib alaja --current alaja"},
+      {"Breadcrumbs con flecha", "alaja breadcrumbs dev staging prod --separator \"→\" --current prod"}
     ]
   ]
 

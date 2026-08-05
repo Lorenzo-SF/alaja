@@ -10,11 +10,17 @@ defmodule Alaja.CLI.HelpFormatter do
       * `:usage` — optional. One-line usage string.
       * `:description` — optional. Multi-line description of the command.
       * `:options` — optional. List of `{name, type, default, textual}` tuples.
+      * `:examples` — optional. List of `{comment, command}` tuples rendered
+        as `# comment` + `command` blocks.
       * `:globals` — optional boolean (default `true`). If `false`, the
         global options section is omitted.
   """
 
   alias Alaja.Components.{Header, Separator, Table}
+  alias IO.ANSI
+
+  @cyan {0, 180, 216}
+  @green {80, 220, 120}
 
   @doc "Renders the help keyword list to stdout."
   @spec render(keyword()) :: :ok
@@ -24,14 +30,15 @@ defmodule Alaja.CLI.HelpFormatter do
     usage = Keyword.get(help_data, :usage)
     description = Keyword.get(help_data, :description)
     options = Keyword.get(help_data, :options, [])
+    examples = Keyword.get(help_data, :examples, [])
     show_globals = Keyword.get(help_data, :globals, true)
 
-    Header.print(title, subtitle: subtitle, size: :small)
+    Header.print(title, subtitle: subtitle, size: :small, color: @cyan, subtitle_color: {150, 150, 160})
 
     if usage do
       IO.puts("")
-      Separator.print("USAGE", char: "─", width: 60, color: {0, 180, 216})
-      IO.puts("  " <> usage)
+      section_title("USAGE", @cyan)
+      IO.puts([fg_color({180, 220, 120}), "  ", usage, ANSI.reset()])
     end
 
     if description do
@@ -41,7 +48,7 @@ defmodule Alaja.CLI.HelpFormatter do
 
     if options != [] do
       IO.puts("")
-      Separator.print("OPTIONS", char: "─", width: 60, color: {0, 180, 216})
+      section_title("OPTIONS", @green)
 
       rows =
         Enum.map(options, fn {name, type, default, desc} ->
@@ -54,11 +61,23 @@ defmodule Alaja.CLI.HelpFormatter do
       Table.print(
         headers: ["Option", "Default", "Description"],
         rows: rows,
-        table_border: :none,
-        padding: 0,
+        table_border: :rounded,
+        border_color: @green,
+        padding: 1,
         headers_color: :cyan,
         headers_effects: [:bold]
       )
+    end
+
+    if examples != [] do
+      IO.puts("")
+      section_title("EXAMPLES", @green)
+
+      Enum.each(examples, fn {comment, command} ->
+        IO.puts([fg_color(@cyan), ANSI.bright(), "# ", comment, ANSI.reset()])
+        IO.puts([fg_color({180, 220, 120}), "  ", command, ANSI.reset()])
+        IO.puts("")
+      end)
     end
 
     if show_globals do
@@ -72,8 +91,7 @@ defmodule Alaja.CLI.HelpFormatter do
   @doc "Render the global options block."
   @spec render_globals() :: :ok
   def render_globals do
-    Separator.print("GLOBAL OPTIONS", char: "─", width: 60, color: {0, 180, 216})
-    IO.puts("")
+    section_title("GLOBAL OPTIONS", @cyan)
 
     rows = [
       ["--help, -h", "Show help for this command"],
@@ -93,14 +111,22 @@ defmodule Alaja.CLI.HelpFormatter do
     Table.print(
       headers: ["Option", "Description"],
       rows: rows,
-      table_border: :none,
-      padding: 0,
+      table_border: :rounded,
+      border_color: @cyan,
+      padding: 1,
       headers_color: :cyan,
       headers_effects: [:bold]
     )
 
     :ok
   end
+
+  defp section_title(title, color) do
+    Separator.print(title, char: "─", width: 60, color: color)
+    IO.puts("")
+  end
+
+  defp fg_color({r, g, b}), do: "\e[38;2;#{r};#{g};#{b}m"
 
   defp format_option(name, type) do
     "--#{name}" <> format_type(type)

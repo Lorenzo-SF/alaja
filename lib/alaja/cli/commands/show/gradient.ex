@@ -23,6 +23,10 @@ defmodule Alaja.CLI.Commands.Show.Gradient do
       {:direction, :string, "horizontal", "horizontal or vertical"},
       {:bg, :boolean, false, "Apply the gradient to the background instead of the foreground"},
       {:text_color, :string, nil, "Override the gradient with a single text color"}
+    ],
+    examples: [
+      {"Gradiente horizontal", "alaja gradient \"hola mundo\" --from red --to blue"},
+      {"Gradiente vertical", "alaja gradient \"subida\" --from yellow --to magenta --direction vertical"}
     ]
   ]
 

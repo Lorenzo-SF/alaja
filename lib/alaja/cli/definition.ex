@@ -253,6 +253,7 @@ defmodule Alaja.CLI.Definition do
         result =
           case args do
             [] ->
+              Alaja.CLI.Showcase.maybe_run()
               render_full_help()
 
             ["--help" | _] ->

@@ -42,6 +42,10 @@ defmodule Alaja.CLI.Commands.Show.Table do
       {:rows_align, :string, nil, "Body row alignment"},
       {:rows_effects, :string, nil, "Body row effects"},
       {:table_align, :string, nil, "Default alignment for all cells"}
+    ],
+    examples: [
+      {"Tabla con bordes redondeados", "alaja table --headers name,status --rows \"api,ok\" \"web,ok\" --border rounded --headers-color cyan"},
+      {"Tabla simple", "alaja table --headers a,b,c --rows \"1,2,3\" \"4,5,6\""}
     ]
   ]
 

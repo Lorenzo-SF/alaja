@@ -23,6 +23,10 @@ defmodule Alaja.CLI.Commands.Show.Tabs do
     """,
     options: [
       {:active, :integer, 0, "Zero-based index of the active tab"}
+    ],
+    examples: [
+      {"Tabs con activo", "alaja tabs dev staging prod --active 1"},
+      {"Tabs simple", "alaja tabs uno dos tres"}
     ]
   ]
 

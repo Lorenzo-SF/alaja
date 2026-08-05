@@ -15,6 +15,10 @@ defmodule Alaja.CLI.Commands.Show.YesNo do
       {:default, :string, "no", "Default answer if input is empty (yes/no, y/n)"},
       {:color, :string, nil, "Prompt color"},
       {:align, :string, "left", "Alignment: left, center, right"}
+    ],
+    examples: [
+      {"Confirmación con default sí", "alaja yesno \"¿Continuar?\" --default yes"},
+      {"Confirmación en cyan", "alaja yesno \"¿Borrar?\" --color red"}
     ]
   ]
 

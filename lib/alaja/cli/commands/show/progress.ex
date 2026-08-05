@@ -28,6 +28,10 @@ defmodule Alaja.CLI.Commands.Show.Progress do
       {:total, :integer, 100, "Maximum value"},
       {:width, :integer, 20, "Bar width in characters"},
       {:label, :string, "", "Optional label drawn to the left of the bar"}
+    ],
+    examples: [
+      {"Progreso con label", "alaja progress --current 75 --total 100 --label build"},
+      {"Progreso por defecto", "alaja progress --current 50"}
     ]
   ]
 

@@ -373,6 +373,13 @@ defmodule Alaja.CLI.HelpRuntimeTest do
     assert capture =~ ~r/\d+\.\d+\.\d+/
   end
 
+  test "main with no args renders the full help (showcase skipped outside TTY)" do
+    capture = capture_io(fn -> Alaja.CLI.main([]) end)
+    assert capture =~ "Complete command reference"
+    assert capture =~ "EXAMPLES"
+    refute capture =~ "ArgumentError"
+  end
+
   defp capture_io(fun) do
     ExUnit.CaptureIO.capture_io(fn ->
       try do

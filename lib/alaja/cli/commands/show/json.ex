@@ -21,6 +21,10 @@ defmodule Alaja.CLI.Commands.Show.Json do
       {:boolean_color, :string, nil, "Color for booleans"},
       {:null_color, :string, nil, "Color for null"},
       {:punctuation_color, :string, nil, "Color for punctuation (brackets, commas, colons)"}
+    ],
+    examples: [
+      {"JSON desde pipe", "echo '{\"name\":\"alaja\",\"v\":3}' | alaja json"},
+      {"JSON inline con indentación", "alaja json '{\"ok\":true,\"n\":1}' --indent 2"}
     ]
   ]
 

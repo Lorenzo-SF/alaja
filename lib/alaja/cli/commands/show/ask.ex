@@ -14,6 +14,10 @@ defmodule Alaja.CLI.Commands.Show.Ask do
     options: [
       {:color, :string, nil, "Prompt color"},
       {:align, :string, "left", "Alignment: left, center, right"}
+    ],
+    examples: [
+      {"Pregunta simple", "alaja ask \"¿Nombre?\""},
+      {"Pregunta con color", "alaja ask \"¿Email?\" --color cyan"}
     ]
   ]
 

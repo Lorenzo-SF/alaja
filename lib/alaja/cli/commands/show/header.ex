@@ -19,6 +19,10 @@ defmodule Alaja.CLI.Commands.Show.Header do
       {:color, :string, nil, "Title color"},
       {:subtitle_color, :string, nil, "Subtitle color"},
       {:width, :integer, 80, "Width in characters"}
+    ],
+    examples: [
+      {"Header con subtítulo", "alaja header \"Release 3.0\" --subtitle \"stable\" --color cyan"},
+      {"Header grande en magenta", "alaja header \"Alaja\" --size large --color magenta"}
     ]
   ]
 

@@ -30,6 +30,10 @@ defmodule Alaja.CLI.Commands.Show.Scroll do
       {:select, :integer, 0, "Zero-based index of the selected item"},
       {:max_visible, :integer, 10, "Window size"},
       {:offset, :integer, 0, "Top index of the window (used with --max-visible)"}
+    ],
+    examples: [
+      {"Lista con selección", "alaja scroll a b c --select 1"},
+      {"Ventana con scroll", "alaja scroll one two three four --max-visible 2 --offset 2"}
     ]
   ]
 

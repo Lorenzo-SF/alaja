@@ -35,7 +35,12 @@ defmodule Alaja.CLI.Commands.Show.Pulsar do
       {:content_position_x, :integer, nil, "Override content X position"},
       {:content_position_y, :integer, nil, "Override content Y position"},
       {:content_type, :string, "text", "Content type: text or image"},
-      {:image_path, :string, nil, "Path to image (when content_type=image)"}
+      {:image_path, :string, nil, "Path to image (when content_type=image)"},
+      {:duration, :integer, nil, "Stop automatically after N ms (nil = run until Ctrl+C)"}
+    ],
+    examples: [
+      {"Radar 3 segundos", "alaja pulsar \"Alaja\" --duration 3000"},
+      {"Pulsar grande multicolor", "alaja pulsar \"Deploy\" --width 50 --height 9 --colors cyan,magenta --duration 2000"}
     ]
   ]
 
@@ -60,7 +65,8 @@ defmodule Alaja.CLI.Commands.Show.Pulsar do
           content_position_x: :integer,
           content_position_y: :integer,
           content_type: :string,
-          image_path: :string
+          image_path: :string,
+          duration: :integer
         ]
       )
 
@@ -105,6 +111,7 @@ defmodule Alaja.CLI.Commands.Show.Pulsar do
           content_position_x: content_x,
           content_position_y: content_y,
           image_path: Keyword.get(opts, :image_path),
+          duration: Keyword.get(opts, :duration),
           text: text
         ]
 

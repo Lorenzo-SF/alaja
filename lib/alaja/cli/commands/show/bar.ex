@@ -26,6 +26,10 @@ defmodule Alaja.CLI.Commands.Show.Bar do
       {:filled_color, :string, "success", "Color of the filled portion"},
       {:empty_color, :string, "background", "Color of the empty portion"},
       {:show_percent, :boolean, true, "Show the percent label at the right"}
+    ],
+    examples: [
+      {"Barra con label", "alaja bar 60 --max 100 --label build --filled-char █"},
+      {"Barra con colores", "alaja bar 42 --max 100 --filled-color green --empty-color background"}
     ]
   ]
 

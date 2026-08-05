@@ -16,6 +16,10 @@ defmodule Alaja.CLI.Commands.Show.List do
       {:header, :string, nil, "Optional header drawn above the list"},
       {:color, :string, nil, "Color of the list items"},
       {:align, :string, "left", "Alignment: left, center, right"}
+    ],
+    examples: [
+      {"Lista con header", "alaja list \"fix deploy\" \"write tests\" --header \"To do\" --color cyan"},
+      {"Lista centrada", "alaja list a b c --align center --color magenta"}
     ]
   ]
 

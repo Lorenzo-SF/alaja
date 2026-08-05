@@ -32,6 +32,10 @@ defmodule Alaja.CLI.Commands.Show.AnimatedBar do
       {:show_percent, :boolean, true, "Show percent label"},
       {:kitt_width, :integer, 3, "Width of the kitt animation tail"},
       {:verbose, :boolean, false, "Dump 20 frames to stdout instead of animating"}
+    ],
+    examples: [
+      {"Barra animada con label", "alaja animated-bar 50 --max 100 --label build"},
+      {"Barra kitt con cola ancha", "alaja animated-bar 75 --max 100 --kitt-width 5 --filled-color green"}
     ]
   ]
 

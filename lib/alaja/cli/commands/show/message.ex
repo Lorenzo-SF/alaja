@@ -40,6 +40,10 @@ defmodule Alaja.CLI.Commands.Show.Message do
       {:addline, :string, nil, "Char to insert between chunks (eg space, comma)"},
       {:chunk, :keep, nil, "key=value for a styled chunk (use multiple times)"},
       {:align, :string, nil, "Override alignment (else uses --align global)"}
+    ],
+    examples: [
+      {"Mensaje con color y negrita", "alaja message \"Hola\" --color cyan --bold"},
+      {"Fondo azul", "alaja message \"Deploy\" --bg-color blue --bold --underline"}
     ]
   ]
 

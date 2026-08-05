@@ -33,18 +33,20 @@ defmodule Alaja.CLI.Commands.Show.Pulsar.Renderer do
         calculate_left_padding(global.align, width)
       end
 
+    duration = Keyword.get(pulsar_opts, :duration)
+
     IO.write(ANSI.hide_cursor())
 
     case content_type do
       :image ->
-        run_image_animation(text, pulsar_opts, global, speed, width, height, left_pad)
+        run_image_animation(text, pulsar_opts, global, speed, width, height, left_pad, duration)
 
       :text ->
-        run_text_animation(text, pulsar_opts, global, speed, box_height, left_pad)
+        run_text_animation(text, pulsar_opts, global, speed, box_height, left_pad, duration)
     end
   end
 
-  defp run_text_animation(text, pulsar_opts, global, speed, box_height, left_pad) do
+  defp run_text_animation(text, pulsar_opts, global, speed, box_height, left_pad, duration) do
     start_pos = calculate_start_pos(global, left_pad)
 
     if global.raw do
@@ -72,7 +74,7 @@ defmodule Alaja.CLI.Commands.Show.Pulsar.Renderer do
       :ok
     else
       try do
-        animate_loop(text, pulsar_opts, global, 0, speed, box_height, left_pad, start_pos)
+        animate_loop(text, pulsar_opts, global, 0, speed, box_height, left_pad, start_pos, duration)
       after
         if global.raw do
           IO.write(ANSI.show_cursor())
@@ -85,7 +87,7 @@ defmodule Alaja.CLI.Commands.Show.Pulsar.Renderer do
     {global.pos_x + 1, global.pos_y + 1}
   end
 
-  defp run_image_animation(text, pulsar_opts, global, speed, width, height, left_pad) do
+  defp run_image_animation(text, pulsar_opts, global, speed, width, height, left_pad, duration) do
     image_path = Keyword.get(pulsar_opts, :image_path)
 
     if is_nil(image_path) or image_path == "" do
@@ -100,7 +102,7 @@ defmodule Alaja.CLI.Commands.Show.Pulsar.Renderer do
 
     try do
       opts = %{width: width, height: height, left_pad: left_pad}
-      image_animate_loop(text, pulsar_opts, global, image_path, 0, speed, opts)
+      image_animate_loop(text, pulsar_opts, global, image_path, 0, speed, opts, duration)
     after
       IO.write(ANSI.show_cursor())
     end
@@ -122,62 +124,83 @@ defmodule Alaja.CLI.Commands.Show.Pulsar.Renderer do
     end
   end
 
-  defp animate_loop(text, pulsar_opts, global, frame, speed, box_height, left_pad, start_pos) do
-    frame_output = Pulsar.render_frame(text, frame, pulsar_opts)
-    output = wrap_if_boxed(frame_output, global)
-
-    if global.raw do
-      {start_x, start_y} = start_pos
-
-      positioned =
-        output
-        |> IO.iodata_to_binary()
-        |> String.split("\n")
-        |> Enum.with_index()
-        |> Enum.map_join(fn {line, row} ->
-          ANSI.move_to(start_x + left_pad, start_y + row) <> line
-        end)
-
-      if frame == 0 do
-        IO.write([ANSI.hide_cursor(), positioned])
-      else
-        IO.write([
-          ANSI.move_to(start_x, start_y),
-          ANSI.clear_line_down(),
-          positioned
-        ])
-      end
+  defp animate_loop(text, pulsar_opts, global, frame, speed, box_height, left_pad, start_pos, duration) do
+    if duration && duration > 0 && frame * speed >= duration do
+      IO.write([ANSI.clear_line_down(), ANSI.show_cursor()])
+      :ok
     else
-      padded_output =
-        output
-        |> IO.iodata_to_binary()
-        |> String.split("\n")
-        |> Enum.map_join("\n", fn line -> String.duplicate(" ", left_pad) <> line end)
+      frame_output = Pulsar.render_frame(text, frame, pulsar_opts)
+      output = wrap_if_boxed(frame_output, global)
 
-      if frame == 0 do
-        IO.write([ANSI.save_cursor(), padded_output])
+      if global.raw do
+        {start_x, start_y} = start_pos
+
+        positioned =
+          output
+          |> IO.iodata_to_binary()
+          |> String.split("\n")
+          |> Enum.with_index()
+          |> Enum.map_join(fn {line, row} ->
+            ANSI.move_to(start_x + left_pad, start_y + row) <> line
+          end)
+
+        if frame == 0 do
+          IO.write([ANSI.hide_cursor(), positioned])
+        else
+          IO.write([
+            ANSI.move_to(start_x, start_y),
+            ANSI.clear_line_down(),
+            positioned
+          ])
+        end
       else
-        IO.write([ANSI.restore_cursor(), ANSI.clear_line_down(), padded_output])
-      end
-    end
+        padded_output =
+          output
+          |> IO.iodata_to_binary()
+          |> String.split("\n")
+          |> Enum.map_join("\n", fn line -> String.duplicate(" ", left_pad) <> line end)
 
-    :timer.sleep(speed)
-    animate_loop(text, pulsar_opts, global, frame + 1, speed, box_height, left_pad, start_pos)
+        if frame == 0 do
+          IO.write([ANSI.save_cursor(), padded_output])
+        else
+          IO.write([ANSI.restore_cursor(), ANSI.clear_line_down(), padded_output])
+        end
+      end
+
+      :timer.sleep(speed)
+
+      animate_loop(
+        text,
+        pulsar_opts,
+        global,
+        frame + 1,
+        speed,
+        box_height,
+        left_pad,
+        start_pos,
+        duration
+      )
+    end
   end
 
-  defp image_animate_loop(text, pulsar_opts, global, image_path, frame, speed, opts) do
+  defp image_animate_loop(text, pulsar_opts, global, image_path, frame, speed, opts, duration) do
     %{width: width, height: height, left_pad: left_pad} = opts
 
-    case Pulsar.render_frame_pixels(image_path, frame, pulsar_opts) do
-      {:ok, pixels} ->
-        padded_pixels = apply_left_padding_pixels(pixels, left_pad)
-        ImageRenderer.render(padded_pixels, width: width, height: height, align: :left)
+    if duration && duration > 0 && frame * speed >= duration do
+      IO.write(ANSI.show_cursor())
+      :ok
+    else
+      case Pulsar.render_frame_pixels(image_path, frame, pulsar_opts) do
+        {:ok, pixels} ->
+          padded_pixels = apply_left_padding_pixels(pixels, left_pad)
+          ImageRenderer.render(padded_pixels, width: width, height: height, align: :left)
 
-        :timer.sleep(speed)
-        image_animate_loop(text, pulsar_opts, global, image_path, frame + 1, speed, opts)
+          :timer.sleep(speed)
+          image_animate_loop(text, pulsar_opts, global, image_path, frame + 1, speed, opts, duration)
 
-      {:error, reason} ->
-        IO.puts(:stderr, "Error rendering image: #{reason}")
+        {:error, reason} ->
+          IO.puts(:stderr, "Error rendering image: #{reason}")
+      end
     end
   end
 

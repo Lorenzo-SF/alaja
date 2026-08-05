@@ -25,6 +25,10 @@ defmodule Alaja.CLI.Commands.Show.Image do
       {:ascii_color, :boolean, true, "Use ANSI color in ASCII art"},
       {:ascii_saturation, :float, 1.0, "Saturation factor (0.0-1.0)"},
       {:ascii_style, :string, "detailed", "ASCII art style: blocks, detailed, simple, braille"}
+    ],
+    examples: [
+      {"Render de imagen", "alaja image path/to/logo.png"},
+      {"Imagen en ASCII", "alaja image logo.png --ascii --ascii-width 40"}
     ]
   ]
 

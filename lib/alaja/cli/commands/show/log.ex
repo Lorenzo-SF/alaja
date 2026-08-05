@@ -23,6 +23,10 @@ defmodule Alaja.CLI.Commands.Show.Log do
     """,
     options: [
       {:max_lines, :integer, 1000, "Maximum number of lines to retain"}
+    ],
+    examples: [
+      {"Log con retención", "alaja log \"line 1\" \"line 2\" --max-lines 5"},
+      {"Log simple", "alaja log \"iniciando\" \"deploy ok\""}
     ]
   ]
 
