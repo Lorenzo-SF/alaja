@@ -169,8 +169,8 @@ defmodule Alaja.CLI.DispatchTest do
       # Skipped: this test was originally added to prevent the ExUnit suite from
       # hanging when `Dispatch.action/1 -> read_stdin/0 -> IO.binread(:stdio, :eof)`
       # blocks indefinitely without a TTY. The legacy CLI action command has
-      # been superseded by alaja 3.0's interactive TUI runtime (see
-      # FASE-2 spec AL-2 / AL-10). Skip until the new entry point replaces it.
+      # been superseded by alaja 3.0's interactive TUI runtime. Skip until
+      # the new entry point replaces it.
       task = Task.async(fn -> safe_call(fn -> Dispatch.action(%{_args: []}) end) end)
       assert :ok = Task.await(task, 2_000)
     end

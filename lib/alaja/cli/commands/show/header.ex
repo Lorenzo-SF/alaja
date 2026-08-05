@@ -48,7 +48,7 @@ defmodule Alaja.CLI.Commands.Show.Header do
       help()
     else
       title = Enum.join(positional, " ")
-      if title == "", do: help(), else: render(title, opts, global)
+      if title == "", do: help(global), else: render(title, opts, global)
     end
   end
 
@@ -81,6 +81,6 @@ defmodule Alaja.CLI.Commands.Show.Header do
   defp printer_opts(g), do: GlobalOpts.to_printer_opts(g)
 
   @doc "Prints help for the header command."
-  @spec help() :: :ok
-  def help, do: HelpFormatter.render(@help_data)
+  @spec help(Alaja.CLI.GlobalOpts.t() | nil) :: :ok
+  def help(global \\ nil), do: HelpFormatter.render(@help_data, global)
 end

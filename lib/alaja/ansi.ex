@@ -142,6 +142,18 @@ defmodule Alaja.ANSI do
   @spec mouse_sgr_off() :: String.t()
   def mouse_sgr_off, do: "\e[?1006l"
 
+  @doc """
+  Starts synchronized output mode (`DECSET 2026`): batches all updates
+  until `sync_output_end/0` so the terminal renders one complete frame,
+  eliminating flicker in animated output.
+  """
+  @spec sync_output_start() :: String.t()
+  def sync_output_start, do: "\e[?2026h"
+
+  @doc "Ends synchronized output mode started with `sync_output_start/0`."
+  @spec sync_output_end() :: String.t()
+  def sync_output_end, do: "\e[?2026l"
+
   @doc "Switches to alternate screen buffer."
   @spec alt_screen_on() :: String.t()
   def alt_screen_on, do: "\e[?1049h"

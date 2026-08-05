@@ -147,11 +147,10 @@ defmodule Alaja.CLI.Commands.Show.Pulsar.Renderer do
         if frame == 0 do
           IO.write([ANSI.hide_cursor(), positioned])
         else
-          IO.write([
-            ANSI.move_to(start_x, start_y),
-            ANSI.clear_line_down(),
-            positioned
-          ])
+          # The frame buffer repaints every cell of the animation area, so
+          # no explicit clear is needed. Synchronized output mode batches
+          # the frame so the terminal renders it in one shot (no flicker).
+          IO.write([ANSI.sync_output_start(), positioned, ANSI.sync_output_end()])
         end
       else
         padded_output =

@@ -58,6 +58,6 @@ defmodule Alaja.CLI.Commands.Show.List do
     end
   end
 
-  @spec help() :: :ok
-  def help, do: HelpFormatter.render(@help_data)
+  @spec help(Alaja.CLI.GlobalOpts.t() | nil) :: :ok
+  def help(global \\ nil), do: HelpFormatter.render(@help_data, global)
 end

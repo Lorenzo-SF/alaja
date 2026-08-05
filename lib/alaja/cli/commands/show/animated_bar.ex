@@ -11,7 +11,7 @@ defmodule Alaja.CLI.Commands.Show.AnimatedBar do
     description: """
     Renders an animated horizontal progress bar. Animates `value` (or any
     value passed positionally) using the chosen animation type. `--duration`
-    in seconds terminates the animation; `--max-iterations` caps the frame
+    in milliseconds terminates the animation; `--max-iterations` caps the frame
     loop independently of duration.
     """,
     options: [
@@ -26,7 +26,7 @@ defmodule Alaja.CLI.Commands.Show.AnimatedBar do
       {:empty_color, :string, "background", "Empty portion color"},
       {:animation_color, :string, nil, "Color of the animation character"},
       {:speed, :integer, 100, "Frames per second"},
-      {:duration, :integer, nil, "Stop after N seconds (omit for unlimited)"},
+      {:duration, :integer, nil, "Stop after N milliseconds (omit for unlimited)"},
       {:max_iterations, :integer, nil, "Hard cap on frame count"},
       {:spinner, :integer, nil, "Spinner variant index"},
       {:show_percent, :boolean, true, "Show percent label"},
@@ -75,7 +75,7 @@ defmodule Alaja.CLI.Commands.Show.AnimatedBar do
       help()
     else
       value = parse_value(opts, positional)
-      if is_nil(value), do: help(), else: render(value, opts, global)
+      if is_nil(value), do: help(global), else: render(value, opts, global)
     end
   end
 
@@ -239,7 +239,7 @@ defmodule Alaja.CLI.Commands.Show.AnimatedBar do
   # "animation runs forever" behaviour while still capping runaway loops
   # (the smoke tests pass `--duration 500` to terminate cleanly).
   # `--max-iterations` overrides the cap when provided.
-  defp compute_max_frames(_nil, _speed, nil), do: 100_000
+  defp compute_max_frames(duration, _speed, nil) when is_nil(duration), do: 100_000
 
   defp compute_max_frames(duration_ms, speed, nil)
        when is_integer(duration_ms) and duration_ms > 0 do
@@ -265,6 +265,6 @@ defmodule Alaja.CLI.Commands.Show.AnimatedBar do
   defp maybe_add(list, _key, nil), do: list
   defp maybe_add(list, key, value), do: Keyword.put(list, key, value)
 
-  @spec help() :: :ok
-  def help, do: HelpFormatter.render(@help_data)
+  @spec help(Alaja.CLI.GlobalOpts.t() | nil) :: :ok
+  def help(global \\ nil), do: HelpFormatter.render(@help_data, global)
 end

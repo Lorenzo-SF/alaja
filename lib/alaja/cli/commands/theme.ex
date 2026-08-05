@@ -244,8 +244,11 @@ defmodule Alaja.CLI.Commands.Theme do
 
   # ── Help ────────────────────────────────────────────────────────────────
 
-  @spec help() :: String.t()
-  def help, do: @help_data
+  @spec help() :: :ok
+  def help do
+    IO.puts(@help_data)
+    :ok
+  end
 
   defp build_color_swatches(themes, theme_data, key, _name_col_w, theme_col_w, row) do
     Enum.reduce(themes, row, fn name, acc ->

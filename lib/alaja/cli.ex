@@ -77,13 +77,13 @@ defmodule Alaja.CLI do
 
   command("list", "Styled list with optional header", run: {Dispatch, :list})
 
-  command("scroll", "Stateful scrollable list (FASE-2 component)", run: {Dispatch, :scroll})
+  command("scroll", "Stateful scrollable list", run: {Dispatch, :scroll})
 
-  command("tabs", "Stateful tabbed interface (FASE-2 component)", run: {Dispatch, :tabs})
+  command("tabs", "Stateful tabbed interface", run: {Dispatch, :tabs})
 
-  command("log", "Append-only log (FASE-2 component)", run: {Dispatch, :log})
+  command("log", "Append-only log", run: {Dispatch, :log})
 
-  command("progress", "Stateful progress bar (FASE-2 component)", run: {Dispatch, :progress})
+  command("progress", "Stateful progress bar", run: {Dispatch, :progress})
 
   command("ask", "Interactive text input", run: {Dispatch, :ask})
 

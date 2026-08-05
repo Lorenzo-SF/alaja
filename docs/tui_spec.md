@@ -1,6 +1,6 @@
 # alaja TUI spec (v3.0)
 
-> Frozen spec for the alaja 3.0 TUI runtime. Source: `FASE-2 spec §1` + `ROADMAP.md §5`.
+> Frozen spec for the alaja 3.0 TUI runtime. Source: the stateful components spec + `ROADMAP.md §5`.
 > Status: **immutable once alaja 3.0 is released** — breaking changes require a new major.
 
 ---
@@ -329,4 +329,4 @@ chat example (`examples/chat`).
   `Alaja.Backend`, `Alaja.TestBackend` are the new public surface.
 - The legacy CLI (`Alaja.CLI.*`, `Alaja.UI`) is unchanged.
 
-alaja 3.0.0 ships when DoD §5 of the FASE-2 spec is satisfied.
+alaja 3.0.0 ships when DoD §5 of the stateful components spec is satisfied.

@@ -144,12 +144,43 @@ defmodule Alaja.Components.Table do
   @doc """
   Prints a table to the terminal.
 
-  If `:page_size` is set, enables interactive pagination:
-  - `n` / `→` — next page
-  - `p` / `←` — previous page
-  - `g` — go to page (prompts for number)
-  - `f` / `l` — first / last page
-  - `q` / `Esc` — quit
+  ## Pagination
+
+  Setting `:page_size` activates interactive pagination when the data
+  does not fit in one page: arrow keys change pages instantly (no
+  Enter needed), typing alphanumeric characters filters the rows with a
+  case-insensitive "like" match over every cell, backspace edits the
+  search text, and `q`/Esc quits. `:page_size` with `:data_fun` also
+  forwards the search text to the data source.
+
+  ## Data sources
+
+  * Plain rows — the default; pass `headers`/`rows` as usual.
+  * `:data_fun` — a function with a fixed contract for server-side
+    pagination, so the table only fetches the rows of the requested
+    page:
+
+        fn(%{page_size: 10, page: 0, search: "api"}) ->
+          %Alaja.Components.Table.Page{
+            headers: ["name", "status"],
+            rows: [["api", "ok"]],
+            page: 0,
+            total_pages: 3,
+            total_rows: 25
+          }
+        end
+
+    The function receives `:page_size` (rows per page), `:page` (the
+    requested page, 0-based) and `:search` (the current search text, or
+    `""`) and must return an `Alaja.Components.Table.Page.t/0` with the
+    page of rows, the page actually shown and the totals. Impossible
+    requests are clamped: if the requested page cannot exist with the
+    given page size (e.g. 40 rows total and page 3 with page size 45),
+    the first page with that page size is shown instead. `:data_fun`
+    requires `:page_size`.
+
+  In non-TTY contexts (pipes) pagination is skipped: plain rows print
+  everything, and `:data_fun` prints the first page only.
   """
   @spec print(list() | keyword(), keyword()) :: :ok
   def print(data, opts \\ [])

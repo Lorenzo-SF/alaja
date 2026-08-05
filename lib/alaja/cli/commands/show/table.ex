@@ -250,6 +250,6 @@ defmodule Alaja.CLI.Commands.Show.Table do
   @doc """
   Prints help for the table command.
   """
-  @spec help() :: :ok
-  def help, do: HelpFormatter.render(@help_data)
+  @spec help(Alaja.CLI.GlobalOpts.t() | nil) :: :ok
+  def help(global \\ nil), do: HelpFormatter.render(@help_data, global)
 end

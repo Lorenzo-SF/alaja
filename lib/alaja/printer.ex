@@ -142,8 +142,7 @@ defmodule Alaja.Printer do
     text = IO.iodata_to_binary(data)
     verbose = Keyword.get(opts, :verbose, false)
 
-    text = apply_box(text, opts)
-    text = Formatter.apply_alignment(text, Keyword.get(opts, :align, :left))
+    text = format_raw(text, opts)
     text = String.trim_trailing(text, "\n")
 
     if verbose do
@@ -159,6 +158,20 @@ defmodule Alaja.Printer do
         RawPrinter.print_with_lines(text, :none)
       end
     end
+  end
+
+  @doc """
+  Applies box and alignment formatting to raw text without writing it.
+
+  Shared by `print_raw/2` and the tabbed help renderer so both honour
+  the global `--box`/`--box-title`/`--box-border`/`--box-color` and
+  `--align` options.
+  """
+  @spec format_raw(String.t(), keyword()) :: String.t()
+  def format_raw(text, opts) do
+    text
+    |> apply_box(opts)
+    |> Formatter.apply_alignment(Keyword.get(opts, :align, :left))
   end
 
   defp apply_box(text, opts) do

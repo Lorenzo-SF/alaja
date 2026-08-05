@@ -36,7 +36,7 @@ defmodule Alaja.CLI.Commands.Show.YesNo do
       help()
     else
       question = Enum.join(positional, " ")
-      if question == "", do: help(), else: ask(question, opts, global)
+      if question == "", do: help(global), else: ask(question, opts, global)
     end
   end
 
@@ -74,6 +74,6 @@ defmodule Alaja.CLI.Commands.Show.YesNo do
     end
   end
 
-  @spec help() :: :ok
-  def help, do: HelpFormatter.render(@help_data)
+  @spec help(Alaja.CLI.GlobalOpts.t() | nil) :: :ok
+  def help(global \\ nil), do: HelpFormatter.render(@help_data, global)
 end

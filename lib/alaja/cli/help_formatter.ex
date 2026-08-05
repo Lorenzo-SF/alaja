@@ -14,75 +14,42 @@ defmodule Alaja.CLI.HelpFormatter do
         as `# comment` + `command` blocks.
       * `:globals` — optional boolean (default `true`). If `false`, the
         global options section is omitted.
+
+  On an interactive terminal the sections are shown as three tabs
+  (Description / Args / Examples) via `Alaja.CLI.HelpTabs`; when piped
+  or redirected everything renders sequentially.
   """
 
   alias Alaja.Components.{Header, Separator, Table}
+  alias Alaja.CLI.{GlobalOpts, HelpTabs}
   alias IO.ANSI
 
   @cyan {0, 180, 216}
   @green {80, 220, 120}
 
-  @doc "Renders the help keyword list to stdout."
+  @doc "Renders the help keyword list to stdout (plain mode, no tabs)."
   @spec render(keyword()) :: :ok
-  def render(help_data) do
+  def render(help_data), do: render(help_data, %GlobalOpts{})
+
+  @doc "Renders the help keyword list, honouring the caller's global options."
+  @spec render(keyword(), GlobalOpts.t() | nil) :: :ok
+  def render(help_data, global) do
+    global = global || %GlobalOpts{}
+
     title = Keyword.get(help_data, :title, "Alaja")
     subtitle = Keyword.get(help_data, :subtitle)
-    usage = Keyword.get(help_data, :usage)
-    description = Keyword.get(help_data, :description)
-    options = Keyword.get(help_data, :options, [])
-    examples = Keyword.get(help_data, :examples, [])
-    show_globals = Keyword.get(help_data, :globals, true)
 
-    Header.print(title, subtitle: subtitle, size: :small, color: @cyan, subtitle_color: {150, 150, 160})
+    Header.print(title,
+      subtitle: subtitle,
+      size: :small,
+      color: @cyan,
+      subtitle_color: {150, 150, 160}
+    )
 
-    if usage do
-      IO.puts("")
-      section_title("USAGE", @cyan)
-      IO.puts([fg_color({180, 220, 120}), "  ", usage, ANSI.reset()])
-    end
-
-    if description do
-      IO.puts("")
-      IO.puts(description)
-    end
-
-    if options != [] do
-      IO.puts("")
-      section_title("OPTIONS", @green)
-
-      rows =
-        Enum.map(options, fn {name, type, default, desc} ->
-          opt_str = format_option(name, type)
-          default_str = format_default(default) || ""
-          desc_str = desc || ""
-          [opt_str, default_str, desc_str]
-        end)
-
-      Table.print(
-        headers: ["Option", "Default", "Description"],
-        rows: rows,
-        table_border: :rounded,
-        border_color: @green,
-        padding: 1,
-        headers_color: :cyan,
-        headers_effects: [:bold]
-      )
-    end
-
-    if examples != [] do
-      IO.puts("")
-      section_title("EXAMPLES", @green)
-
-      Enum.each(examples, fn {comment, command} ->
-        IO.puts([fg_color(@cyan), ANSI.bright(), "# ", comment, ANSI.reset()])
-        IO.puts([fg_color({180, 220, 120}), "  ", command, ANSI.reset()])
-        IO.puts("")
-      end)
-    end
-
-    if show_globals do
-      IO.puts("")
-      render_globals()
+    if HelpTabs.interactive?() do
+      HelpTabs.run(build_panels(help_data), global)
+    else
+      render_flat(help_data)
     end
 
     :ok
@@ -91,8 +58,121 @@ defmodule Alaja.CLI.HelpFormatter do
   @doc "Render the global options block."
   @spec render_globals() :: :ok
   def render_globals do
-    section_title("GLOBAL OPTIONS", @cyan)
+    IO.write(globals_text())
+    :ok
+  end
 
+  # ---------------------------------------------------------------------------
+  # Flat rendering (non-TTY) — keeps the historical section order.
+  # ---------------------------------------------------------------------------
+
+  defp render_flat(help_data) do
+    usage = Keyword.get(help_data, :usage)
+    description = Keyword.get(help_data, :description)
+    options = Keyword.get(help_data, :options, [])
+    examples = Keyword.get(help_data, :examples, [])
+    show_globals = Keyword.get(help_data, :globals, true)
+
+    if usage, do: IO.write(usage_text(usage))
+    if description, do: IO.write(description_text(description))
+
+    if options != [], do: IO.write(options_text(options))
+    if examples != [], do: IO.write(examples_text(examples))
+    if show_globals, do: IO.write(globals_text())
+
+    :ok
+  end
+
+  # ---------------------------------------------------------------------------
+  # Tab panels (TTY)
+  # ---------------------------------------------------------------------------
+
+  defp build_panels(help_data) do
+    usage = Keyword.get(help_data, :usage)
+    description = Keyword.get(help_data, :description)
+    options = Keyword.get(help_data, :options, [])
+    examples = Keyword.get(help_data, :examples, [])
+    show_globals = Keyword.get(help_data, :globals, true)
+
+    desc_text =
+      IO.iodata_to_binary([
+        if(usage, do: usage_text(usage), else: []),
+        if(description, do: description_text(description), else: [])
+      ])
+
+    args_text =
+      IO.iodata_to_binary([
+        if(options != [], do: options_text(options), else: []),
+        if(show_globals, do: ["\n", globals_text()], else: [])
+      ])
+
+    examples_text = if examples != [], do: examples_text(examples), else: ""
+
+    [
+      {"Description", desc_text},
+      {"Args", args_text},
+      {"Examples", examples_text}
+    ]
+    |> Enum.reject(fn {_, text} -> String.trim(IO.iodata_to_binary(text)) == "" end)
+    |> Enum.map(fn {label, text} -> %{label: label, render: fn -> text end} end)
+  end
+
+  # ---------------------------------------------------------------------------
+  # Section builders (text form, shared by flat and panels)
+  # ---------------------------------------------------------------------------
+
+  defp usage_text(usage) do
+    [
+      "\n",
+      section_title_text("USAGE", @cyan),
+      fg_color({180, 220, 120}),
+      "  ",
+      usage,
+      ANSI.reset(),
+      "\n"
+    ]
+  end
+
+  defp description_text(description) do
+    ["\n", description, "\n"]
+  end
+
+  defp options_text(options) do
+    rows =
+      Enum.map(options, fn {name, type, default, desc} ->
+        opt_str = format_option(name, type)
+        default_str = format_default(default) || ""
+        desc_str = desc || ""
+        [opt_str, default_str, desc_str]
+      end)
+
+    table_text =
+      Table.render(
+        headers: ["Option", "Default", "Description"],
+        rows: rows,
+        table_border: :rounded,
+        border_color: @green,
+        padding: 1,
+        headers_color: :cyan,
+        headers_effects: [:bold]
+      )
+      |> Alaja.Buffer.to_iodata()
+      |> IO.iodata_to_binary()
+
+    ["\n", section_title_text("OPTIONS", @green), table_text, "\n"]
+  end
+
+  defp examples_text(examples) do
+    pairs =
+      Enum.map(examples, fn {comment, command} ->
+        [fg_color(@cyan), ANSI.bright(), "# ", comment, ANSI.reset(), "\n",
+         fg_color({180, 220, 120}), "  ", command, ANSI.reset(), "\n\n"]
+      end)
+
+    ["\n", section_title_text("EXAMPLES", @green), pairs]
+  end
+
+  defp globals_text do
     rows = [
       ["--help, -h", "Show help for this command"],
       ["--raw", "Raw positioning mode (display commands)"],
@@ -108,22 +188,29 @@ defmodule Alaja.CLI.HelpFormatter do
       ["--stdin, -s", "Read input from stdin"]
     ]
 
-    Table.print(
-      headers: ["Option", "Description"],
-      rows: rows,
-      table_border: :rounded,
-      border_color: @cyan,
-      padding: 1,
-      headers_color: :cyan,
-      headers_effects: [:bold]
-    )
+    table_text =
+      Table.render(
+        headers: ["Option", "Description"],
+        rows: rows,
+        table_border: :rounded,
+        border_color: @cyan,
+        padding: 1,
+        headers_color: :cyan,
+        headers_effects: [:bold]
+      )
+      |> Alaja.Buffer.to_iodata()
+      |> IO.iodata_to_binary()
 
-    :ok
+    ["\n", section_title_text("GLOBAL OPTIONS", @cyan), table_text, "\n"]
   end
 
-  defp section_title(title, color) do
-    Separator.print(title, char: "─", width: 60, color: color)
-    IO.puts("")
+  defp section_title_text(title, color) do
+    separator =
+      Separator.render(title, char: "─", width: 60, color: color)
+      |> Alaja.Buffer.to_iodata()
+      |> IO.iodata_to_binary()
+
+    [separator, "\n"]
   end
 
   defp fg_color({r, g, b}), do: "\e[38;2;#{r};#{g};#{b}m"

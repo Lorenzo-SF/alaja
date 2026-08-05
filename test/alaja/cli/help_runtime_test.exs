@@ -374,10 +374,34 @@ defmodule Alaja.CLI.HelpRuntimeTest do
   end
 
   test "main with no args renders the full help (showcase skipped outside TTY)" do
-    capture = capture_io(fn -> Alaja.CLI.main([]) end)
-    assert capture =~ "Complete command reference"
-    assert capture =~ "EXAMPLES"
-    refute capture =~ "ArgumentError"
+    System.put_env("ALAJ: NO_SHOWCASE", "1")
+
+    try do
+      capture = capture_io(fn -> Alaja.CLI.main([]) end)
+      assert capture =~ "Complete command reference"
+      assert capture =~ "EXAMPLES"
+      refute capture =~ "ArgumentError"
+    after
+      System.delete_env("ALAJ: NO_SHOWCASE")
+    end
+  end
+
+  test "subcommand groups print their help on --help" do
+    for {args, expected} <- [
+          {["theme", "--help"], "alaja theme <action>"},
+          {["action", "--help"], "Alaja Action"},
+          {["color", "--help"], "Alaja Color"}
+        ] do
+      capture = capture_io(fn -> Alaja.CLI.main(args) end)
+      assert capture != "", "expected #{Enum.join(args, " ")} --help to print something"
+      assert capture =~ expected
+    end
+  end
+
+  test "subcommand groups print their help with no args" do
+    capture = capture_io(fn -> Alaja.CLI.main(["theme"]) end)
+    assert capture =~ "alaja theme <action>"
+    assert capture =~ "ACTIONS"
   end
 
   defp capture_io(fun) do

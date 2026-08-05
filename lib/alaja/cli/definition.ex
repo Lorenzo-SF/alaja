@@ -250,11 +250,19 @@ defmodule Alaja.CLI.Definition do
 
         # Top-level help: `alaja`, `alaja --help`, `alaja -h`, and `alaja help`
         # all render the full help instead of trying to dispatch to a command.
+        # `alaja` alone runs the startup showcase first on TTYs; the full
+        # help is only rendered afterwards if the user asks for it.
         result =
           case args do
             [] ->
-              Alaja.CLI.Showcase.maybe_run()
-              render_full_help()
+              if Alaja.CLI.Showcase.enabled?() do
+                case Alaja.CLI.Showcase.run() do
+                  :help -> render_full_help()
+                  _ -> :ok
+                end
+              else
+                render_full_help()
+              end
 
             ["--help" | _] ->
               render_full_help()
@@ -281,8 +289,6 @@ defmodule Alaja.CLI.Definition do
       end
 
       defp render_full_help do
-        Alaja.CLI.Help.full()
-
         # Print the available commands list as well, formatted like a
         # one-screen reference, so callers see what's available without
         # having to dig into the formatted tables.
@@ -291,7 +297,15 @@ defmodule Alaja.CLI.Definition do
           |> Enum.reverse()
           |> Enum.map(fn %{name: name, description: desc} -> {name, desc} end)
 
-        Alaja.CLI.Help.summary(descriptions)
+        if Alaja.CLI.HelpTabs.interactive?() do
+          # On a TTY the full help renders as tabs; the command list is
+          # embedded in the Commands tab.
+          Alaja.CLI.Help.full(descriptions)
+        else
+          Alaja.CLI.Help.full()
+          Alaja.CLI.Help.summary(descriptions)
+        end
+
         :ok
       end
 

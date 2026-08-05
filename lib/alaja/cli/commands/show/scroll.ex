@@ -1,6 +1,6 @@
 defmodule Alaja.CLI.Commands.Show.Scroll do
   @moduledoc """
-  `alaja scroll` — Stateful scrollable list (FASE-2 component).
+  `alaja scroll` — Stateful scrollable list.
 
   Renders a list with an interactive-feeling output: a `>` marker on the
   selected item, inline rendering of the visible window, and args
@@ -18,7 +18,7 @@ defmodule Alaja.CLI.Commands.Show.Scroll do
 
   @help_data [
     title: "Alaja Scroll",
-    subtitle: "Stateful scrollable list (FASE-2 component)",
+    subtitle: "Stateful scrollable list",
     usage: "alaja scroll <item1> <item2> ... <itemN> [--select N] [--max-visible N] [--offset N]",
     description: """
     Renders a stateful list built by `Alaja.Components.ListState`. The
@@ -69,6 +69,6 @@ defmodule Alaja.CLI.Commands.Show.Scroll do
     end
   end
 
-  @spec help() :: :ok
-  def help, do: HelpFormatter.render(@help_data)
+  @spec help(Alaja.CLI.GlobalOpts.t() | nil) :: :ok
+  def help(global \\ nil), do: HelpFormatter.render(@help_data, global)
 end

@@ -82,7 +82,7 @@ defmodule Alaja.CLI.Help do
 
     IO.puts("")
 
-    section_title("QUICK REFERENCE", @green)
+    IO.write(section_title_text("QUICK REFERENCE", @green))
 
     Table.print(
       headers: ["Command", "Description"],
@@ -105,9 +105,15 @@ defmodule Alaja.CLI.Help do
 
   @doc """
   Renders the complete help for all commands.
+
+  On an interactive terminal the sections are grouped into three tabs
+  (Overview / Commands / Examples); when piped or redirected everything
+  renders sequentially. `descriptions` (the host command list) is shown
+  inside the Commands tab on a TTY and is printed separately by the
+  caller (`summary/1`) otherwise.
   """
-  @spec full() :: :ok
-  def full do
+  @spec full(list() | keyword()) :: :ok
+  def full(descriptions \\ []) do
     Header.print("Alaja CLI",
       subtitle: "Complete command reference",
       size: :large,
@@ -115,48 +121,75 @@ defmodule Alaja.CLI.Help do
       subtitle_color: {150, 150, 160}
     )
 
-    IO.puts("")
+    if Alaja.CLI.HelpTabs.interactive?() do
+      IO.write("\r\n")
+      Alaja.CLI.HelpTabs.run(build_panels(descriptions), %Alaja.CLI.GlobalOpts{})
+    else
+      flat_full(descriptions)
+    end
 
-    global_options()
-    IO.puts("")
-
-    typed_messages_section()
-    IO.puts("")
-
-    display_commands_section()
-    IO.puts("")
-
-    component_commands_section()
-    IO.puts("")
-
-    interactive_commands_section()
-    IO.puts("")
-
-    color_command_section()
-    IO.puts("")
-
-    action_command_section()
-    IO.puts("")
-
-    theme_command_section()
-    IO.puts("")
-
-    examples_section()
-    IO.puts("")
-
-    section_title("MORE HELP", @cyan)
-
-    Table.print(
-      headers: ["Command", "Description"],
-      rows: [
-        ["alaja <cmd> --help", "Detailed help for any command"]
-      ],
-      table_border: :none,
-      padding: 1
-    )
-
-    IO.puts("")
     :ok
+  end
+
+  defp flat_full(descriptions) do
+    IO.write([
+      "\n",
+      global_options_text(),
+      "\n",
+      typed_messages_text(),
+      "\n",
+      display_commands_text(),
+      "\n",
+      component_commands_text(),
+      "\n",
+      interactive_commands_text(),
+      "\n",
+      color_command_text(),
+      "\n",
+      action_command_text(),
+      "\n",
+      theme_command_text(),
+      "\n",
+      examples_text(),
+      "\n",
+      more_help_text(),
+      "\n"
+    ])
+
+    if descriptions != [] do
+      IO.write(["\n", host_commands_text(descriptions), "\n"])
+    end
+
+    :ok
+  end
+
+  defp build_panels(descriptions) do
+    overview = IO.iodata_to_binary([global_options_text(), "\n", typed_messages_text()])
+
+    commands =
+      IO.iodata_to_binary([
+        display_commands_text(),
+        "\n",
+        component_commands_text(),
+        "\n",
+        interactive_commands_text(),
+        "\n",
+        color_command_text(),
+        "\n",
+        action_command_text(),
+        "\n",
+        theme_command_text(),
+        if(descriptions != [], do: ["\n", host_commands_text(descriptions)])
+      ])
+
+    examples = IO.iodata_to_binary([examples_text(), "\n", more_help_text()])
+
+    [
+      {"Overview", overview},
+      {"Commands", commands},
+      {"Examples", examples}
+    ]
+    |> Enum.map(fn {label, text} -> %{label: label, render: fn -> text end} end)
   end
 
   # ---------------------------------------------------------------------------
@@ -182,12 +215,14 @@ defmodule Alaja.CLI.Help do
   # Sections
   # ---------------------------------------------------------------------------
 
-  defp global_options do
-    section_title("GLOBAL OPTIONS", @cyan)
+  defp global_options_text do
+    [section_title_text("GLOBAL OPTIONS", @cyan), global_options_table_text()]
+  end
 
-    Table.print(
-      headers: ["Option", "Description"],
-      rows: [
+  defp global_options_table_text do
+    table_text(
+      ["Option", "Description"],
+      [
         ["--help, -h", "Show this help"],
         ["--version, -v", "Print version"],
         ["--raw", "Raw positioning mode (message/header/bar/gradient/color)"],
@@ -202,179 +237,152 @@ defmodule Alaja.CLI.Help do
         ["--quiet, -q", "Suppress output"],
         ["--stdin", "Read JSON from stdin (action)"]
       ],
-      table_border: :rounded,
-      border_color: @cyan,
-      headers_color: :cyan,
-      headers_effects: [:bold],
-      padding: 1
+      @cyan
     )
   end
 
-  defp typed_messages_section do
-    section_title("TYPED MESSAGES", @green)
-
-    Table.print(
-      headers: ["Command", "Description"],
-      rows: [
-        ["success", "Success message with green checkmark"],
-        ["error", "Error message with red cross"],
-        ["warning", "Warning message with yellow triangle"],
-        ["info", "Info message with cyan indicator"],
-        ["debug", "Debug message with grey indicator"],
-        ["notice", "Notice message with blue indicator"],
-        ["critical", "Critical message with magenta indicator"],
-        ["alert", "Alert message with red indicator"],
-        ["emergency", "Emergency message with blinking indicator"],
-        ["happy", "Happy message with green indicator"],
-        ["sad", "Sad message with blue indicator"]
-      ],
-      table_border: :rounded,
-      border_color: @green,
-      headers_color: :green,
-      headers_effects: [:bold],
-      padding: 1
-    )
-
-    IO.puts("")
-    IO.puts("  Usage: alaja <command> <text>")
-    IO.puts("")
+  defp typed_messages_text do
+    [
+      section_title_text("TYPED MESSAGES", @green),
+      table_text(
+        ["Command", "Description"],
+        [
+          ["success", "Success message with green checkmark"],
+          ["error", "Error message with red cross"],
+          ["warning", "Warning message with yellow triangle"],
+          ["info", "Info message with cyan indicator"],
+          ["debug", "Debug message with grey indicator"],
+          ["notice", "Notice message with blue indicator"],
+          ["critical", "Critical message with magenta indicator"],
+          ["alert", "Alert message with red indicator"],
+          ["emergency", "Emergency message with blinking indicator"],
+          ["happy", "Happy message with green indicator"],
+          ["sad", "Sad message with blue indicator"]
+        ],
+        @green
+      ),
+      "\n",
+      "  Usage: alaja <command> <text>",
+      "\n"
+    ]
   end
 
-  defp display_commands_section do
-    section_title("DISPLAY COMMANDS", @magenta)
-
-    Table.print(
-      headers: ["Command", "Description"],
-      rows: [
-        ["message", "Custom formatted message with full styling (chunks, colors, effects)"],
-        ["header", "Styled header with optional subtitle"],
-        ["separator", "Horizontal divider line with optional text"],
-        ["gradient", "Gradient-colored text (multi-color support)"],
-        ["table", "Rich tables with borders and per-cell styling"],
-        ["json", "Pretty-printed JSON with syntax highlighting"],
-        ["bar", "Progress bar with customizable appearance"],
-        ["animated-bar", "Animated progress bar"],
-        ["breadcrumbs", "Navigation path display"],
-        ["animate", "Animated spinners and indicators"],
-        ["image", "Render images (kitty/iterm2/sixel/ASCII fallback)"],
-        ["list", "Styled list with optional header"]
-      ],
-      table_border: :rounded,
-      border_color: @magenta,
-      headers_color: :magenta,
-      headers_effects: [:bold],
-      padding: 1
-    )
+  defp display_commands_text do
+    [
+      section_title_text("DISPLAY COMMANDS", @magenta),
+      table_text(
+        ["Command", "Description"],
+        [
+          ["message", "Custom formatted message with full styling (chunks, colors, effects)"],
+          ["header", "Styled header with optional subtitle"],
+          ["separator", "Horizontal divider line with optional text"],
+          ["gradient", "Gradient-colored text (multi-color support)"],
+          ["table", "Rich tables with borders and per-cell styling"],
+          ["json", "Pretty-printed JSON with syntax highlighting"],
+          ["bar", "Progress bar with customizable appearance"],
+          ["animated-bar", "Animated progress bar"],
+          ["breadcrumbs", "Navigation path display"],
+          ["animate", "Animated spinners and indicators"],
+          ["image", "Render images (kitty/iterm2/sixel/ASCII fallback)"],
+          ["list", "Styled list with optional header"]
+        ],
+        @magenta
+      )
+    ]
   end
 
-  defp component_commands_section do
-    section_title("FASE-2 COMPONENTS", @blue)
-
-    Table.print(
-      headers: ["Command", "Description"],
-      rows: [
-        ["scroll", "Stateful scrollable list with selection marker"],
-        ["tabs", "Stateful tabbed interface with inverted active tab"],
-        ["log", "Append-only log with retention limit"],
-        ["progress", "Stateful progress bar (struct-based, CLI-renderable)"],
-        ["pulsar", "Pulsar/radar animation with gradient wave effect"]
-      ],
-      table_border: :rounded,
-      border_color: @blue,
-      headers_color: :blue,
-      headers_effects: [:bold],
-      padding: 1
-    )
+  defp component_commands_text do
+    [
+      section_title_text("STATEFUL COMPONENTS", @blue),
+      table_text(
+        ["Command", "Description"],
+        [
+          ["scroll", "Stateful scrollable list with selection marker"],
+          ["tabs", "Stateful tabbed interface with inverted active tab"],
+          ["log", "Append-only log with retention limit"],
+          ["progress", "Stateful progress bar (struct-based, CLI-renderable)"],
+          ["pulsar", "Pulsar/radar animation with gradient wave effect"]
+        ],
+        @blue
+      )
+    ]
   end
 
-  defp interactive_commands_section do
-    section_title("INTERACTIVE COMMANDS", @yellow)
-
-    Table.print(
-      headers: ["Command", "Description"],
-      rows: [
-        ["ask", "Interactive text input"],
-        ["menu", "Interactive selection menu"],
-        ["yesno", "Interactive yes/no question"]
-      ],
-      table_border: :rounded,
-      border_color: @yellow,
-      headers_color: :yellow,
-      headers_effects: [:bold],
-      padding: 1
-    )
+  defp interactive_commands_text do
+    [
+      section_title_text("INTERACTIVE COMMANDS", @yellow),
+      table_text(
+        ["Command", "Description"],
+        [
+          ["ask", "Interactive text input"],
+          ["menu", "Interactive selection menu"],
+          ["yesno", "Interactive yes/no question"]
+        ],
+        @yellow
+      )
+    ]
   end
 
-  defp color_command_section do
-    section_title("COLOR COMMAND", @orange)
-
-    Table.print(
-      headers: ["Usage", "Description"],
-      rows: [
-        ["alaja color <color>", "Show color info in all formats"],
-        ["alaja color <color> --harmony TYPE", "Generate color harmonies"],
-        ["alaja color <c> --darken N", "Darken by N steps"],
-        ["alaja color <c> --lighten N", "Lighten by N steps"],
-        ["alaja color <c> --lab", "Include CIELAB values"],
-        ["alaja color <c> --xyz", "Include CIE XYZ values"],
-        ["alaja color <c> --kelvin", "Include color temperature (K)"],
-        ["alaja color <c> --pantone", "Include Pantone approximation"],
-        ["alaja color <c> --contrast COLOR", "WCAG contrast ratio and Delta E"]
-      ],
-      table_border: :rounded,
-      border_color: @orange,
-      headers_color: :yellow,
-      headers_effects: [:bold],
-      padding: 1
-    )
-
-    IO.puts("")
-
-    IO.puts(
-      "  Harmony types: triad, complementary, analogous, square, monochromatic, compound, split-complementary"
-    )
+  defp color_command_text do
+    [
+      section_title_text("COLOR COMMAND", @orange),
+      table_text(
+        ["Usage", "Description"],
+        [
+          ["alaja color <color>", "Show color info in all formats"],
+          ["alaja color <color> --harmony TYPE", "Generate color harmonies"],
+          ["alaja color <c> --darken N", "Darken by N steps"],
+          ["alaja color <c> --lighten N", "Lighten by N steps"],
+          ["alaja color <c> --lab", "Include CIELAB values"],
+          ["alaja color <c> --xyz", "Include CIE XYZ values"],
+          ["alaja color <c> --kelvin", "Include color temperature (K)"],
+          ["alaja color <c> --pantone", "Include Pantone approximation"],
+          ["alaja color <c> --contrast COLOR", "WCAG contrast ratio and Delta E"]
+        ],
+        @orange,
+        headers_color: :yellow
+      ),
+      "\n",
+      "  Harmony types: triad, complementary, analogous, square, monochromatic, compound, split-complementary",
+      "\n"
+    ]
   end
 
-  defp action_command_section do
-    section_title("ACTION COMMAND", @green)
-
-    Table.print(
-      headers: ["Usage", "Description"],
-      rows: [
-        ["echo JSON | alaja action", "Execute from stdin pipe"],
-        ["alaja action --file FILE", "Execute from JSON file"],
-        ["alaja action --data JSON", "Execute from inline JSON"],
-        ["alaja action --stdin", "Force stdin mode"]
-      ],
-      table_border: :rounded,
-      border_color: @green,
-      headers_color: :green,
-      headers_effects: [:bold],
-      padding: 1
-    )
+  defp action_command_text do
+    [
+      section_title_text("ACTION COMMAND", @green),
+      table_text(
+        ["Usage", "Description"],
+        [
+          ["echo JSON | alaja action", "Execute from stdin pipe"],
+          ["alaja action --file FILE", "Execute from JSON file"],
+          ["alaja action --data JSON", "Execute from inline JSON"],
+          ["alaja action --stdin", "Force stdin mode"]
+        ],
+        @green
+      )
+    ]
   end
 
-  defp theme_command_section do
-    section_title("THEME COMMAND", @purple)
-
-    Table.print(
-      headers: ["Usage", "Description"],
-      rows: [
-        ["alaja theme init", "Install default themes to ~/.config/alaja/themes"],
-        ["alaja theme list", "List available themes"],
-        ["alaja theme set <name>", "Activate a theme"],
-        ["alaja theme show <name>", "Show a single theme's colour table"],
-        ["alaja theme show <name> <name> ...", "Show side-by-side comparison of given themes"],
-        ["alaja theme show list", "Show side-by-side comparison of all themes"],
-        ["alaja theme show all", "Show all themes sequentially"],
-        ["alaja theme all", "Show side-by-side comparison of all themes"]
-      ],
-      table_border: :rounded,
-      border_color: @purple,
-      headers_color: :magenta,
-      headers_effects: [:bold],
-      padding: 1
-    )
+  defp theme_command_text do
+    [
+      section_title_text("THEME COMMAND", @purple),
+      table_text(
+        ["Usage", "Description"],
+        [
+          ["alaja theme init", "Install default themes to ~/.config/alaja/themes"],
+          ["alaja theme list", "List available themes"],
+          ["alaja theme set <name>", "Activate a theme"],
+          ["alaja theme show <name>", "Show a single theme's colour table"],
+          ["alaja theme show <name> <name> ...", "Show side-by-side comparison of given themes"],
+          ["alaja theme show list", "Show side-by-side comparison of all themes"],
+          ["alaja theme show all", "Show all themes sequentially"],
+          ["alaja theme all", "Show side-by-side comparison of all themes"]
+        ],
+        @purple,
+        headers_color: :magenta
+      )
+    ]
   end
 
   @examples [
@@ -387,10 +395,10 @@ defmodule Alaja.CLI.Help do
     {"Pretty-printed JSON", "echo '{\"name\":\"alaja\",\"v\":3}' | alaja json"},
     {"Progress bar with label", "alaja bar 60 --max 100 --label build --filled-char █"},
     {"Animated progress (2s)", "alaja animated-bar 50 --max 100 --duration 2000"},
-    {"Selectable list (FASE-2)", "alaja scroll a b c --select 1"},
-    {"Tabs (FASE-2)", "alaja tabs dev staging prod --active 1"},
-    {"Log with retention (FASE-2)", "alaja log \"line 1\" \"line 2\" --max-lines 5"},
-    {"Stateful progress (FASE-2)", "alaja progress --current 75 --total 100 --label build"},
+    {"Selectable list", "alaja scroll a b c --select 1"},
+    {"Tabs", "alaja tabs dev staging prod --active 1"},
+    {"Log with retention", "alaja log \"line 1\" \"line 2\" --max-lines 5"},
+    {"Stateful progress", "alaja progress --current 75 --total 100 --label build"},
     {"Breadcrumbs", "alaja breadcrumbs home lib alaja --current alaja"},
     {"Bullet list", "alaja list \"fix deploy\" \"write tests\" --header \"To do\" --color cyan"},
     {"Radar animation (3s)", "alaja pulsar \"Alaja\" --duration 3000"},
@@ -398,21 +406,56 @@ defmodule Alaja.CLI.Help do
     {"Batch from stdin", "echo '{\"type\":\"success\",\"text\":\"ok\"}' | alaja action"}
   ]
 
-  defp examples_section do
-    section_title("EXAMPLES", @orange)
+  defp examples_text do
+    pairs =
+      Enum.map(@examples, fn {comment, command} ->
+        [fg_color(@cyan), ANSI.bright(), "# ", comment, ANSI.reset(), "\n",
+         fg_color({180, 220, 120}), "  ", command, ANSI.reset(), "\n"]
+      end)
 
-    IO.puts("")
-
-    Enum.each(@examples, fn {comment, command} ->
-      IO.puts([fg_color(@cyan), ANSI.bright(), "# ", comment, ANSI.reset()])
-      IO.puts([fg_color({180, 220, 120}), "  ", command, ANSI.reset()])
-      IO.puts("")
-    end)
+    [section_title_text("EXAMPLES", @orange), "\n", pairs]
   end
 
-  defp section_title(title, color) do
-    Separator.print(title, char: "━", width: @section_width, color: color)
-    IO.puts("")
+  defp more_help_text do
+    [
+      section_title_text("MORE HELP", @cyan),
+      table_text(
+        ["Command", "Description"],
+        [["alaja <cmd> --help", "Detailed help for any command"]],
+        @cyan,
+        table_border: :none
+      )
+    ]
+  end
+
+  defp host_commands_text(descriptions) do
+    rows = Enum.map(descriptions, fn {cmd, desc} -> [cmd, desc] end)
+
+    [section_title_text("COMMAND LIST", @green), table_text(["Command", "Description"], rows, @green)]
+  end
+
+  defp table_text(headers, rows, color, opts \\ []) do
+    Table.render(
+      headers: headers,
+      rows: rows,
+      table_border: Keyword.get(opts, :table_border, :rounded),
+      border_color: color,
+      headers_color: Keyword.get(opts, :headers_color, color),
+      headers_effects: [:bold],
+      padding: 1
+    )
+    |> Alaja.Buffer.to_iodata()
+    |> IO.iodata_to_binary()
+    |> Kernel.<>("\n")
+  end
+
+  defp section_title_text(title, color) do
+    separator =
+      Separator.render(title, char: "━", width: @section_width, color: color)
+      |> Alaja.Buffer.to_iodata()
+      |> IO.iodata_to_binary()
+
+    [separator, "\n"]
   end
 
   defp fg_color({r, g, b}), do: "\e[38;2;#{r};#{g};#{b}m"

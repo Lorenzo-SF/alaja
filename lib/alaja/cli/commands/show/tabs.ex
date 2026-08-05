@@ -1,6 +1,6 @@
 defmodule Alaja.CLI.Commands.Show.Tabs do
   @moduledoc """
-  `alaja tabs` — Stateful tabbed interface (FASE-2 component).
+  `alaja tabs` — Stateful tabbed interface.
 
   Renders the tab strip produced by `Alaja.Components.TabsState`. The
   active tab is wrapped in `[ ... ]` and inverted. Use `--active N` to
@@ -15,7 +15,7 @@ defmodule Alaja.CLI.Commands.Show.Tabs do
 
   @help_data [
     title: "Alaja Tabs",
-    subtitle: "Stateful tabbed interface (FASE-2 component)",
+    subtitle: "Stateful tabbed interface",
     usage: "alaja tabs <label1> <label2> ... <labelN> [--active N]",
     description: """
     Renders a labelled tab strip. The active tab is rendered with
@@ -57,6 +57,6 @@ defmodule Alaja.CLI.Commands.Show.Tabs do
     end
   end
 
-  @spec help() :: :ok
-  def help, do: HelpFormatter.render(@help_data)
+  @spec help(Alaja.CLI.GlobalOpts.t() | nil) :: :ok
+  def help(global \\ nil), do: HelpFormatter.render(@help_data, global)
 end

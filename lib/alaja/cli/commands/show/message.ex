@@ -77,7 +77,7 @@ defmodule Alaja.CLI.Commands.Show.Message do
     end
   end
 
-  defp handle_message([], _global, nil), do: help()
+  defp handle_message([], global, nil), do: help(global)
 
   defp handle_message(rest, global, nil) do
     {opts, positional, _} =
@@ -338,6 +338,6 @@ defmodule Alaja.CLI.Commands.Show.Message do
   @doc """
   Prints help for the message command.
   """
-  @spec help() :: :ok
-  def help, do: HelpFormatter.render(@help_data)
+  @spec help(Alaja.CLI.GlobalOpts.t() | nil) :: :ok
+  def help(global \\ nil), do: HelpFormatter.render(@help_data, global)
 end

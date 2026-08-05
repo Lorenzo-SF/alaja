@@ -208,6 +208,6 @@ defmodule Alaja.CLI.Commands.Show.Multibar do
   defp parse_align(s) when is_binary(s), do: Helpers.safe_string_to_atom(s)
   defp parse_align(_), do: nil
 
-  @spec help() :: :ok
-  def help, do: HelpFormatter.render(@help_data)
+  @spec help(Alaja.CLI.GlobalOpts.t() | nil) :: :ok
+  def help(global \\ nil), do: HelpFormatter.render(@help_data, global)
 end

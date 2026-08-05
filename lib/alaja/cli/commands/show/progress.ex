@@ -1,6 +1,6 @@
 defmodule Alaja.CLI.Commands.Show.Progress do
   @moduledoc """
-  `alaja progress` — Stateful progress bar (FASE-2 component).
+  `alaja progress` — Stateful progress bar.
 
   Renders a progress bar from `Alaja.Components.ProgressState`. Differs
   from `alaja bar` in that the state lives in a struct (`:current`,
@@ -16,7 +16,7 @@ defmodule Alaja.CLI.Commands.Show.Progress do
 
   @help_data [
     title: "Alaja Progress",
-    subtitle: "Stateful progress bar (FASE-2 component)",
+    subtitle: "Stateful progress bar",
     usage: "alaja progress [--current N] [--total N] [--width N] [--label T]",
     description: """
     Renders a progress bar from `Alaja.Components.ProgressState`. The
@@ -67,6 +67,6 @@ defmodule Alaja.CLI.Commands.Show.Progress do
     end
   end
 
-  @spec help() :: :ok
-  def help, do: HelpFormatter.render(@help_data)
+  @spec help(Alaja.CLI.GlobalOpts.t() | nil) :: :ok
+  def help(global \\ nil), do: HelpFormatter.render(@help_data, global)
 end

@@ -1,6 +1,6 @@
 defmodule Alaja.CLI.Commands.Show.Log do
   @moduledoc """
-  `alaja log` — Append-only log (FASE-2 component).
+  `alaja log` — Append-only log.
 
   Renders a list of lines as a log using `Alaja.Components.LogState`.
   Each positional argument is a log line. `--max-lines N` caps the
@@ -15,7 +15,7 @@ defmodule Alaja.CLI.Commands.Show.Log do
 
   @help_data [
     title: "Alaja Log",
-    subtitle: "Append-only log (FASE-2 component)",
+    subtitle: "Append-only log",
     usage: "alaja log <line1> <line2> ... <lineN> [--max-lines N]",
     description: """
     Renders each positional argument as a log line. Lines are appended
@@ -57,6 +57,6 @@ defmodule Alaja.CLI.Commands.Show.Log do
     end
   end
 
-  @spec help() :: :ok
-  def help, do: HelpFormatter.render(@help_data)
+  @spec help(Alaja.CLI.GlobalOpts.t() | nil) :: :ok
+  def help(global \\ nil), do: HelpFormatter.render(@help_data, global)
 end
