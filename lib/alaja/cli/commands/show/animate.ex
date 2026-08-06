@@ -26,7 +26,8 @@ defmodule Alaja.CLI.Commands.Show.Animate do
     ],
     examples: [
       {"Spinner con texto", "alaja animate --type dots --text \"working\" --duration 2000"},
-      {"Spinner de línea", "alaja animate --type line --text \"loading\" --color cyan --duration 1500"}
+      {"Spinner de línea",
+       "alaja animate --type line --text \"loading\" --color cyan --duration 1500"}
     ]
   ]
 

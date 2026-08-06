@@ -30,7 +30,7 @@ defmodule Alaja.Cmd do
       end
   """
 
-  alias Alaja.Cmd.{None, Log, SendMsg, Quit, Batch, Custom}
+  alias Alaja.Cmd.{Batch, Custom, Log, None, Quit, SendMsg}
 
   @type t ::
           None.t()
@@ -42,16 +42,19 @@ defmodule Alaja.Cmd do
           | term()
 
   defmodule None do
+    @moduledoc "No-op command."
     defstruct []
     @type t :: %__MODULE__{}
   end
 
   defmodule Log do
+    @moduledoc "Writes a message to stderr."
     defstruct message: ""
     @type t :: %__MODULE__{message: String.t()}
   end
 
   defmodule SendMsg do
+    @moduledoc "Sends a `Msg` to the given target process."
     defstruct target: nil, msg: nil
     @type t :: %__MODULE__{target: pid() | atom(), msg: Alaja.Msg.t()}
   end
@@ -63,6 +66,7 @@ defmodule Alaja.Cmd do
   end
 
   defmodule Batch do
+    @moduledoc "Runs a list of commands in order."
     defstruct cmds: []
     @type t :: %__MODULE__{cmds: [t()]}
   end

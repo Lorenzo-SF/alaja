@@ -26,7 +26,8 @@ defmodule Alaja.CLI.Commands.Show.Gradient do
     ],
     examples: [
       {"Gradiente horizontal", "alaja gradient \"hola mundo\" --from red --to blue"},
-      {"Gradiente vertical", "alaja gradient \"subida\" --from yellow --to magenta --direction vertical"}
+      {"Gradiente vertical",
+       "alaja gradient \"subida\" --from yellow --to magenta --direction vertical"}
     ]
   ]
 

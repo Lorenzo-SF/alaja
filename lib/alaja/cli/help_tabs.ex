@@ -131,7 +131,29 @@ defmodule Alaja.CLI.HelpTabs do
   # Drawing
   # ---------------------------------------------------------------------------
 
-  # First paint: header + tab strip + hint + active panel.
+  # Visual layout
+  # ============================================================================
+  #
+  #   row  1..5  : header (outside scroll region, anchored at the top)
+  #   row  6     : tab strip (anchored at the top of the scroll region)
+  #   row  7     : hint     (anchored below the tab strip)
+  #   row  8..N  : active panel content (scrolls within the region)
+  #
+  # On every repaint we clear from row 6, redraw the tab strip + hint,
+  # then write the content starting at row 8. Because the nav/hint
+  # lines are written first into the same `clear` zone, they sit on the
+  # *same* rows 6-7 every time — they don't "jump" between repaints
+  # the way they would if rendered at the bottom of the viewport
+  # alongside a long content scroll.
+  # ============================================================================
+
+  # Scroll region: rows 6..bottom. The nav/hint lines occupy the first
+  # two rows inside the region, the active panel content fills the rest.
+  @nav_row_offset @header_height + 1
+  @content_row_offset @header_height + 3
+
+  @doc false
+  # First paint: clear, header, then nav + hint + active panel.
   defp draw_full(panels, active, global) do
     IO.write(ANSI.sync_output_start())
     IO.write(ANSI.cursor_home())
@@ -141,40 +163,36 @@ defmodule Alaja.CLI.HelpTabs do
     IO.write(ANSI.sync_output_end())
   end
 
-  # Subsequent paints (tab change): redraw the panel area only. The
-  # scroll region keeps the header anchored at the top and the tab
-  # strip + hint anchored at the bottom of the viewport.
+  @doc false
+  # Subsequent paints (tab change): clear the scroll region, redraw
+  # the tab strip + hint on their fixed rows, then write the content
+  # below them.
   defp draw_panel_only(panels, active, global) do
     IO.write(ANSI.sync_output_start())
-    IO.write(ANSI.move_to(1, @header_height + 1))
+
+    # Cursor goes to the first row of the scroll region (just below
+    # the header + its trailing blank line).
+    IO.write(ANSI.move_to(1, @nav_row_offset))
     IO.write(ANSI.clear_line_down())
 
-    text = render_panel(panels, active, global)
-    write_lines(text)
+    # Tab strip + hint on rows 6-7, anchored.
+    write_lines(nav_line(panels, active))
+    write_lines(hint_line())
+
+    # Content starts at row 8, so it always begins at the same visual
+    # position regardless of the previous content's length.
+    IO.write(ANSI.move_to(1, @content_row_offset))
+    write_lines(panel_body(panels, active, global))
 
     IO.write(ANSI.sync_output_end())
   end
 
-  defp render_panel(panels, active, global) do
-    body =
-      panels
-      |> Enum.at(active)
-      |> Map.fetch!(:render)
-      |> then(& &1.())
-      |> Printer.format_raw(GlobalOpts.to_printer_opts(global))
-
-    nav = nav_line(panels, active)
-
-    try do
-      body <> "\n\n" <> nav <> "\n" <> hint_line() <> "\n"
-    rescue
-      ArgumentError ->
-        IO.warn(
-          "[Alaja.HelpTabs.render_panel] body type: #{inspect(body[:__struct__] || :binary)}, nav type: #{inspect(nav[:__struct__] || :binary)}"
-        )
-
-        reraise __STACKTRACE__, __STACKTRACE__
-    end
+  defp panel_body(panels, active, global) do
+    panels
+    |> Enum.at(active)
+    |> Map.fetch!(:render)
+    |> then(& &1.())
+    |> Printer.format_raw(GlobalOpts.to_printer_opts(global))
   end
 
   defp nav_line(panels, active) do

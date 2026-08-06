@@ -191,15 +191,17 @@ defmodule Alaja.CLI.Pagination do
   """
   @spec tty?() :: boolean()
   def tty? do
-    if Code.ensure_loaded?(ExUnit) and
-         function_exported?(ExUnit, :fetch_test_supervisor, 0) and
-         match?({:ok, _}, apply(ExUnit, :fetch_test_supervisor, [])) do
+    if test_supervisor?() do
       false
     else
       tty_device() != nil
     end
   rescue
     _ -> false
+  end
+
+  defp test_supervisor? do
+    Enum.any?(Application.loaded_applications(), fn {app, _, _} -> app == :ex_unit end)
   end
 
   @doc false

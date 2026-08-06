@@ -313,7 +313,10 @@ defmodule Alaja.Cell do
 
     if not MapSet.member?(logged, key) do
       require Logger
-      Logger.warning(fn -> "[Alaja] active theme missing required key #{inspect(key)}; falling back to white" end)
+
+      Logger.warning(fn ->
+        "[Alaja] active theme missing required key #{inspect(key)}; falling back to white"
+      end)
 
       :persistent_term.put(
         @missing_logged_key,

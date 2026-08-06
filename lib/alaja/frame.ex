@@ -100,14 +100,25 @@ defmodule Alaja.Frame do
     {w, h} = {buf.width, buf.height}
 
     Enum.reduce(0..(h - 1), %{}, fn y, acc ->
-      Enum.reduce(0..(w - 1), acc, fn x, acc2 ->
-        case Buffer.get(buf, x, y) do
-          nil -> acc2
-          %Cell{char: c} -> Map.put(acc2, {x + 1, y + 1}, c)
-          str when is_binary(str) -> Map.put(acc2, {x + 1, y + 1}, str)
-        end
-      end)
+      reduce_row(buf, w, y, acc)
     end)
+  end
+
+  defp reduce_row(buf, w, y, acc) do
+    Enum.reduce(0..(w - 1), acc, fn x, acc2 ->
+      case cell_char(buf, x, y) do
+        nil -> acc2
+        c -> Map.put(acc2, {x + 1, y + 1}, c)
+      end
+    end)
+  end
+
+  defp cell_char(buf, x, y) do
+    case Buffer.get(buf, x, y) do
+      nil -> nil
+      %Cell{char: c} -> c
+      str when is_binary(str) -> str
+    end
   end
 
   @doc "Returns the text content of a single row, trimmed of trailing spaces."
@@ -116,14 +127,12 @@ defmodule Alaja.Frame do
     width = buf.width
 
     0..(width - 1)
-    |> Enum.map(fn x ->
-      case Buffer.get(buf, x, row - 1) do
+    |> Enum.map_join(fn x ->
+      case cell_char(buf, x, row - 1) do
         nil -> " "
-        %Cell{char: c} -> c
-        str when is_binary(str) -> str
+        c -> c
       end
     end)
-    |> Enum.join("")
     |> String.trim_trailing()
   end
 end

@@ -248,71 +248,11 @@ defmodule Alaja.CLI.Definition do
         Application.ensure_all_started(:alaja)
         Application.ensure_all_started(__otp_app__())
 
-        # Top-level help: `alaja`, `alaja --help`, `alaja -h`, and `alaja help`
-        # all render the full help instead of trying to dispatch to a command.
-        # `alaja` alone runs the startup showcase first on TTYs; the full
-        # help is only rendered afterwards if the user asks for it.
-        result =
-          case args do
-            [] ->
-              if Alaja.CLI.Showcase.enabled?() do
-                case Alaja.CLI.Showcase.run() do
-                  :help -> render_full_help()
-                  _ -> :ok
-                end
-              else
-                render_full_help()
-              end
-
-            ["--help" | _] ->
-              render_full_help()
-
-            ["-h" | _] ->
-              render_full_help()
-
-            ["help"] ->
-              render_full_help()
-
-            ["--version" | _] ->
-              render_version()
-
-            ["-v" | _] ->
-              render_version()
-
-            _ ->
-              Alaja.CLI.Definition.dispatch(@commands |> Enum.reverse(), args)
-          end
+        result = Alaja.CLI.Definition.run_dispatch(__commands__(), args)
 
         unquote(halt_block)
 
         result
-      end
-
-      defp render_full_help do
-        # Print the available commands list as well, formatted like a
-        # one-screen reference, so callers see what's available without
-        # having to dig into the formatted tables.
-        descriptions =
-          @commands
-          |> Enum.reverse()
-          |> Enum.map(fn %{name: name, description: desc} -> {name, desc} end)
-
-        if Alaja.CLI.HelpTabs.interactive?() do
-          # On a TTY the full help renders as tabs; the command list is
-          # embedded in the Commands tab.
-          Alaja.CLI.Help.full(descriptions)
-        else
-          Alaja.CLI.Help.full()
-          Alaja.CLI.Help.summary(descriptions)
-        end
-
-        :ok
-      end
-
-      defp render_version do
-        vsn = Application.spec(:alaja, :vsn) |> to_string()
-        IO.puts("alaja #{vsn}")
-        :ok
       end
     end
   end
@@ -321,6 +261,74 @@ defmodule Alaja.CLI.Definition do
 
   alias Alaja.CLI.ErrorHandler
   alias Alaja.CLI.Parser
+
+  @doc false
+  @spec run_dispatch([map()], [String.t()]) :: term()
+  def run_dispatch(commands, args) do
+    case args do
+      # Top-level help: `alaja`, `alaja --help`, `alaja -h`, and `alaja
+      # help` all render the full help instead of trying to dispatch to a
+      # command. `alaja` alone runs the startup showcase first on TTYs;
+      # the full help is only rendered afterwards if the user asks for it.
+      [] ->
+        dispatch_empty(commands)
+
+      ["--help" | _] ->
+        render_full_help(commands)
+
+      ["-h" | _] ->
+        render_full_help(commands)
+
+      ["help"] ->
+        render_full_help(commands)
+
+      ["--version" | _] ->
+        render_version()
+
+      ["-v" | _] ->
+        render_version()
+
+      _ ->
+        dispatch(commands, args)
+    end
+  end
+
+  defp dispatch_empty(commands) do
+    if Alaja.CLI.Showcase.enabled?() do
+      case Alaja.CLI.Showcase.run() do
+        :help -> render_full_help(commands)
+        _ -> :ok
+      end
+    else
+      render_full_help(commands)
+    end
+  end
+
+  defp render_full_help(commands) do
+    # Print the available commands list as well, formatted like a
+    # one-screen reference, so callers see what's available without
+    # having to dig into the formatted tables.
+    descriptions =
+      commands
+      |> Enum.map(fn %{name: name, description: desc} -> {name, desc} end)
+
+    if Alaja.CLI.HelpTabs.interactive?() do
+      # On a TTY the full help renders as tabs; the command list is
+      # embedded in the Commands tab.
+      Alaja.CLI.Help.full(descriptions)
+    else
+      Alaja.CLI.Help.full()
+      Alaja.CLI.Help.summary(descriptions)
+    end
+
+    :ok
+  end
+
+  defp render_version do
+    vsn = Application.spec(:alaja, :vsn) |> to_string()
+    IO.puts("alaja #{vsn}")
+    :ok
+  end
 
   @doc false
   @spec dispatch([map()], [String.t()]) :: {:error, atom()} | term()

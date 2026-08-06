@@ -22,7 +22,8 @@ defmodule Alaja.CLI.Commands.Show.Breadcrumbs do
     ],
     examples: [
       {"Ruta de navegación", "alaja breadcrumbs home lib alaja --current alaja"},
-      {"Breadcrumbs con flecha", "alaja breadcrumbs dev staging prod --separator \"→\" --current prod"}
+      {"Breadcrumbs con flecha",
+       "alaja breadcrumbs dev staging prod --separator \"→\" --current prod"}
     ]
   ]
 

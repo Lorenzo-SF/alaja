@@ -17,7 +17,7 @@ defmodule Alaja.Msg do
       end
   """
 
-  alias Alaja.Msg.{Focus, Key, Mouse, Paste, Resize, Tick, Custom, Quit, Error}
+  alias Alaja.Msg.{Custom, Error, Focus, Key, Mouse, Paste, Quit, Resize, Tick}
 
   @type modifier :: :ctrl | :alt | :shift | :meta
   @type key_name :: String.t()
@@ -42,7 +42,7 @@ defmodule Alaja.Msg do
           | %Error{kind: atom(), reason: term()}
 
   defmodule Key do
-    @moduledoc "A keyboard event. `key` is the normalised name (e.g. `\"q\"`, `\"up\"`, `\"f1\"`)."
+    @moduledoc ~S[A keyboard event. `key` is the normalised name (e.g. "q", "up", "f1").]
     defstruct [:key, modifiers: [], raw: ""]
     @type t :: %__MODULE__{key: String.t(), modifiers: [atom()], raw: binary()}
   end

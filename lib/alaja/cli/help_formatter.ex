@@ -20,8 +20,8 @@ defmodule Alaja.CLI.HelpFormatter do
   or redirected everything renders sequentially.
   """
 
-  alias Alaja.Components.{Header, Separator, Table}
   alias Alaja.CLI.{GlobalOpts, HelpTabs}
+  alias Alaja.Components.{Header, Separator, Table}
   alias IO.ANSI
 
   @cyan {0, 180, 216}
@@ -165,8 +165,19 @@ defmodule Alaja.CLI.HelpFormatter do
   defp examples_text(examples) do
     pairs =
       Enum.map(examples, fn {comment, command} ->
-        [fg_color(@cyan), ANSI.bright(), "# ", comment, ANSI.reset(), "\n",
-         fg_color({180, 220, 120}), "  ", command, ANSI.reset(), "\n\n"]
+        [
+          fg_color(@cyan),
+          ANSI.bright(),
+          "# ",
+          comment,
+          ANSI.reset(),
+          "\n",
+          fg_color({180, 220, 120}),
+          "  ",
+          command,
+          ANSI.reset(),
+          "\n\n"
+        ]
       end)
 
     ["\n", section_title_text("EXAMPLES", @green), pairs]

@@ -1,8 +1,11 @@
 defmodule Alaja.Components.ColorWheel.Renderer do
-  alias Alaja.{Buffer, Cell}
+  @moduledoc false
+
+  alias Alaja.Buffer
+  alias Alaja.Cell
+  alias Alaja.Components.ColorWheel.Harmonies
   alias Alaja.ImageRenderer
   alias Alaja.ImageTerminal, as: Terminal
-  alias Alaja.Components.ColorWheel.Harmonies
 
   alias Pote
   alias Pote.Converters

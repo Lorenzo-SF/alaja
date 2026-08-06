@@ -1,7 +1,7 @@
 defmodule Alaja.LayoutTest do
   use ExUnit.Case, async: true
 
-  alias Alaja.{Layout, Frame}
+  alias Alaja.{Frame, Layout}
   alias Alaja.View.Node
 
   test "measure of text is length x 1" do

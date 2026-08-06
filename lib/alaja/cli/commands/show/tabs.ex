@@ -9,8 +9,8 @@ defmodule Alaja.CLI.Commands.Show.Tabs do
 
   alias Alaja.CLI.GlobalOpts
   alias Alaja.CLI.HelpFormatter
-  alias Alaja.Components
   alias Alaja.CLI.ViewText
+  alias Alaja.Components
   alias Alaja.Printer
 
   @help_data [

@@ -219,7 +219,9 @@ defmodule Alaja.ConfigTest do
         Application.delete_env(:alaja, :no_color)
         Application.delete_env(:alaja, :__conf_loaded__)
         Config.load!("/nonexistent.json")
-        assert Config.get(:no_color, false) == true, "NO_COLOR=#{inspect(value)} should set :no_color"
+
+        assert Config.get(:no_color, false) == true,
+               "NO_COLOR=#{inspect(value)} should set :no_color"
       end
     end
 

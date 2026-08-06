@@ -29,7 +29,8 @@ defmodule Alaja.CLI.Commands.Show.Bar do
     ],
     examples: [
       {"Barra con label", "alaja bar 60 --max 100 --label build --filled-char █"},
-      {"Barra con colores", "alaja bar 42 --max 100 --filled-color green --empty-color background"}
+      {"Barra con colores",
+       "alaja bar 42 --max 100 --filled-color green --empty-color background"}
     ]
   ]
 

@@ -2,7 +2,7 @@ defmodule Alaja.ComponentsTest do
   use ExUnit.Case, async: true
 
   alias Alaja.Components
-  alias Alaja.Components.{ListState, TabsState, LogState, ProgressState}
+  alias Alaja.Components.{ListState, LogState, ProgressState, TabsState}
   alias Alaja.Msg
 
   describe "list" do

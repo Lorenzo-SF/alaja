@@ -349,12 +349,14 @@ defmodule Alaja.App do
       |> Enum.each(fn {sub, pid} -> Sub.detach(sub, pid) end)
 
       # attach new
-      Enum.map(new_subs, fn sub ->
-        case Sub.attach(sub, self()) do
-          {:ok, pid} -> pid
-          _ -> nil
-        end
-      end)
+      Enum.map(new_subs, &attach_sub/1)
+    end
+  end
+
+  defp attach_sub(sub) do
+    case Sub.attach(sub, self()) do
+      {:ok, pid} -> pid
+      _ -> nil
     end
   end
 

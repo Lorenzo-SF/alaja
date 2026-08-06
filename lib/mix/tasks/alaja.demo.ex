@@ -140,10 +140,14 @@ defmodule Mix.Tasks.Alaja.Demo do
 
   defp render_one(:table) do
     Alaja.CLI.Commands.Show.Table.run([
-      "--headers", "name,status,owner",
-      "--rows", "api,ok,alice",
-      "--rows", "web,degraded,bob",
-      "--rows", "worker,ok,alice"
+      "--headers",
+      "name,status,owner",
+      "--rows",
+      "api,ok,alice",
+      "--rows",
+      "web,degraded,bob",
+      "--rows",
+      "worker,ok,alice"
     ])
   end
 
@@ -194,9 +198,12 @@ defmodule Mix.Tasks.Alaja.Demo do
   defp render_one(:progress) do
     run_stateful("progress", fn ->
       Alaja.CLI.Commands.Show.Progress.run([
-        "--current", "75",
-        "--total", "100",
-        "--label", "build"
+        "--current",
+        "75",
+        "--total",
+        "100",
+        "--label",
+        "build"
       ])
     end)
   end
@@ -219,7 +226,8 @@ defmodule Mix.Tasks.Alaja.Demo do
 
   defp render_one(:action) do
     Alaja.CLI.Commands.Action.run([
-      "--data", ~s({"type":"success","text":"deploy completado"})
+      "--data",
+      ~s({"type":"success","text":"deploy completado"})
     ])
   end
 

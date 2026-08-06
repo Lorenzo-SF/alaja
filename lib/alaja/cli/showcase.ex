@@ -83,8 +83,7 @@ defmodule Alaja.CLI.Showcase do
     theme = to_string(Alaja.Config.get(:theme_active, :default))
 
     ["alaja", @description, "tema activo: #{theme}"]
-    |> Enum.map(&center_line(&1, String.length(@description)))
-    |> Enum.join("\n")
+    |> Enum.map_join("\n", &center_line(&1, String.length(@description)))
   end
 
   defp start_pulsar(x, y, width, height) do

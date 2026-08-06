@@ -34,36 +34,43 @@ defmodule Alaja.Sub do
           | %Alaja.Sub.Custom{mod: module(), opts: keyword()}
 
   defmodule Keypress do
+    @moduledoc "Keyboard input subscription."
     defstruct []
     @type t :: %__MODULE__{}
   end
 
   defmodule Tick do
+    @moduledoc "Periodic tick subscription, fired every `interval_ms` milliseconds."
     defstruct interval_ms: 1000
     @type t :: %__MODULE__{interval_ms: pos_integer()}
   end
 
   defmodule Resize do
+    @moduledoc "Terminal resize (SIGWINCH) subscription."
     defstruct []
     @type t :: %__MODULE__{}
   end
 
   defmodule Mouse do
+    @moduledoc "Mouse input subscription."
     defstruct []
     @type t :: %__MODULE__{}
   end
 
   defmodule Paste do
+    @moduledoc "Bracketed-paste content subscription."
     defstruct []
     @type t :: %__MODULE__{}
   end
 
   defmodule Focus do
+    @moduledoc "Focus gain/loss subscription."
     defstruct []
     @type t :: %__MODULE__{}
   end
 
   defmodule Custom do
+    @moduledoc "User-defined subscription backed by a module implementing `attach/2` and `detach/2`."
     defstruct mod: nil, opts: []
     @type t :: %__MODULE__{mod: module(), opts: keyword()}
   end

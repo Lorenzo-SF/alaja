@@ -128,11 +128,9 @@ defmodule Alaja.CLI.FlagParser do
   end
 
   defp cast(:atom, value, default) do
-    try do
-      String.to_existing_atom(value)
-    rescue
-      ArgumentError -> default
-    end
+    String.to_existing_atom(value)
+  rescue
+    ArgumentError -> default
   end
 
   defp cast(_, value, _default), do: value

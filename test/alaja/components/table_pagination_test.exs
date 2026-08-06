@@ -77,7 +77,19 @@ defmodule Alaja.Components.TablePaginationTest do
       page = Builder.build_page(@headers, rows(25), 10, nil, 1, "")
 
       assert %Page{page: 1, total_pages: 3, total_rows: 25} = page
-      assert Enum.map(page.rows, &hd/1) == ["item 11", "item 12", "item 13", "item 14", "item 15", "item 16", "item 17", "item 18", "item 19", "item 20"]
+
+      assert Enum.map(page.rows, &hd/1) == [
+               "item 11",
+               "item 12",
+               "item 13",
+               "item 14",
+               "item 15",
+               "item 16",
+               "item 17",
+               "item 18",
+               "item 19",
+               "item 20"
+             ]
     end
 
     test "clamps an impossible page to the first page with that page size" do
@@ -108,8 +120,20 @@ defmodule Alaja.Components.TablePaginationTest do
       page = Builder.build_page(@headers, rows(25), 10, nil, 0, "item 1")
 
       assert page.total_rows == 11
+
       assert Enum.map(page.rows, &hd/1) ==
-               ["item 1", "item 10", "item 11", "item 12", "item 13", "item 14", "item 15", "item 16", "item 17", "item 18"]
+               [
+                 "item 1",
+                 "item 10",
+                 "item 11",
+                 "item 12",
+                 "item 13",
+                 "item 14",
+                 "item 15",
+                 "item 16",
+                 "item 17",
+                 "item 18"
+               ]
     end
 
     test "search resets an out-of-range page" do

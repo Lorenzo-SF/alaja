@@ -39,7 +39,7 @@ defmodule Alaja.CLI.HelpRuntimeTest do
         {Alaja.CLI.Commands.Show.YesNo, "yesno"}
       ] do
     test "#{cmd} --help does not crash" do
-      capture = capture_io(fn -> apply(unquote(module), :run, [["--help"]]) end)
+      capture = capture_io(fn -> unquote(module).run(["--help"]) end)
       assert capture != "", "expected some help output for `#{unquote(cmd)} --help`"
     end
   end

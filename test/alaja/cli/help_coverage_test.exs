@@ -36,7 +36,7 @@ defmodule Alaja.CLI.HelpCoverageTest do
 
   for {module, cmd_name} <- @commands do
     test "#{cmd_name}: help() renders without crashing" do
-      capture = capture_io(fn -> apply(unquote(module), :help, []) end)
+      capture = capture_io(fn -> unquote(module).help() end)
       assert capture != "", "help/0 should produce output, got empty"
     end
 
@@ -103,29 +103,13 @@ defmodule Alaja.CLI.HelpCoverageTest do
 
   # Find the @help_data block by walking the source.
   defp extract_help_data_block(source) do
-    start_idx =
-      case :binary.match(source, "@help_data") do
-        {idx, _} -> idx
-        :nomatch -> nil
-      end
-
-    if is_nil(start_idx) do
-      nil
+    with {start_idx, _} <- :binary.match(source, "@help_data"),
+         {bracket_idx, _} <-
+           :binary.match(source, "[", scope: {start_idx, byte_size(source) - start_idx}),
+         end_idx when is_integer(end_idx) <- find_matching_bracket(source, bracket_idx + 1, 1) do
+      binary_part(source, bracket_idx + 1, end_idx - bracket_idx - 1)
     else
-      bracket_idx =
-        case :binary.match(source, "[", scope: {start_idx, byte_size(source) - start_idx}) do
-          {idx, _} -> idx
-          :nomatch -> nil
-        end
-
-      if is_nil(bracket_idx) do
-        nil
-      else
-        case find_matching_bracket(source, bracket_idx + 1, 1) do
-          nil -> nil
-          end_idx -> binary_part(source, bracket_idx + 1, end_idx - bracket_idx - 1)
-        end
-      end
+      _ -> nil
     end
   end
 

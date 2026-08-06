@@ -1,8 +1,11 @@
 defmodule Alaja.CLI.Commands.Show.Pulsar.Renderer do
   @moduledoc false
 
-  alias Alaja.Components.{Box, Pulsar}
-  alias Alaja.{ANSI, Buffer, ImageRenderer}
+  alias Alaja.ANSI
+  alias Alaja.Buffer
+  alias Alaja.Components.Box
+  alias Alaja.Components.Pulsar
+  alias Alaja.ImageRenderer
 
   @doc false
   def print_verbose_frames(text, pulsar_opts) do
@@ -73,8 +76,16 @@ defmodule Alaja.CLI.Commands.Show.Pulsar.Renderer do
 
       :ok
     else
+      ctx = %{
+        pulsar_opts: pulsar_opts,
+        global: global,
+        speed: speed,
+        box_height: box_height,
+        left_pad: left_pad
+      }
+
       try do
-        animate_loop(text, pulsar_opts, global, 0, speed, box_height, left_pad, start_pos, duration)
+        animate_loop(text, ctx, 0, start_pos, duration)
       after
         if global.raw do
           IO.write(ANSI.show_cursor())
@@ -124,61 +135,57 @@ defmodule Alaja.CLI.Commands.Show.Pulsar.Renderer do
     end
   end
 
-  defp animate_loop(text, pulsar_opts, global, frame, speed, box_height, left_pad, start_pos, duration) do
+  defp animate_loop(text, ctx, frame, start_pos, duration) do
+    %{speed: speed} = ctx
+
     if duration && duration > 0 && frame * speed >= duration do
       IO.write([ANSI.clear_line_down(), ANSI.show_cursor()])
       :ok
     else
-      frame_output = Pulsar.render_frame(text, frame, pulsar_opts)
-      output = wrap_if_boxed(frame_output, global)
+      frame_output = Pulsar.render_frame(text, frame, ctx.pulsar_opts)
+      output = wrap_if_boxed(frame_output, ctx.global)
 
-      if global.raw do
-        {start_x, start_y} = start_pos
-
-        positioned =
-          output
-          |> IO.iodata_to_binary()
-          |> String.split("\n")
-          |> Enum.with_index()
-          |> Enum.map_join(fn {line, row} ->
-            ANSI.move_to(start_x + left_pad, start_y + row) <> line
-          end)
-
-        if frame == 0 do
-          IO.write([ANSI.hide_cursor(), positioned])
-        else
-          # The frame buffer repaints every cell of the animation area, so
-          # no explicit clear is needed. Synchronized output mode batches
-          # the frame so the terminal renders it in one shot (no flicker).
-          IO.write([ANSI.sync_output_start(), positioned, ANSI.sync_output_end()])
-        end
-      else
-        padded_output =
-          output
-          |> IO.iodata_to_binary()
-          |> String.split("\n")
-          |> Enum.map_join("\n", fn line -> String.duplicate(" ", left_pad) <> line end)
-
-        if frame == 0 do
-          IO.write([ANSI.save_cursor(), padded_output])
-        else
-          IO.write([ANSI.restore_cursor(), ANSI.clear_line_down(), padded_output])
-        end
-      end
+      write_frame(output, ctx, frame, start_pos)
 
       :timer.sleep(speed)
 
-      animate_loop(
-        text,
-        pulsar_opts,
-        global,
-        frame + 1,
-        speed,
-        box_height,
-        left_pad,
-        start_pos,
-        duration
-      )
+      animate_loop(text, ctx, frame + 1, start_pos, duration)
+    end
+  end
+
+  defp write_frame(output, ctx, frame, start_pos) do
+    if ctx.global.raw do
+      {start_x, start_y} = start_pos
+
+      positioned =
+        output
+        |> IO.iodata_to_binary()
+        |> String.split("\n")
+        |> Enum.with_index()
+        |> Enum.map_join(fn {line, row} ->
+          ANSI.move_to(start_x + ctx.left_pad, start_y + row) <> line
+        end)
+
+      if frame == 0 do
+        IO.write([ANSI.hide_cursor(), positioned])
+      else
+        # The frame buffer repaints every cell of the animation area, so
+        # no explicit clear is needed. Synchronized output mode batches
+        # the frame so the terminal renders it in one shot (no flicker).
+        IO.write([ANSI.sync_output_start(), positioned, ANSI.sync_output_end()])
+      end
+    else
+      padded_output =
+        output
+        |> IO.iodata_to_binary()
+        |> String.split("\n")
+        |> Enum.map_join("\n", fn line -> String.duplicate(" ", ctx.left_pad) <> line end)
+
+      if frame == 0 do
+        IO.write([ANSI.save_cursor(), padded_output])
+      else
+        IO.write([ANSI.restore_cursor(), ANSI.clear_line_down(), padded_output])
+      end
     end
   end
 
@@ -195,7 +202,17 @@ defmodule Alaja.CLI.Commands.Show.Pulsar.Renderer do
           ImageRenderer.render(padded_pixels, width: width, height: height, align: :left)
 
           :timer.sleep(speed)
-          image_animate_loop(text, pulsar_opts, global, image_path, frame + 1, speed, opts, duration)
+
+          image_animate_loop(
+            text,
+            pulsar_opts,
+            global,
+            image_path,
+            frame + 1,
+            speed,
+            opts,
+            duration
+          )
 
         {:error, reason} ->
           IO.puts(:stderr, "Error rendering image: #{reason}")

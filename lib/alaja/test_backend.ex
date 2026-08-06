@@ -77,8 +77,7 @@ defmodule Alaja.TestBackend do
 
       %Frame{} = f ->
         1..f.buffer.height
-        |> Enum.map(fn row -> Frame.row_text(f, row) end)
-        |> Enum.join("\n")
+        |> Enum.map_join("\n", fn row -> Frame.row_text(f, row) end)
     end
   end
 

@@ -400,21 +400,25 @@ defmodule Alaja.Layout do
     new_buf =
       Enum.reduce(0..(child_buf.height - 1), buf, fn cy, acc ->
         Enum.reduce(0..(child_buf.width - 1), acc, fn cx, acc2 ->
-          case Alaja.Buffer.get(child_buf, cx, cy) do
-            %Alaja.Cell{char: c, fg: fg, bg: bg, effects: effects} ->
-              if c != " " or fg != nil or bg != nil or effects != [] do
-                Alaja.Buffer.put(acc2, x - 1 + cx, y - 1 + cy, c, fg, bg)
-              else
-                acc2
-              end
-
-            _ ->
-              acc2
-          end
+          copy_cell(acc2, child_buf, cx, cy, x, y)
         end)
       end)
 
     %Alaja.Frame{frame | buffer: new_buf}
+  end
+
+  defp copy_cell(acc2, child_buf, cx, cy, x, y) do
+    case Alaja.Buffer.get(child_buf, cx, cy) do
+      %Alaja.Cell{char: c, fg: fg, bg: bg, effects: effects} ->
+        if c != " " or fg != nil or bg != nil or effects != [] do
+          Alaja.Buffer.put(acc2, x - 1 + cx, y - 1 + cy, c, fg, bg)
+        else
+          acc2
+        end
+
+      _ ->
+        acc2
+    end
   end
 
   defp draw_box_border(frame, _x, _y, _w, _h, :none), do: frame

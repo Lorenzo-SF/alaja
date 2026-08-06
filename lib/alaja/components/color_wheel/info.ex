@@ -1,4 +1,6 @@
 defmodule Alaja.Components.ColorWheel.Info do
+  @moduledoc false
+
   alias Alaja
   alias Alaja.ANSI
   alias Alaja.Components.ColorWheel.Harmonies, as: ColorHarmonies

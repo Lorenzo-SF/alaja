@@ -12,8 +12,8 @@ defmodule Alaja.CLI.Commands.Show.Scroll do
 
   alias Alaja.CLI.GlobalOpts
   alias Alaja.CLI.HelpFormatter
-  alias Alaja.Components
   alias Alaja.CLI.ViewText
+  alias Alaja.Components
   alias Alaja.Printer
 
   @help_data [

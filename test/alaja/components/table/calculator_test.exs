@@ -70,6 +70,7 @@ defmodule Alaja.Components.Table.CalculatorTest do
         ["A", "B"],
         ["你好", "hi"]
       ]
+
       widths = Calculator.calculate_column_widths(data)
       # col 0: "A"=1, "你好"=4 -> 4; col 1: "B"=1, "hi"=2 -> 2
       assert widths == [4, 2]

@@ -40,7 +40,8 @@ defmodule Alaja.CLI.Commands.Show.Pulsar do
     ],
     examples: [
       {"Radar 3 segundos", "alaja pulsar \"Alaja\" --duration 3000"},
-      {"Pulsar grande multicolor", "alaja pulsar \"Deploy\" --width 50 --height 9 --colors cyan,magenta --duration 2000"}
+      {"Pulsar grande multicolor",
+       "alaja pulsar \"Deploy\" --width 50 --height 9 --colors cyan,magenta --duration 2000"}
     ]
   ]
 

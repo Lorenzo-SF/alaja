@@ -147,25 +147,33 @@ defmodule Alaja.Components.Table.Builder do
     page_size = Keyword.get(opts, :page_size)
     data_fun = Keyword.get(opts, :data_fun)
 
-    cond do
-      is_function(data_fun, 1) and is_integer(page_size) and page_size > 0 ->
-        print_paginated(headers, rows, page_size, opts)
-
-      data_fun ->
-        raise ArgumentError,
-              "Table with :data_fun requires a positive :page_size. " <>
-                "Contract: fn(%{page_size: pos_integer(), page: non_neg_integer(), " <>
-                "search: String.t()}) :: Alaja.Components.Table.Page.t()"
-
-      page_size && is_integer(page_size) && page_size > 0 && length(rows) > page_size ->
-        print_paginated(headers, rows, page_size, opts)
-
-      true ->
-        {headers, rows} = normalize_data(headers, rows)
-        column_widths = Calculator.calculate_column_widths([headers | rows])
-        config = build_config(opts, column_widths)
-        do_print_table(headers, rows, column_widths, config, opts)
+    if data_fun != nil and not valid_data_fun?(data_fun, page_size) do
+      raise ArgumentError,
+            "Table with :data_fun requires a positive :page_size. " <>
+              "Contract: fn(%{page_size: pos_integer(), page: non_neg_integer(), " <>
+              "search: String.t()}) :: Alaja.Components.Table.Page.t()"
     end
+
+    if page_size && is_integer(page_size) && page_size > 0 do
+      if data_fun || length(rows) > page_size do
+        print_paginated(headers, rows, page_size, opts)
+      else
+        print_static(headers, rows, opts)
+      end
+    else
+      print_static(headers, rows, opts)
+    end
+  end
+
+  defp valid_data_fun?(data_fun, page_size) do
+    is_function(data_fun, 1) and is_integer(page_size) and page_size > 0
+  end
+
+  defp print_static(headers, rows, opts) do
+    {headers, rows} = normalize_data(headers, rows)
+    column_widths = Calculator.calculate_column_widths([headers | rows])
+    config = build_config(opts, column_widths)
+    do_print_table(headers, rows, column_widths, config, opts)
   end
 
   @spec do_print_table(
@@ -250,23 +258,24 @@ defmodule Alaja.Components.Table.Builder do
   Returns `:quit` or the new state map (`%{page: int, search: string}`).
   """
   @spec apply_key(term(), map()) :: :quit | map()
-  def apply_key(key, state) do
-    case key do
-      :esc -> :quit
-      "q" -> :quit
-      :right -> %{state | page: state.page + 1}
-      :left -> %{state | page: max(state.page - 1, 0)}
-      :backspace -> %{state | search: String.slice(state.search, 0..-2//1) || ""}
-      :enter -> state
-      char when is_binary(char) ->
-        if String.match?(char, ~r/^[[:alnum:]]$/),
-          do: %{state | search: state.search <> char, page: 0},
-          else: state
+  def apply_key(:esc, _state), do: :quit
+  def apply_key("q", _state), do: :quit
+  def apply_key(:right, state), do: %{state | page: state.page + 1}
+  def apply_key(:left, state), do: %{state | page: max(state.page - 1, 0)}
 
-      _ ->
-        state
-    end
+  def apply_key(:backspace, state) do
+    %{state | search: String.slice(state.search, 0..-2//1) || ""}
   end
+
+  def apply_key(:enter, state), do: state
+
+  def apply_key(char, state) when is_binary(char) do
+    if String.match?(char, ~r/^[[:alnum:]]$/),
+      do: %{state | search: state.search <> char, page: 0},
+      else: state
+  end
+
+  def apply_key(_key, state), do: state
 
   @doc """
   Builds the page of rows for the given page number and search text.
@@ -298,7 +307,15 @@ defmodule Alaja.Components.Table.Builder do
     end)
   end
 
-  @spec fetch_page(list(), list(), pos_integer(), keyword(), function() | nil, non_neg_integer(), String.t()) ::
+  @spec fetch_page(
+          list(),
+          list(),
+          pos_integer(),
+          keyword(),
+          function() | nil,
+          non_neg_integer(),
+          String.t()
+        ) ::
           Page.t()
   defp fetch_page(headers, rows, page_size, _opts, data_fun, page, search) do
     build_page(headers, rows, page_size, data_fun, page, search)
@@ -317,11 +334,11 @@ defmodule Alaja.Components.Table.Builder do
           result
         end
 
-        other ->
-          raise ArgumentError,
-                "Table :data_fun must return an Alaja.Components.Table.Page.t(), got: " <>
-                  inspect(other)
-      end
+      other ->
+        raise ArgumentError,
+              "Table :data_fun must return an Alaja.Components.Table.Page.t(), got: " <>
+                inspect(other)
+    end
   end
 
   @spec slice_page(list(), list(), pos_integer(), non_neg_integer(), String.t()) :: Page.t()

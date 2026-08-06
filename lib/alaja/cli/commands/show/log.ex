@@ -9,8 +9,8 @@ defmodule Alaja.CLI.Commands.Show.Log do
 
   alias Alaja.CLI.GlobalOpts
   alias Alaja.CLI.HelpFormatter
-  alias Alaja.Components
   alias Alaja.CLI.ViewText
+  alias Alaja.Components
   alias Alaja.Printer
 
   @help_data [
@@ -46,9 +46,13 @@ defmodule Alaja.CLI.Commands.Show.Log do
       help()
     else
       log_state =
-        Enum.reduce(items, %Components.LogState{max_lines: Keyword.get(opts, :max_lines, 1000)}, fn
-          line, acc -> Components.log_append(acc, line)
-        end)
+        Enum.reduce(
+          items,
+          %Components.LogState{max_lines: Keyword.get(opts, :max_lines, 1000)},
+          fn
+            line, acc -> Components.log_append(acc, line)
+          end
+        )
 
       Printer.print_raw(
         ViewText.render(Components.log_view(log_state)),

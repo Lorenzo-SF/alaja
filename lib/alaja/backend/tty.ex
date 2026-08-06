@@ -87,8 +87,7 @@ defmodule Alaja.Backend.Tty do
       # Non-tty mode (e.g. piping) — full render so output is visible.
       rows =
         1..frame.buffer.height
-        |> Enum.map(fn row -> Frame.row_text(frame, row) end)
-        |> Enum.join("\n")
+        |> Enum.map_join("\n", fn row -> Frame.row_text(frame, row) end)
 
       IO.write(:stdio, rows)
       {:ok, %{state | prev_frame: frame}}
@@ -199,21 +198,27 @@ defmodule Alaja.Backend.Tty do
 
   defp read_stdin_chunk do
     # In test environments there's no stdin; return no_input.
+    case stdin_port() do
+      {:ok, _} -> read_chars()
+      _ -> :no_input
+    end
+  end
+
+  defp stdin_port do
     case :erlang.port_info(0) do
-      :undefined ->
-        :no_input
+      :undefined -> :error
+      nil -> :error
+      info -> {:ok, info}
+    end
+  end
 
-      nil ->
-        :no_input
-
-      _ ->
-        case :io.get_chars(:stdio, "", 0) do
-          :eof -> :eof
-          {:error, _} -> :no_input
-          :timeout -> :no_input
-          data when is_binary(data) and data != "" -> {:ok, data}
-          _ -> :no_input
-        end
+  defp read_chars do
+    case :io.get_chars(:stdio, "", 0) do
+      :eof -> :eof
+      {:error, _} -> :no_input
+      :timeout -> :no_input
+      data when is_binary(data) and data != "" -> {:ok, data}
+      _ -> :no_input
     end
   end
 
