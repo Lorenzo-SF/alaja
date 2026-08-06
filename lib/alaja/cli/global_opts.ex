@@ -18,7 +18,9 @@ defmodule Alaja.CLI.GlobalOpts do
           box_border: atom(),
           box_color: tuple() | nil,
           quiet: boolean(),
-          stdin: boolean()
+          stdin: boolean(),
+          no_color: boolean(),
+          color: boolean()
         }
 
   defstruct help: false,
@@ -32,7 +34,9 @@ defmodule Alaja.CLI.GlobalOpts do
             box_border: :rounded,
             box_color: nil,
             quiet: false,
-            stdin: false
+            stdin: false,
+            no_color: false,
+            color: false
 
   # ---------------------------------------------------------------------------
   # Extraction
@@ -121,6 +125,12 @@ defmodule Alaja.CLI.GlobalOpts do
   defp extract_globals(["--stdin" | rest], acc), do: extract_globals(rest, %{acc | stdin: true})
   defp extract_globals(["-s" | rest], acc), do: extract_globals(rest, %{acc | stdin: true})
 
+  defp extract_globals(["--no-color" | rest], acc),
+    do: extract_globals(rest, %{acc | no_color: true})
+
+  defp extract_globals(["--color" | rest], acc),
+    do: extract_globals(rest, %{acc | color: true})
+
   # Unknown flag with value: keep both
   defp extract_globals([flag, val | rest], acc) do
     if String.starts_with?(flag, "--") do
@@ -169,7 +179,9 @@ defmodule Alaja.CLI.GlobalOpts do
       box_title: global.box_title,
       box_border: global.box_border,
       box_color: global.box_color,
-      align: global.align
+      align: global.align,
+      no_color: global.no_color,
+      color: global.color
     ]
   end
 end

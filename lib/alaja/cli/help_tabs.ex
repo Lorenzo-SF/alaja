@@ -2,27 +2,60 @@ defmodule Alaja.CLI.HelpTabs do
   @moduledoc """
   Tabbed help engine for the Alaja CLI.
 
-  Renders help content as an interactive tab strip (Description / Args /
-  Examples) when stdin is a terminal, and as plain sequential sections
-  when piped or redirected.
+  Renders help content as an interactive tab strip on a TTY, with the
+  active panel's content displayed between the header and the
+  navigation controls:
+
+      ┌── header ─────────────────────────────┐
+      │ Alaja CLI                              │
+      │ Complete command reference             │
+      │                                        │
+      │ ─── DISPLAY COMMANDS ───               │  <- active panel
+      │ ┌──────────┬────────────┐              │
+      │ │ Command  │ Description│              │
+      │ │ ...      │ ...        │              │
+      │ └──────────┴────────────┘              │
+      │                                        │
+      │ [ Overview ]  Display  Stateful  ...   │  <- tab strip
+      │ ←→ change tab    q/esc quit            │  <- hint
+      └────────────────────────────────────────┘
+
+  ## Rendering strategy
+
+  * **Alternate screen** (`CSI ?1049h`) — all output goes to a private
+    buffer. The terminal's scrollback is untouched; switching tabs does
+    not produce historical frames.
+  * **Scroll region** (`DECSTBM`) — limited to the panel area (header
+    stays anchored, tab strip + hint stay anchored at the bottom).
+  * **Sync output** (`CSI ?2026h`/`?2026l`) — wraps each repaint so the
+    terminal batches updates into one frame (no flicker).
 
   ## Interaction
 
   * `←`/`→` or Tab — switch tabs
-  * `q`/Esc — leave the help (the active panel stays on screen)
-
-  ## Global options
-
-  The active panel is drawn with `Alaja.Printer.format_raw/2` using the
-  caller's global options, so `--box`, `--box-title`, `--box-border`,
-  `--box-color` and `--align` apply to the panel content.
+  * `q`/Esc — leave the help (alt screen closed)
   """
 
+  alias Alaja.ANSI
+  alias Alaja.Buffer
   alias Alaja.CLI.{GlobalOpts, Pagination, ViewText}
-  alias Alaja.Components
+  alias Alaja.Components.Header
   alias Alaja.Printer
 
   @type panel :: %{label: String.t(), render: (-> String.t())}
+
+  # Visual layout (constant for the help header — large size + subtitle).
+  # Header occupies rows 1..4, blank on row 5. Scroll region starts on
+  # row 6 and ends at the last viewport row.
+  @header_height 5
+
+  @header_opts [
+    title: "Alaja CLI",
+    subtitle: "Complete command reference",
+    size: :large,
+    color: {0, 180, 216},
+    subtitle_color: {150, 150, 160}
+  ]
 
   @doc """
   Renders the given panels, interactively on a TTY or sequentially
@@ -43,16 +76,28 @@ defmodule Alaja.CLI.HelpTabs do
     Pagination.tty?()
   end
 
+  # ---------------------------------------------------------------------------
+  # Interactive loop
+  # ---------------------------------------------------------------------------
+
   defp interactive(panels, global) do
-    IO.write(Alaja.ANSI.hide_cursor())
+    IO.write(ANSI.alt_screen_on())
+    IO.write(ANSI.hide_cursor())
+
+    {_, bottom} = Alaja.Terminal.size()
 
     try do
       Pagination.raw_mode(fn ->
-        draw_dynamic(panels, 0, global)
+        # Lock the scroll region so the panel scrolls inside its own
+        # window without dragging the header / tabs / hint.
+        IO.write(ANSI.set_scroll_region(@header_height + 1, bottom))
+
+        draw_full(panels, 0, global)
         loop(panels, 0, global)
       end)
     after
-      IO.write(Alaja.ANSI.show_cursor())
+      IO.write(ANSI.show_cursor())
+      IO.write(ANSI.alt_screen_off())
     end
 
     IO.write("\r\n")
@@ -63,12 +108,12 @@ defmodule Alaja.CLI.HelpTabs do
     case Pagination.read_key() do
       key when key in [:right, :tab] ->
         next = rem(active + 1, length(panels))
-        draw_dynamic(panels, next, global)
+        draw_panel_only(panels, next, global)
         loop(panels, next, global)
 
       :left ->
         next = rem(active - 1 + length(panels), length(panels))
-        draw_dynamic(panels, next, global)
+        draw_panel_only(panels, next, global)
         loop(panels, next, global)
 
       :esc ->
@@ -82,43 +127,84 @@ defmodule Alaja.CLI.HelpTabs do
     end
   end
 
-  # Draws the dynamic area (tab strip + hint + active panel) anchored at
-  # the saved cursor position, then restores the anchor and clears the
-  # whole area so the next draw never leaves stale content behind.
-  defp draw_dynamic(panels, active, global) do
-    IO.write(Alaja.ANSI.save_cursor())
-    write_lines("")
+  # ---------------------------------------------------------------------------
+  # Drawing
+  # ---------------------------------------------------------------------------
 
-    draw_tab_strip(panels, active)
-    draw_hint()
-
-    panels
-    |> Enum.at(active)
-    |> Map.fetch!(:render)
-    |> then(& &1.())
-    |> print_panel(global)
-
-    IO.write(Alaja.ANSI.restore_cursor())
-    IO.write(Alaja.ANSI.clear_line_down())
+  # First paint: header + tab strip + hint + active panel.
+  defp draw_full(panels, active, global) do
+    IO.write(ANSI.sync_output_start())
+    IO.write(ANSI.cursor_home())
+    IO.write(ANSI.clear_screen())
+    write_lines(header_text())
+    draw_panel_only(panels, active, global)
+    IO.write(ANSI.sync_output_end())
   end
 
-  defp draw_tab_strip(panels, active) do
+  # Subsequent paints (tab change): redraw the panel area only. The
+  # scroll region keeps the header anchored at the top and the tab
+  # strip + hint anchored at the bottom of the viewport.
+  defp draw_panel_only(panels, active, global) do
+    IO.write(ANSI.sync_output_start())
+    IO.write(ANSI.move_to(1, @header_height + 1))
+    IO.write(ANSI.clear_line_down())
+
+    text = render_panel(panels, active, global)
+    write_lines(text)
+
+    IO.write(ANSI.sync_output_end())
+  end
+
+  defp render_panel(panels, active, global) do
+    body =
+      panels
+      |> Enum.at(active)
+      |> Map.fetch!(:render)
+      |> then(& &1.())
+      |> Printer.format_raw(GlobalOpts.to_printer_opts(global))
+
+    nav = nav_line(panels, active)
+
+    try do
+      body <> "\n\n" <> nav <> "\n" <> hint_line() <> "\n"
+    rescue
+      ArgumentError ->
+        IO.warn(
+          "[Alaja.HelpTabs.render_panel] body type: #{inspect(body[:__struct__] || :binary)}, nav type: #{inspect(nav[:__struct__] || :binary)}"
+        )
+
+        reraise __STACKTRACE__, __STACKTRACE__
+    end
+  end
+
+  defp nav_line(panels, active) do
     labels = Enum.map(panels, & &1.label)
-    state = %Components.TabsState{labels: labels, active: active}
-
-    ViewText.render(Components.tabs_view(state))
-    |> write_lines()
+    state = %Alaja.Components.TabsState{labels: labels, active: active}
+    Alaja.Components.tabs_view(state) |> ViewText.render()
   end
 
-  defp draw_hint do
-    write_lines(["\e[2m", "←→ change tab    q/esc quit", "\e[0m"])
+  defp hint_line do
+    "\e[2m←→ change tab    q/esc quit\e[0m"
   end
 
-  defp print_panel(text, global) do
-    text
-    |> Printer.format_raw(GlobalOpts.to_printer_opts(global))
-    |> write_lines()
+  # The header is rendered once at the top of the alt screen and stays
+  # pinned by the scroll region.
+  defp header_text do
+    buf =
+      Header.render(
+        @header_opts[:title],
+        subtitle: @header_opts[:subtitle],
+        size: @header_opts[:size],
+        color: @header_opts[:color],
+        subtitle_color: @header_opts[:subtitle_color]
+      )
+
+    buf |> Buffer.to_iodata() |> IO.iodata_to_binary()
   end
+
+  # ---------------------------------------------------------------------------
+  # Output helpers
+  # ---------------------------------------------------------------------------
 
   # Raw-mode-safe writer: `\n` alone would not return the carriage on a
   # terminal in raw mode (ONLCR is off), so every newline is written as

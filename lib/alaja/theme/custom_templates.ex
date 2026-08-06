@@ -39,6 +39,30 @@ defmodule Alaja.Theme.CustomTemplates do
     name: "catppuccin_mocha",
     description: "Catppuccin Mocha — warm pastel on deep brown-black",
     colors: %{
+      # Alaja contract (22 keys) — mapped from the catppuccin palette
+      "primary" => {203, 166, 247},      # mauve
+      "secondary" => {148, 226, 213},    # teal
+      "ternary" => {250, 179, 135},      # peach
+      "quaternary" => {245, 194, 231},   # pink
+      "no_color" => {205, 214, 244},     # text
+      "background" => {30, 30, 46},      # base
+      "success" => {166, 227, 161},      # green
+      "warning" => {249, 226, 175},      # yellow
+      "error" => {243, 139, 168},        # red
+      "info" => {116, 199, 236},         # sapphire
+      "menu" => {69, 71, 90},            # surface1
+      "alert" => {250, 179, 135},        # peach
+      "critical" => {243, 139, 168},     # red
+      "debug" => {108, 112, 134},        # overlay0
+      "happy" => {245, 194, 231},        # pink
+      "sad" => {137, 180, 250},          # blue
+      "gradient_1" => {203, 166, 247},   # mauve
+      "gradient_2" => {137, 180, 250},   # blue
+      "gradient_3" => {148, 226, 213},   # teal
+      "gradient_4" => {166, 227, 161},   # green
+      "gradient_5" => {249, 226, 175},   # yellow
+      "gradient_6" => {250, 179, 135},   # peach
+      # Catppuccin extras (kept for `theme:<key>` lookups by the user)
       "rosewater" => {245, 224, 220},
       "flamingo" => {242, 205, 205},
       "pink" => {245, 194, 231},
@@ -72,6 +96,28 @@ defmodule Alaja.Theme.CustomTemplates do
     name: "catppuccin_frappe",
     description: "Catppuccin Frappe — precision palette with balanced luminance",
     colors: %{
+      "primary" => {201, 209, 238},      # mauve
+      "secondary" => {225, 194, 103},   # teal (variant)
+      "ternary" => {239, 159, 118},      # peach
+      "quaternary" => {244, 189, 228},   # pink
+      "no_color" => {198, 208, 245},     # text
+      "background" => {48, 52, 70},      # base
+      "success" => {166, 209, 137},      # green
+      "warning" => {229, 200, 144},      # yellow
+      "error" => {231, 130, 132},        # red
+      "info" => {166, 229, 225},         # sapphire
+      "menu" => {81, 87, 109},           # surface1
+      "alert" => {239, 159, 118},        # peach
+      "critical" => {231, 130, 132},     # red
+      "debug" => {115, 153, 148},        # overlay0 (variant)
+      "happy" => {244, 189, 228},        # pink
+      "sad" => {180, 208, 226},          # blue (variant)
+      "gradient_1" => {201, 209, 238},   # mauve
+      "gradient_2" => {180, 208, 226},   # blue
+      "gradient_3" => {225, 194, 103},   # teal
+      "gradient_4" => {166, 209, 137},   # green
+      "gradient_5" => {229, 200, 144},   # yellow
+      "gradient_6" => {239, 159, 118},   # peach
       "rosewater" => {242, 213, 207},
       "flamingo" => {238, 190, 190},
       "pink" => {244, 189, 228},
@@ -103,8 +149,30 @@ defmodule Alaja.Theme.CustomTemplates do
 
   @catppuccin_latte %Pote.Theme.Theme{
     name: "catppuccin_latte",
-    description: "Catppuccin Latte — warm pastel on deep brown-black",
+    description: "Catppuccin Latte — warm pastel on light background",
     colors: %{
+      "primary" => {136, 57, 239},       # mauve (dark for contrast on light bg)
+      "secondary" => {80, 250, 122},     # teal (variant, darker)
+      "ternary" => {235, 142, 72},       # peach
+      "quaternary" => {234, 118, 203},   # pink
+      "no_color" => {78, 90, 126},       # text (dark)
+      "background" => {245, 245, 245},   # base (light)
+      "success" => {166, 209, 137},      # green
+      "warning" => {233, 168, 102},      # yellow
+      "error" => {210, 15, 57},          # red (dark for light bg)
+      "info" => {29, 233, 242},          # sapphire
+      "menu" => {78, 156, 173},          # surface1
+      "alert" => {235, 142, 72},         # peach
+      "critical" => {210, 15, 57},       # red
+      "debug" => {124, 136, 147},        # subtext1 (readable on light)
+      "happy" => {234, 118, 203},        # pink
+      "sad" => {255, 91, 0},             # blue (variant)
+      "gradient_1" => {136, 57, 239},    # mauve
+      "gradient_2" => {255, 91, 0},      # blue (variant)
+      "gradient_3" => {80, 250, 122},    # teal
+      "gradient_4" => {166, 209, 137},   # green
+      "gradient_5" => {233, 168, 102},   # yellow
+      "gradient_6" => {235, 142, 72},    # peach
       "rosewater" => {220, 138, 120},
       "flamingo" => {221, 120, 120},
       "pink" => {234, 118, 203},
@@ -138,6 +206,28 @@ defmodule Alaja.Theme.CustomTemplates do
     name: "catppuccin_macchiato",
     description: "Catppuccin Macchiato — warm pastel on deep brown-black",
     colors: %{
+      "primary" => {198, 160, 246},      # mauve
+      "secondary" => {139, 213, 202},   # teal
+      "ternary" => {245, 169, 127},      # peach
+      "quaternary" => {245, 189, 230},   # pink
+      "no_color" => {202, 211, 245},     # text
+      "background" => {36, 39, 58},      # base
+      "success" => {166, 210, 164},      # green
+      "warning" => {238, 212, 159},      # yellow
+      "error" => {237, 135, 150},        # red
+      "info" => {125, 196, 228},         # sapphire
+      "menu" => {73, 77, 100},           # surface1
+      "alert" => {245, 169, 127},        # peach
+      "critical" => {237, 135, 150},     # red
+      "debug" => {110, 115, 141},        # overlay0
+      "happy" => {245, 189, 230},        # pink
+      "sad" => {170, 173, 244},          # blue
+      "gradient_1" => {198, 160, 246},   # mauve
+      "gradient_2" => {170, 173, 244},   # blue
+      "gradient_3" => {139, 213, 202},   # teal
+      "gradient_4" => {166, 210, 164},   # green
+      "gradient_5" => {238, 212, 159},   # yellow
+      "gradient_6" => {245, 169, 127},   # peach
       "rosewater" => {244, 219, 214},
       "flamingo" => {240, 198, 198},
       "pink" => {245, 189, 230},

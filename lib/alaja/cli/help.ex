@@ -114,17 +114,20 @@ defmodule Alaja.CLI.Help do
   """
   @spec full(list() | keyword()) :: :ok
   def full(descriptions \\ []) do
-    Header.print("Alaja CLI",
-      subtitle: "Complete command reference",
-      size: :large,
-      color: @cyan,
-      subtitle_color: {150, 150, 160}
-    )
-
     if Alaja.CLI.HelpTabs.interactive?() do
-      IO.write("\r\n")
+      # Header is painted by HelpTabs inside the alternate screen so it
+      # stays anchored at the top of the scroll region. We do not paint
+      # it here — otherwise it would appear twice (once in the user's
+      # terminal, once inside the alt screen).
       Alaja.CLI.HelpTabs.run(build_panels(descriptions), %Alaja.CLI.GlobalOpts{})
     else
+      Header.print("Alaja CLI",
+        subtitle: "Complete command reference",
+        size: :large,
+        color: @cyan,
+        subtitle_color: {150, 150, 160}
+      )
+
       flat_full(descriptions)
     end
 
@@ -164,33 +167,28 @@ defmodule Alaja.CLI.Help do
   end
 
   defp build_panels(descriptions) do
-    overview = IO.iodata_to_binary([global_options_text(), "\n", typed_messages_text()])
-
-    commands =
-      IO.iodata_to_binary([
-        display_commands_text(),
-        "\n",
-        component_commands_text(),
-        "\n",
-        interactive_commands_text(),
-        "\n",
-        color_command_text(),
-        "\n",
-        action_command_text(),
-        "\n",
-        theme_command_text(),
-        if(descriptions != [], do: ["\n", host_commands_text(descriptions)])
-      ])
-
-    examples = IO.iodata_to_binary([examples_text(), "\n", more_help_text()])
-
-    [
-      {"Overview", overview},
-      {"Commands", commands},
-      {"Examples", examples}
+    base = [
+      {"Overview", panel_text([global_options_text(), "\n", typed_messages_text()])},
+      {"Display", panel_text([display_commands_text()])},
+      {"Stateful", panel_text([component_commands_text()])},
+      {"Interactive", panel_text([interactive_commands_text()])},
+      {"Color", panel_text([color_command_text()])},
+      {"Action", panel_text([action_command_text()])},
+      {"Theme", panel_text([theme_command_text()])},
+      {"Examples", panel_text([examples_text(), "\n", more_help_text()])}
     ]
-    |> Enum.map(fn {label, text} -> %{label: label, render: fn -> text end} end)
+
+    base =
+      if descriptions != [] do
+        base ++ [{"Host", panel_text([host_commands_text(descriptions)])}]
+      else
+        base
+      end
+
+    Enum.map(base, fn {label, text} -> %{label: label, render: fn -> text end} end)
   end
+
+  defp panel_text(iodata), do: IO.iodata_to_binary(iodata)
 
   # ---------------------------------------------------------------------------
   # Command-specific help
@@ -388,7 +386,8 @@ defmodule Alaja.CLI.Help do
   @examples [
     {"Success message in green", "alaja success \"Deploy completado\""},
     {"Error message in red", "alaja error \"Build fallido\""},
-    {"Big header with subtitle", "alaja header \"Alaja 3.0\" --subtitle \"Terminal UI framework\""},
+    {"Big header with subtitle",
+     "alaja header \"Alaja 3.0\" --subtitle \"Terminal UI framework\""},
     {"Divider with title", "alaja separator \"Deploy\" --width 60 --color cyan"},
     {"Gradient text", "alaja gradient \"hola mundo\" --from red --to blue"},
     {"Table with borders", "alaja table --headers name,status --rows \"api,ok\" \"web,ok\""},
@@ -409,8 +408,19 @@ defmodule Alaja.CLI.Help do
   defp examples_text do
     pairs =
       Enum.map(@examples, fn {comment, command} ->
-        [fg_color(@cyan), ANSI.bright(), "# ", comment, ANSI.reset(), "\n",
-         fg_color({180, 220, 120}), "  ", command, ANSI.reset(), "\n"]
+        [
+          fg_color(@cyan),
+          ANSI.bright(),
+          "# ",
+          comment,
+          ANSI.reset(),
+          "\n",
+          fg_color({180, 220, 120}),
+          "  ",
+          command,
+          ANSI.reset(),
+          "\n"
+        ]
       end)
 
     [section_title_text("EXAMPLES", @orange), "\n", pairs]
@@ -431,7 +441,10 @@ defmodule Alaja.CLI.Help do
   defp host_commands_text(descriptions) do
     rows = Enum.map(descriptions, fn {cmd, desc} -> [cmd, desc] end)
 
-    [section_title_text("COMMAND LIST", @green), table_text(["Command", "Description"], rows, @green)]
+    [
+      section_title_text("COMMAND LIST", @green),
+      table_text(["Command", "Description"], rows, @green)
+    ]
   end
 
   defp table_text(headers, rows, color, opts \\ []) do

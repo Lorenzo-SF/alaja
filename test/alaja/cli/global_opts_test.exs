@@ -73,6 +73,24 @@ defmodule Alaja.CLI.GlobalOptsTest do
       assert opts.stdin == true
     end
 
+    test "parses --no-color flag" do
+      {opts, _rest} = GlobalOpts.parse(["--no-color"])
+      assert opts.no_color == true
+      assert opts.color == false
+    end
+
+    test "parses --color flag (force)" do
+      {opts, _rest} = GlobalOpts.parse(["--color"])
+      assert opts.color == true
+      assert opts.no_color == false
+    end
+
+    test "--no-color and --color both set (last wins on no_color side)" do
+      {opts, _rest} = GlobalOpts.parse(["--no-color", "--color"])
+      assert opts.color == true
+      assert opts.no_color == true
+    end
+
     test "leaves unknown args in rest" do
       {_opts, rest} = GlobalOpts.parse(["--unknown", "value"])
       assert rest == ["--unknown", "value"]
@@ -92,6 +110,13 @@ defmodule Alaja.CLI.GlobalOptsTest do
       assert kw[:pos_x] == 5
       assert kw[:verbose] == true
       assert kw[:align] == :center
+    end
+
+    test "passes no_color/color through to printer opts" do
+      {opts, _} = GlobalOpts.parse(["--no-color"])
+      kw = GlobalOpts.to_printer_opts(opts)
+      assert kw[:no_color] == true
+      assert kw[:color] == false
     end
   end
 end

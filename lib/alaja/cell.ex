@@ -273,16 +273,56 @@ defmodule Alaja.Cell do
 
   Allows components to accept either a raw RGB triplet or a theme atom
   such as `:primary`, `:success`, `:muted` etc.
+
+  ## Contract fallback
+
+  If the active theme does **not** contain a key listed in
+  `Alaja.Theme.RequiredKeys.required/0`, this function returns
+  `{255, 255, 255}` (white) and logs a one-time warning per missing
+  key. This enforces the theme contract documented in
+  `Alaja.Theme.RequiredKeys`: a theme may add extra keys, but missing
+  required keys must not crash the renderer — they paint white
+  instead.
   """
   @spec resolve_theme_color(term()) :: {0..255, 0..255, 0..255} | nil
   def resolve_theme_color(term) when is_atom(term) do
     case Pote.resolve_theme_color(term) do
-      {:ok, rgb} -> rgb
-      :not_found -> nil
+      {:ok, rgb} ->
+        rgb
+
+      :not_found ->
+        if Atom.to_string(term) in Alaja.Theme.RequiredKeys.required() do
+          log_missing_required_key(term)
+          {255, 255, 255}
+        else
+          nil
+        end
     end
   end
 
   def resolve_theme_color(_term), do: nil
+
+  # Logs each missing required key exactly once per VM lifetime. Uses
+  # :persistent_term to track which keys have already been reported so
+  # we don't spam the user's terminal on every cell render.
+  @missing_logged_key {Alaja.Cell, :missing_required_logged}
+
+  defp log_missing_required_key(key) do
+    logged =
+      :persistent_term.get(@missing_logged_key, MapSet.new())
+
+    if not MapSet.member?(logged, key) do
+      require Logger
+      Logger.warning(fn -> "[Alaja] active theme missing required key #{inspect(key)}; falling back to white" end)
+
+      :persistent_term.put(
+        @missing_logged_key,
+        MapSet.put(logged, key)
+      )
+    end
+
+    :ok
+  end
 
   @spec ansi_effects(effects()) :: iodata()
   defp ansi_effects([]), do: []

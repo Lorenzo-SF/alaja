@@ -163,6 +163,16 @@ defmodule Alaja.ANSI do
   def alt_screen_off, do: "\e[?1049l"
 
   @doc """
+  Sets the scroll region (DECSTBM) to `top..bottom` (1-indexed).
+
+  Lines outside the region cannot be scrolled by the cursor; useful for
+  keeping a header or footer in place while content above scrolls.
+  Resets to the full screen on `alt_screen_off/0`.
+  """
+  @spec set_scroll_region(pos_integer(), pos_integer()) :: String.t()
+  def set_scroll_region(top, bottom), do: "\e[#{top};#{bottom}r"
+
+  @doc """
   Sets 24-bit true-color foreground.
 
   Returns ANSI escape: `\\e[38;2;R;G;Bm`

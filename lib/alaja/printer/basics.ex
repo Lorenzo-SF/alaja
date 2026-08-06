@@ -20,7 +20,7 @@ defmodule Alaja.Printer.Basics do
   """
   @spec print_info(String.t(), keyword()) :: :ok | String.t()
   def print_info(text, opts \\ []) do
-    chunks = [ChunkText.new(" ℹ  ", color: :cyan), ChunkText.new(text)]
+    chunks = [ChunkText.new(" ℹ  ", color: :info), ChunkText.new(text)]
     Printer.print(MessageInfo.new(chunks, Keyword.put_new(opts, :add_line, :after)), opts)
   end
 
@@ -69,7 +69,7 @@ defmodule Alaja.Printer.Basics do
   @spec print_alert(String.t(), keyword()) :: :ok | String.t()
   def print_alert(text, opts \\ []) do
     chunks = [
-      ChunkText.new(" 🔔 ", color: :background, bg_color: :warning, effects: [:bold]),
+      ChunkText.new(" ! ", color: :background, bg_color: :warning, effects: [:bold]),
       ChunkText.new(" " <> text, color: :warning)
     ]
 
