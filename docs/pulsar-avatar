@@ -2,10 +2,11 @@
 #
 # docs/pulsar-avatar — escena de ejemplo del CLI alaja.
 #
-# Muestra el avatar pegado a la esquina superior-derecha (con margen de
-# 1 celda, sin tocarla) y lanza un pulsar centrado en la terminal que
-# corre en background. El pulsar se dibuja en modo raw: repinta solo su
-# área, así que nunca pisa el avatar.
+# Lanza un pulsar centrado en la terminal que, en lugar de texto, pinta el
+# avatar de batamantaman. La imagen se escala con aspect ratio (contain)
+# para caber dentro del pulsar y se ubica cerca de la esquina del box
+# (margen de 1 celda, sin tocarla) con --content-position-y. Corre en
+# background con el PID guardado para docs/kill-pulsar.
 #
 #   ./docs/pulsar-avatar            # lanza la escena
 #   ./docs/kill-pulsar              # la detiene
@@ -35,7 +36,7 @@ if ! command -v "$ALAJ" >/dev/null 2>&1; then
   exit 1
 fi
 
-# aspect ratio de la imagen (contain manual; fallback 1.38 para el avatar)
+# aspect ratio de la imagen (para colocar el contenido; fallback 1.38 del avatar)
 aspect=$(python3 - "$AVATAR" <<'PY' 2>/dev/null || echo 1.38
 import struct, sys
 with open(sys.argv[1], 'rb') as f:
@@ -48,32 +49,27 @@ PY
 rows=$(tput lines 2>/dev/null || echo 24)
 cols=$(tput cols 2>/dev/null || echo 80)
 
-# ── pulsar centrado ─────────────────────────────────────────────────────
-PW=44
-PH=7
+# ── box del pulsar: la imagen portrait ocupa el ancho y deja 2 filas
+#    sobrantes -> margen de 1 celda arriba y abajo (cerca, sin tocar) ─────
+PW=30
+PH=23
 px=$(((cols - PW) / 2))
 py=$(((rows - PH) / 2))
 [[ $px -lt 1 ]] && px=1
 [[ $py -lt 1 ]] && py=1
 
-# ── avatar: esquina superior-derecha, margen 1, sin tocar el borde ──────
-AW=24
-AH=$(awk -v w="$AW" -v a="$aspect" 'BEGIN { printf "%d", (w * a) / 2 + 0.5 }')
-ax=$((cols - AW - 1))
-ay=1
-# si el avatar solapa el área del pulsar (en ambas bandas), muévelo a la
-# esquina inferior-derecha
-if ((ax < px + PW && ax + AW > px && ay < py + PH && ay + AH > py)); then
-  ay=$((rows - AH - 1))
-fi
+# alto de la imagen contenida (misma fórmula que alaja) -> margen inferior
+AH=$(awk -v w="$PW" -v a="$aspect" 'BEGIN { printf "%d", (w * a) / 2 + 0.5 }')
+[[ $AH -gt $PH ]] && AH=$PH
+CY=$((PH - AH - 1))
+[[ $CY -lt 0 ]] && CY=0
 
-# ── 1) avatar estático en la esquina ────────────────────────────────────
-printf '\033[%d;%dH' "$ay" "$ax"
-"$ALAJ" image --path "$AVATAR" --width "$AW" --height "$AH" --align left
-
-# ── 2) pulsar centrado en background (raw: repinta solo su área) ────────
+# ── pulsar con imagen en background (raw: repinta solo su área) ──────────
 printf '%s %s %s %s\n' "$py" "$px" "$PH" "$PW" >"$GEOMFILE"
-"$ALAJ" pulsar "batamantaman" \
+"$ALAJ" pulsar batamantaman \
+  --content-type image \
+  --image-path "$AVATAR" \
+  --content-position-y "$CY" \
   --raw \
   --pos-x "$((px - 1))" \
   --pos-y "$((py - 1))" \

@@ -198,8 +198,7 @@ defmodule Alaja.CLI.Commands.Show.Pulsar.Renderer do
     else
       case Pulsar.render_frame_pixels(image_path, frame, pulsar_opts) do
         {:ok, pixels} ->
-          padded_pixels = apply_left_padding_pixels(pixels, left_pad)
-          ImageRenderer.render(padded_pixels, width: width, height: height, align: :left)
+          write_image_frame(pixels, global, left_pad, width, height, frame)
 
           :timer.sleep(speed)
 
@@ -220,11 +219,30 @@ defmodule Alaja.CLI.Commands.Show.Pulsar.Renderer do
     end
   end
 
-  defp apply_left_padding_pixels(pixels, 0), do: pixels
+  # Coloca el frame de imagen en la terminal igual que el texto:
+  # - raw: move_to(pos + left_pad) antes de cada frame
+  # - no-raw: save_cursor en el frame 0, restore + clear_line_down en los
+  #   siguientes (el área se repinta en el mismo sitio)
+  # El left_pad se aplica desplazando el cursor con espacios (como el texto),
+  # no como píxeles, para que no aparezca una franja negra en la imagen.
+  defp write_image_frame(pixels, %{raw: true} = global, left_pad, width, height, _frame) do
+    {start_x, start_y} = {global.pos_x + 1, global.pos_y + 1}
+    IO.write(ANSI.move_to(start_x + left_pad, start_y))
+    ImageRenderer.render(pixels, width: width, height: height, align: :left)
+  end
 
-  defp apply_left_padding_pixels(pixels, left_pad) do
-    padding_row = List.duplicate({0, 0, 0}, left_pad)
-    Enum.map(pixels, fn row -> padding_row ++ row end)
+  defp write_image_frame(pixels, global, left_pad, width, height, frame) do
+    if frame == 0 do
+      IO.write(ANSI.save_cursor())
+    else
+      IO.write([ANSI.restore_cursor(), ANSI.clear_line_down()])
+    end
+
+    if left_pad > 0 do
+      IO.write(String.duplicate(" ", left_pad))
+    end
+
+    ImageRenderer.render(pixels, width: width, height: height, align: :left)
   end
 
   defp wrap_if_boxed(frame_output, %{box: true} = global) do

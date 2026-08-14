@@ -273,8 +273,7 @@ defmodule Alaja.Components.Pulsar do
     content_x = Keyword.get(opts, :content_position_x, nil)
     content_y = Keyword.get(opts, :content_position_y, nil)
 
-    with {:ok, image_pixels} <-
-           ImageRenderer.load_image_pixels(image_path, width: width, height: height) do
+    with {:ok, image_pixels} <- load_contained_image(image_path, width, height) do
       img_height = length(image_pixels)
       img_width = length(List.first(image_pixels, []))
 
@@ -311,6 +310,30 @@ defmodule Alaja.Components.Pulsar do
 
       {:ok, pixels}
     end
+  end
+
+  # Escala la imagen para que quepa dentro del box manteniendo el aspect
+  # ratio (contain): primero por ancho (height: 0) y, si el alto resultante
+  # excede el box, se reescala proporcionalmente por alto con un ancho menor.
+  # La imagen nunca se estira al box completo, así `content_position_x/y`
+  # pueden ubicarla dentro del pulsar como si fuera texto.
+  defp load_contained_image(path, width, height) do
+    do_load_contained(path, width, height, 3)
+  end
+
+  defp do_load_contained(path, width, height, attempts) when attempts > 0 do
+    case ImageRenderer.load_image_pixels(path, width: max(1, width), height: 0) do
+      {:ok, pixels} when length(pixels) > height ->
+        new_width = max(1, round(width * height / length(pixels)))
+        do_load_contained(path, new_width, height, attempts - 1)
+
+      other ->
+        other
+    end
+  end
+
+  defp do_load_contained(_path, _width, _height, 0) do
+    {:error, "image too tall for the pulsar box"}
   end
 
   defp render_pixel(x, y, config) do
