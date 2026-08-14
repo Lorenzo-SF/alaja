@@ -73,15 +73,15 @@ defmodule Alaja.CLI.DefinitionTest do
   end
 
   describe "cast_flag_value :color_list" do
-    test "parses ; separated colors into RGB tuples" do
-      opts = run_cli(["--colors", "red;blue;#FF6B6B"])
+    test "parses | separated colors into RGB tuples" do
+      opts = run_cli(["--colors", "hex:ff0000|hex:0000ff|hex:ff6b6b"])
       assert {255, 0, 0} in opts.colors
       assert {0, 0, 255} in opts.colors
       assert {255, 107, 107} in opts.colors
     end
 
     test "returns the default on garbage input" do
-      opts = run_cli(["--colors", "not-a-color;red"])
+      opts = run_cli(["--colors", "garbage|hex:ff0000"])
       assert opts.colors == []
     end
   end

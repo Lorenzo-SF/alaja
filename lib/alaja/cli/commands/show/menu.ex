@@ -60,7 +60,7 @@ defmodule Alaja.CLI.Commands.Show.Menu do
   defp parse_color(nil), do: nil
 
   defp parse_color(s) do
-    case Pote.Orchestrator.parse_color(s) do
+    case Alaja.CLI.Color.parse(s) do
       {:ok, c} -> c
       _ -> nil
     end

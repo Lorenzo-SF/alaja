@@ -159,9 +159,10 @@ defmodule Alaja.CLI.GlobalOpts do
   defp parse_align(_), do: :left
 
   defp parse_color(str) do
-    case Pote.Orchestrator.parse_color(str) do
+    case Alaja.CLI.Color.parse(str) do
       {:ok, rgb} -> rgb
-      _ -> nil
+      {:error, msg} -> IO.puts(:stderr, msg)
+      nil -> nil
     end
   end
 

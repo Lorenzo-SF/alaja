@@ -65,23 +65,18 @@ defmodule Alaja.Components.Animate do
   """
   @spec parse_colors(String.t() | nil, String.t() | nil) :: [{integer(), integer(), integer()}]
   def parse_colors(color_str, colors_str) do
-    cond do
-      colors_str ->
-        colors_str
-        |> String.split(";")
-        |> Enum.map(&String.trim/1)
-        |> Enum.map(&parse_one/1)
-        |> Enum.reject(&is_nil/1)
+    input = colors_str || color_str
 
-      color_str ->
-        color_str
-        |> String.split(";")
-        |> Enum.map(&String.trim/1)
-        |> Enum.map(&parse_one/1)
-        |> Enum.reject(&is_nil/1)
-
-      true ->
+    case input do
+      nil ->
         []
+
+      str ->
+        case Alaja.CLI.Color.parse_list(str) do
+          {:ok, colors} -> colors
+          {:error, msg} -> IO.puts(:stderr, msg)
+          [] -> []
+        end
     end
   end
 
@@ -260,11 +255,4 @@ defmodule Alaja.Components.Animate do
   end
 
   # ── Private ──────────────────────────────────────────────────────────
-
-  defp parse_one(s) do
-    case Pote.Orchestrator.parse_color(s) do
-      {:ok, c} -> c
-      _ -> nil
-    end
-  end
 end

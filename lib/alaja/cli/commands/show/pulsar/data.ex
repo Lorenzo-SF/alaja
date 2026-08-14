@@ -1,8 +1,6 @@
 defmodule Alaja.CLI.Commands.Show.Pulsar.Data do
   @moduledoc false
 
-  alias Pote.Orchestrator
-
   @default_pulse_chars ["░", "▒", "▓", "█"]
 
   @doc false
@@ -17,27 +15,7 @@ defmodule Alaja.CLI.Commands.Show.Pulsar.Data do
   def parse_colors(opts) do
     case Keyword.get(opts, :colors) || Keyword.get(opts, :color) do
       nil -> {:ok, [{0, 180, 216}]}
-      colors_str -> parse_colors_list(colors_str)
-    end
-  end
-
-  defp parse_colors_list(colors_str) do
-    colors_str
-    |> String.split(";")
-    |> Enum.map(&String.trim/1)
-    |> Enum.with_index()
-    |> Enum.reduce_while({:ok, []}, fn {color_str, idx}, {:ok, acc} ->
-      case Orchestrator.parse_color(color_str) do
-        {:ok, rgb} ->
-          {:cont, {:ok, [rgb | acc]}}
-
-        {:error, error_msg} ->
-          {:halt, {:error, "Invalid color at position #{idx + 1}: '#{color_str}'. #{error_msg}"}}
-      end
-    end)
-    |> case do
-      {:ok, colors} -> {:ok, Enum.reverse(colors)}
-      error -> error
+      colors_str -> Alaja.CLI.Color.parse_list(colors_str)
     end
   end
 

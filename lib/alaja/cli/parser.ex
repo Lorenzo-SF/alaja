@@ -128,7 +128,7 @@ defmodule Alaja.CLI.Parser do
   # ---------------------------------------------------------------------------
 
   @doc """
-  Parses a color string using the Drawer colour system.
+  Parses a color string using the standard `<formato>:<codigo>` format.
   Returns `{:ok, {r,g,b}}` or `{:error, reason}`.
   """
   @spec parse_color(String.t() | nil) :: {:ok, {byte(), byte(), byte()}} | {:error, term()} | nil
@@ -136,7 +136,7 @@ defmodule Alaja.CLI.Parser do
 
   def parse_color(str) when is_binary(str) do
     str = String.trim(str) |> String.trim("\"") |> String.trim("'")
-    Pote.Orchestrator.parse_color(str)
+    Alaja.CLI.Color.parse(str)
   end
 
   @doc """
@@ -151,7 +151,7 @@ defmodule Alaja.CLI.Parser do
         rgb
 
       {:error, msg} ->
-        IO.puts(:stderr, "Color error: #{msg}")
+        IO.puts(:stderr, msg)
         nil
 
       nil ->
@@ -160,39 +160,14 @@ defmodule Alaja.CLI.Parser do
   end
 
   @doc """
-  Parses a semicolon-separated list of colors.
+  Parses a `|`-separated list of colors.
   Returns `{:ok, [{r,g,b}, ...]}` or `{:error, message}`.
   """
   @spec parse_color_list(String.t() | nil) :: {:ok, [tuple()]} | {:error, String.t()} | nil
   def parse_color_list(nil), do: nil
 
   def parse_color_list(str) when is_binary(str) do
-    colors =
-      str
-      |> String.split(";")
-      |> Enum.map(&String.trim/1)
-      |> Enum.reject(&(&1 == ""))
-
-    results =
-      Enum.map(colors, fn c ->
-        case Pote.Orchestrator.parse_color(c) do
-          {:ok, rgb} -> {:ok, rgb}
-          {:error, reason} -> {:error, "'#{c}': #{reason}"}
-        end
-      end)
-
-    errors =
-      Enum.filter(results, fn
-        {:error, _} -> true
-        _ -> false
-      end)
-
-    if errors != [] do
-      messages = Enum.map_join(errors, "\n", fn {:error, msg} -> "  - #{msg}" end)
-      {:error, "Invalid colors in list:\n#{messages}"}
-    else
-      {:ok, Enum.map(results, fn {:ok, c} -> c end)}
-    end
+    Alaja.CLI.Color.parse_list(str)
   end
 
   # ---------------------------------------------------------------------------

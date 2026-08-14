@@ -15,7 +15,18 @@ defmodule Alaja.CLI.Commands.Base do
 
   @doc "Parse a semicolon separated list of colors."
   def parse_color_list(nil), do: nil
-  def parse_color_list(s) when is_binary(s), do: Parser.parse_color_list(s)
+
+  def parse_color_list(s) when is_binary(s) do
+    case Parser.parse_color_list(s) do
+      {:ok, colors} ->
+        colors
+
+      {:error, msg} ->
+        IO.puts(:stderr, msg)
+        nil
+    end
+  end
+
   def parse_color_list(_), do: nil
 
   @doc "Parse alignment from a binary or atom. Returns an atom `:left`, `:center`, or `:right`. Defaults to `:left`."
