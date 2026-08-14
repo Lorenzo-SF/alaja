@@ -119,7 +119,11 @@ defmodule Alaja.CLI.Color do
   end
 
   defp parse_format("argb", code, original) do
-    case parse_numbers(code, 4, "argb requires exactly 4 comma-separated values. Example: argb:255,255,0,0") do
+    case parse_numbers(
+           code,
+           4,
+           "argb requires exactly 4 comma-separated values. Example: argb:255,255,0,0"
+         ) do
       {:ok, [_a, r, g, b]} ->
         if r in 0..255 and g in 0..255 and b in 0..255 do
           {:ok, {r, g, b}}
@@ -147,7 +151,11 @@ defmodule Alaja.CLI.Color do
   end
 
   defp parse_format("cmyk", code, original) do
-    case parse_floats(code, 4, "cmyk requires exactly 4 comma-separated values. Example: cmyk:100,0,50,0") do
+    case parse_floats(
+           code,
+           4,
+           "cmyk requires exactly 4 comma-separated values. Example: cmyk:100,0,50,0"
+         ) do
       {:ok, [c, m, y, k]} ->
         if Enum.all?([c, m, y, k], &(&1 >= 0 and &1 <= 100)) do
           {:ok, cmyk_to_rgb({c, m, y, k})}
@@ -162,7 +170,11 @@ defmodule Alaja.CLI.Color do
   end
 
   defp parse_format("hsl", code, original) do
-    case parse_floats(code, 3, "hsl requires exactly 3 comma-separated values. Example: hsl:120,50,50") do
+    case parse_floats(
+           code,
+           3,
+           "hsl requires exactly 3 comma-separated values. Example: hsl:120,50,50"
+         ) do
       {:ok, [h, s, l]} ->
         if h >= 0 and h <= 360 and s >= 0 and s <= 100 and l >= 0 and l <= 100 do
           {:ok, hsl_to_rgb({h, s, l})}
@@ -177,7 +189,11 @@ defmodule Alaja.CLI.Color do
   end
 
   defp parse_format("hsv", code, original) do
-    case parse_floats(code, 3, "hsv requires exactly 3 comma-separated values. Example: hsv:120,50,100") do
+    case parse_floats(
+           code,
+           3,
+           "hsv requires exactly 3 comma-separated values. Example: hsv:120,50,100"
+         ) do
       {:ok, [h, s, v]} ->
         if h >= 0 and h <= 360 and s >= 0 and s <= 100 and v >= 0 and v <= 100 do
           {:ok, hsv_to_rgb({h, s, v})}
@@ -192,7 +208,11 @@ defmodule Alaja.CLI.Color do
   end
 
   defp parse_format("hwb", code, original) do
-    case parse_floats(code, 3, "hwb requires exactly 3 comma-separated values. Example: hwb:120,0.2,0.3") do
+    case parse_floats(
+           code,
+           3,
+           "hwb requires exactly 3 comma-separated values. Example: hwb:120,0.2,0.3"
+         ) do
       {:ok, [h, w, b]} ->
         if h >= 0 and h <= 360 and w >= 0 and w <= 1.0 and b >= 0 and b <= 1.0 do
           {:ok, hwb_to_rgb({h, w, b})}

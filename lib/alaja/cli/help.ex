@@ -400,7 +400,8 @@ defmodule Alaja.CLI.Help do
     {"Log with retention", "alaja log \"line 1\" \"line 2\" --max-lines 5"},
     {"Stateful progress", "alaja progress --current 75 --total 100 --label build"},
     {"Breadcrumbs", "alaja breadcrumbs home lib alaja --current alaja"},
-    {"Bullet list", "alaja list \"fix deploy\" \"write tests\" --header \"To do\" --color hex:00ffff"},
+    {"Bullet list",
+     "alaja list \"fix deploy\" \"write tests\" --header \"To do\" --color hex:00ffff"},
     {"Radar animation (3s)", "alaja pulsar \"Alaja\" --duration 3000"},
     {"Color harmonies", "alaja color hex:ff0000 --harmony triad"},
     {"Batch from stdin", "echo '{\"type\":\"success\",\"text\":\"ok\"}' | alaja action"}

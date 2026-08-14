@@ -167,12 +167,15 @@ defmodule Alaja.CLI.GlobalOpts do
 
   defp parse_color(str) do
     case Alaja.CLI.Color.parse(str) do
-      {:ok, rgb} -> rgb
+      {:ok, rgb} ->
+        rgb
+
       {:error, msg} ->
         IO.puts(:stderr, msg)
         nil
 
-      nil -> nil
+      nil ->
+        nil
     end
   end
 
