@@ -1,0 +1,86 @@
+#!/usr/bin/env bash
+#
+# docs/pulsar-avatar — escena de ejemplo del CLI alaja.
+#
+# Muestra el avatar pegado a la esquina superior-derecha (con margen de
+# 1 celda, sin tocarla) y lanza un pulsar centrado en la terminal que
+# corre en background. El pulsar se dibuja en modo raw: repinta solo su
+# área, así que nunca pisa el avatar.
+#
+#   ./docs/pulsar-avatar            # lanza la escena
+#   ./docs/kill-pulsar              # la detiene
+#
+# Variables útiles:
+#   ALAJA=/ruta/alaja               # binario (default: alaja del PATH)
+#   AVATAR=/ruta/imagen.png         # imagen (default: avatar de batamantaman)
+#
+set -euo pipefail
+
+ALAJ="${ALAJA:-alaja}"
+AVATAR="${AVATAR:-$HOME/cacafuti/bitacora/Imagenes/batamantaman/avatar.png}"
+PIDFILE="${TMPDIR:-/tmp}/alaja-pulsar.pid"
+GEOMFILE="${TMPDIR:-/tmp}/alaja-pulsar.geom"
+
+# ── precondiciones ──────────────────────────────────────────────────────
+if [[ -f "$PIDFILE" ]] && kill -0 "$(cat "$PIDFILE")" 2>/dev/null; then
+  echo "ya hay un pulsar activo (pid $(cat "$PIDFILE")); usa docs/kill-pulsar" >&2
+  exit 1
+fi
+if [[ ! -f "$AVATAR" ]]; then
+  echo "avatar no encontrado: $AVATAR" >&2
+  exit 1
+fi
+if ! command -v "$ALAJ" >/dev/null 2>&1; then
+  echo "alaja no encontrado en el PATH: $ALAJ" >&2
+  exit 1
+fi
+
+# aspect ratio de la imagen (contain manual; fallback 1.38 para el avatar)
+aspect=$(python3 - "$AVATAR" <<'PY' 2>/dev/null || echo 1.38
+import struct, sys
+with open(sys.argv[1], 'rb') as f:
+    f.read(16)
+    w, h = struct.unpack('>II', f.read(8))
+print(f"{h / w:.3f}")
+PY
+)
+
+rows=$(tput lines 2>/dev/null || echo 24)
+cols=$(tput cols 2>/dev/null || echo 80)
+
+# ── pulsar centrado ─────────────────────────────────────────────────────
+PW=44
+PH=7
+px=$(((cols - PW) / 2))
+py=$(((rows - PH) / 2))
+[[ $px -lt 1 ]] && px=1
+[[ $py -lt 1 ]] && py=1
+
+# ── avatar: esquina superior-derecha, margen 1, sin tocar el borde ──────
+AW=24
+AH=$(awk -v w="$AW" -v a="$aspect" 'BEGIN { printf "%d", (w * a) / 2 + 0.5 }')
+ax=$((cols - AW - 1))
+ay=1
+# si el avatar solapa el área del pulsar (en ambas bandas), muévelo a la
+# esquina inferior-derecha
+if ((ax < px + PW && ax + AW > px && ay < py + PH && ay + AH > py)); then
+  ay=$((rows - AH - 1))
+fi
+
+# ── 1) avatar estático en la esquina ────────────────────────────────────
+printf '\033[%d;%dH' "$ay" "$ax"
+"$ALAJ" image --path "$AVATAR" --width "$AW" --height "$AH" --align left
+
+# ── 2) pulsar centrado en background (raw: repinta solo su área) ────────
+printf '%s %s %s %s\n' "$py" "$px" "$PH" "$PW" >"$GEOMFILE"
+"$ALAJ" pulsar "batamantaman" \
+  --raw \
+  --pos-x "$((px - 1))" \
+  --pos-y "$((py - 1))" \
+  --align left \
+  --width "$PW" \
+  --height "$PH" \
+  --speed 120 &
+echo $! >"$PIDFILE"
+
+echo "pulsar lanzado (pid $(cat "$PIDFILE")); detenlo con docs/kill-pulsar"
