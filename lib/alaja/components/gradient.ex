@@ -22,7 +22,7 @@ defmodule Alaja.Components.Gradient do
   """
 
   alias Alaja.CLI.Parser
-  alias Pote.{Gradients, Orchestrator}
+  alias Pote.Gradients
 
   @doc """
   Renders text with a gradient applied, returning an ANSI string.
@@ -34,7 +34,7 @@ defmodule Alaja.Components.Gradient do
 
     * `:from` — start color string (default: "#FF0000")
     * `:to` — end color string (default: "#0000FF")
-    * `:colors` — semicolon-separated multi-color gradient
+    * `:colors` — pipe-separated multi-color gradient
     * `:direction` — `:left_to_right`, `:right_to_left`, `:up_to_down`, `:down_to_up`
     * `:bg` — apply to background instead of foreground
     * `:text_color` — text color when using `:bg` mode
@@ -104,9 +104,9 @@ defmodule Alaja.Components.Gradient do
   Parses two color strings into RGB tuples.
   """
   @spec parse_from_to_colors(String.t(), String.t()) :: [{integer(), integer(), integer()}]
-  def parse_from_to_colors(from_str \\ "#FF0000", to_str \\ "#0000FF") do
-    with {:ok, from} <- Orchestrator.parse_color(from_str),
-         {:ok, to} <- Orchestrator.parse_color(to_str) do
+  def parse_from_to_colors(from_str \\ "hex:ff0000", to_str \\ "hex:0000ff") do
+    with {:ok, from} <- Alaja.CLI.Color.parse(from_str),
+         {:ok, to} <- Alaja.CLI.Color.parse(to_str) do
       [from, to]
     else
       _ -> [{255, 0, 0}, {0, 0, 255}]
@@ -223,8 +223,8 @@ defmodule Alaja.Components.Gradient do
   end
 
   @doc false
-  def fg_code({r, g, b}), do: Pote.Orchestrator.to_ansi({r, g, b})
+  def fg_code({r, g, b}), do: Alaja.ANSI.fg(r, g, b)
 
   @doc false
-  def bg_code({r, g, b}), do: Pote.Orchestrator.to_ansi_bg({r, g, b})
+  def bg_code({r, g, b}), do: Alaja.ANSI.bg(r, g, b)
 end

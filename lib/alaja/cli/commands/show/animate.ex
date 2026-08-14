@@ -9,7 +9,7 @@ defmodule Alaja.CLI.Commands.Show.Animate do
     title: "Alaja Animate",
     subtitle: "Display animated spinners and indicators",
     usage:
-      "alaja animate [--type spinner|kitt|pulse|wave|rainbow] [--duration N] [--text T] [--color C] [--speed N] [--chars C] [--colors C,C,C]",
+      "alaja animate [--type spinner|kitt|pulse|wave|rainbow] [--duration N] [--text T] [--color C] [--speed N] [--chars C] [--colors C|C|C]",
     description: """
     Renders a spinner-style animation. Use `--duration` (in seconds) to
     bound the animation; omit for an indefinite loop. The kitt animation

@@ -17,6 +17,7 @@ defmodule Alaja.CLI.GlobalOpts do
           box_title: String.t() | nil,
           box_border: atom(),
           box_color: tuple() | nil,
+          bg_color: tuple() | nil,
           quiet: boolean(),
           stdin: boolean(),
           no_color: boolean(),
@@ -33,6 +34,7 @@ defmodule Alaja.CLI.GlobalOpts do
             box_title: nil,
             box_border: :rounded,
             box_color: nil,
+            bg_color: nil,
             quiet: false,
             stdin: false,
             no_color: false,
@@ -119,6 +121,11 @@ defmodule Alaja.CLI.GlobalOpts do
     extract_globals(rest, %{acc | box_color: color})
   end
 
+  defp extract_globals(["--bg-color", val | rest], acc) do
+    color = parse_color(val)
+    extract_globals(rest, %{acc | bg_color: color})
+  end
+
   defp extract_globals(["--quiet" | rest], acc), do: extract_globals(rest, %{acc | quiet: true})
   defp extract_globals(["-q" | rest], acc), do: extract_globals(rest, %{acc | quiet: true})
 
@@ -161,7 +168,10 @@ defmodule Alaja.CLI.GlobalOpts do
   defp parse_color(str) do
     case Alaja.CLI.Color.parse(str) do
       {:ok, rgb} -> rgb
-      {:error, msg} -> IO.puts(:stderr, msg)
+      {:error, msg} ->
+        IO.puts(:stderr, msg)
+        nil
+
       nil -> nil
     end
   end
@@ -180,6 +190,7 @@ defmodule Alaja.CLI.GlobalOpts do
       box_title: global.box_title,
       box_border: global.box_border,
       box_color: global.box_color,
+      bg_color: global.bg_color,
       align: global.align,
       no_color: global.no_color,
       color: global.color

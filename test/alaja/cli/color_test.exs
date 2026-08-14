@@ -92,4 +92,72 @@ defmodule Alaja.CLI.ColorTest do
       assert nil == Color.parse(nil)
     end
   end
+
+  describe "conversiones locales (mismas fórmulas que Pote.Converters)" do
+    test "hex 6 y 3 dígitos" do
+      assert Color.hex_to_rgb("FF8000") == {255, 128, 0}
+      assert Color.hex_to_rgb("F80") == {255, 136, 0}
+    end
+
+    test "xterm cubo, grises y estándar" do
+      assert Color.xterm_to_rgb(196) == {255, 0, 0}
+      assert Color.xterm_to_rgb(232) == {8, 8, 8}
+      assert Color.xterm_to_rgb(9) == {255, 0, 0}
+      assert Color.xterm_to_rgb(255) == {238, 238, 238}
+    end
+
+    test "cmyk" do
+      assert Color.cmyk_to_rgb({0, 100, 100, 0}) == {255, 0, 0}
+      assert Color.cmyk_to_rgb({100, 0, 0, 0}) == {0, 255, 255}
+    end
+
+    test "hsl" do
+      assert Color.hsl_to_rgb({0, 100, 50}) == {255, 0, 0}
+      assert Color.hsl_to_rgb({120, 100, 25}) == {0, 128, 0}
+    end
+
+    test "hsv" do
+      assert Color.hsv_to_rgb({0, 100, 100}) == {255, 0, 0}
+      assert Color.hsv_to_rgb({240, 100, 100}) == {0, 0, 255}
+    end
+
+    test "hwb" do
+      assert Color.hwb_to_rgb({0, 0, 0}) == {255, 0, 0}
+      assert Color.hwb_to_rgb({0, 100, 0}) == {255, 255, 255}
+    end
+  end
+
+  describe "autodetección sin prefijo" do
+    test "#hex" do
+      assert {:ok, {255, 128, 0}} = Color.parse("#FF8000")
+      assert {:ok, {255, 136, 0}} = Color.parse("#F80")
+    end
+
+    test "entero → xterm" do
+      assert {:ok, {255, 0, 0}} = Color.parse("196")
+      assert {:ok, {8, 8, 8}} = Color.parse("232")
+    end
+
+    test "3 valores sin % → rgb" do
+      assert {:ok, {255, 128, 0}} = Color.parse("255,128,0")
+      assert {:ok, {255, 128, 0}} = Color.parse("255;128;0")
+    end
+
+    test "3 valores con % → hsl" do
+      assert {:ok, {255, 0, 0}} = Color.parse("0,100%,50%")
+    end
+
+    test "4 valores sin % → argb (alpha ignorado)" do
+      assert {:ok, {0, 0, 255}} = Color.parse("255,0,0,255")
+    end
+
+    test "4 valores con % → cmyk" do
+      assert {:ok, {255, 0, 0}} = Color.parse("0%,100%,100%,0%")
+    end
+
+    test "nombres sueltos siguen fallando" do
+      assert {:error, msg} = Color.parse("red")
+      assert msg =~ "missing format"
+    end
+  end
 end

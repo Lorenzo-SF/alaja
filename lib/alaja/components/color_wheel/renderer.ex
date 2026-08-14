@@ -220,11 +220,11 @@ defmodule Alaja.Components.ColorWheel.Renderer do
   defp render_half_block(nil, nil), do: " "
 
   defp render_half_block({tr, tg, tb}, nil) do
-    "#{Pote.Orchestrator.to_ansi({tr, tg, tb})}▀#{Alaja.ANSI.reset_attributes()}"
+    "#{Alaja.ANSI.fg(tr, tg, tb)}▀#{Alaja.ANSI.reset_attributes()}"
   end
 
   defp render_half_block(nil, {br, bg, bb}) do
-    "#{Pote.Orchestrator.to_ansi({br, bg, bb})}▄#{Alaja.ANSI.reset_attributes()}"
+    "#{Alaja.ANSI.fg(br, bg, bb)}▄#{Alaja.ANSI.reset_attributes()}"
   end
 
   defp render_half_block({tr, tg, tb}, {br, bg, bb}) do

@@ -23,7 +23,6 @@ defmodule Alaja.CLI.Commands.Color do
   alias Pote.Converters.Advanced
   alias Pote.Converters.RGB, as: RGBConverter
   alias Pote.Harmonies
-  alias Pote.Orchestrator
 
   @harmony_types %{
     "triad" => :triad,
@@ -74,7 +73,7 @@ defmodule Alaja.CLI.Commands.Color do
   # ─── Analyze mode ─────────────────────────────────────────────────────────
 
   defp analyze(color_str, opts, global) do
-    case Orchestrator.parse_color(color_str) do
+    case Alaja.CLI.Color.parse(color_str) do
       {:ok, rgb} ->
         rgb = apply_tone(rgb, opts)
 
@@ -131,7 +130,7 @@ defmodule Alaja.CLI.Commands.Color do
     title_label = if harmony_type, do: "🎨 #{harmony_name}", else: "🎨 #{base_hex}"
 
     title =
-      "#{Pote.Orchestrator.to_ansi({r, g, b})}#{Alaja.ANSI.bold_on()}#{title_label}#{Alaja.ANSI.reset_attributes()}\n\n"
+      "#{Alaja.ANSI.fg(r, g, b)}#{Alaja.ANSI.bold_on()}#{title_label}#{Alaja.ANSI.reset_attributes()}\n\n"
 
     wheel = render_color_wheel_output(all_colors)
 
@@ -235,7 +234,7 @@ defmodule Alaja.CLI.Commands.Color do
       build_row("Luminance", colors, &format_luminance/1),
       build_row("Pantone", colors, &format_pantone/1),
       build_row("Swatch", colors, fn {r, g, b} ->
-        "#{Pote.Orchestrator.to_ansi_bg({r, g, b})}        #{Alaja.ANSI.reset_attributes()}"
+        "#{Alaja.ANSI.bg(r, g, b)}        #{Alaja.ANSI.reset_attributes()}"
       end)
     ]
   end
@@ -283,7 +282,7 @@ defmodule Alaja.CLI.Commands.Color do
         acc
 
       other_str ->
-        case Orchestrator.parse_color(other_str) do
+        case Alaja.CLI.Color.parse(other_str) do
           {:ok, other_rgb} ->
             ratio = Advanced.contrast_ratio(rgb, other_rgb)
             de = Advanced.delta_e(rgb, other_rgb)
@@ -312,7 +311,7 @@ defmodule Alaja.CLI.Commands.Color do
 
     line =
       Enum.map_join(variants, "  ", fn {label, {vr, vg, vb}} ->
-        "#{Pote.Orchestrator.to_ansi({vr, vg, vb})}████#{Alaja.ANSI.reset_attributes()} #{label}"
+        "#{Alaja.ANSI.fg(vr, vg, vb)}████#{Alaja.ANSI.reset_attributes()} #{label}"
       end)
 
     ["\n  ", line, "\n"]

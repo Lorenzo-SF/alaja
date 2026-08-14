@@ -15,7 +15,7 @@ defmodule Alaja.CLI.Commands.Show.Pulsar do
     title: "Alaja Pulsar",
     subtitle: "Pulsar/radar animation with gradient wave effect",
     usage:
-      "alaja pulsar <text> [--width N] [--height N] [--pulse-chars C] [--colors C,C,C] [--color C] [--speed N] [--align left|center|right] [--chars C] [--direction in|out] [--content-position-x N] [--content-position-y N] [--content-type text|image] [--image-path FILE]",
+      "alaja pulsar <text> [--width N] [--height N] [--pulse-chars C] [--colors C|C|C] [--color C] [--speed N] [--align left|center|right] [--chars C] [--direction in|out] [--content-position-x N] [--content-position-y N] [--content-type text|image] [--image-path FILE]",
     description: """
     Renders a pulsar/radar animation. The text is drawn in the center
     surrounded by a pulsing gradient ring/box. Useful as a long-running
@@ -41,7 +41,7 @@ defmodule Alaja.CLI.Commands.Show.Pulsar do
     examples: [
       {"Radar 3 segundos", "alaja pulsar \"Alaja\" --duration 3000"},
       {"Pulsar grande multicolor",
-       "alaja pulsar \"Deploy\" --width 50 --height 9 --colors cyan,magenta --duration 2000"}
+       "alaja pulsar \"Deploy\" --width 50 --height 9 --colors hex:00ffff|hex:ff00ff --duration 2000"}
     ]
   ]
 

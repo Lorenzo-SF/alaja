@@ -118,5 +118,33 @@ defmodule Alaja.CLI.GlobalOptsTest do
       assert kw[:no_color] == true
       assert kw[:color] == false
     end
+
+    test "passes bg_color through to printer opts" do
+      {opts, _} = GlobalOpts.parse(["--bg-color", "hex:333333"])
+      kw = GlobalOpts.to_printer_opts(opts)
+      assert kw[:bg_color] == {51, 51, 51}
+    end
+  end
+
+  describe "parse/1 --bg-color" do
+    test "parses explicit format" do
+      {opts, _rest} = GlobalOpts.parse(["--bg-color", "rgb:51;51;51"])
+      assert opts.bg_color == {51, 51, 51}
+    end
+
+    test "parses #hex via autodetection" do
+      {opts, _rest} = GlobalOpts.parse(["--bg-color", "#333333"])
+      assert opts.bg_color == {51, 51, 51}
+    end
+
+    test "invalid color leaves bg_color nil" do
+      {opts, _rest} = GlobalOpts.parse(["--bg-color", "gibberish"])
+      assert opts.bg_color == nil
+    end
+
+    test "defaults to nil without flag" do
+      {opts, _rest} = GlobalOpts.parse([])
+      assert opts.bg_color == nil
+    end
   end
 end

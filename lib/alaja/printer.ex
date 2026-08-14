@@ -81,7 +81,11 @@ defmodule Alaja.Printer do
       IO.puts(inspect(output))
       output
     else
-      output = apply_box(output, opts)
+      output =
+        output
+        |> apply_box(opts)
+        |> apply_bg(opts)
+
       x = Keyword.get(opts, :"pos-x", Keyword.get(opts, :pos_x, Keyword.get(opts, :x, 0)))
       y = Keyword.get(opts, :"pos-y", Keyword.get(opts, :pos_y, Keyword.get(opts, :y, 0)))
 
@@ -142,8 +146,11 @@ defmodule Alaja.Printer do
     text = IO.iodata_to_binary(data)
     verbose = Keyword.get(opts, :verbose, false)
 
-    text = format_raw(text, opts)
-    text = String.trim_trailing(text, "\n")
+    text =
+      text
+      |> format_raw(opts)
+      |> String.trim_trailing("\n")
+      |> apply_bg(opts)
 
     if verbose do
       IO.puts(inspect(text))
@@ -192,6 +199,26 @@ defmodule Alaja.Printer do
 
   defp maybe_add(list, _key, nil), do: list
   defp maybe_add(list, key, value), do: Keyword.put(list, key, value)
+
+  @doc """
+  Wraps text with the global `--bg-color` background, if set.
+  """
+  @spec apply_bg(String.t(), keyword()) :: String.t()
+  def apply_bg(text, opts) do
+    case Keyword.get(opts, :bg_color) do
+      {r, g, b} when is_integer(r) and is_integer(g) and is_integer(b) ->
+        if Keyword.get(opts, :no_color, false) do
+          text
+        else
+          text
+          |> then(&[Alaja.ANSI.bg(r, g, b), &1, Alaja.ANSI.reset_attributes()])
+          |> IO.iodata_to_binary()
+        end
+
+      _ ->
+        text
+    end
+  end
 
   @doc """
   Prints a `Alaja.Buffer.t()` to the terminal, optionally positioned at

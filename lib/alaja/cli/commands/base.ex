@@ -13,7 +13,7 @@ defmodule Alaja.CLI.Commands.Base do
   def parse_color(s) when is_binary(s), do: Parser.parse_color_opt(s)
   def parse_color(_), do: nil
 
-  @doc "Parse a semicolon separated list of colors."
+  @doc "Parse a pipe separated list of colors."
   def parse_color_list(nil), do: nil
 
   def parse_color_list(s) when is_binary(s) do

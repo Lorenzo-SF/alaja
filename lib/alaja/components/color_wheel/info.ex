@@ -8,14 +8,14 @@ defmodule Alaja.Components.ColorWheel.Info do
 
   alias Pote
   alias Pote.Converters
-  alias Pote.Orchestrator
 
   @type rgb :: Pote.rgb()
+  @type color_input :: rgb() | String.t()
 
   @doc """
   Displays detailed color information: swatch, formats, and optional variants.
   """
-  @spec show_color_info(Orchestrator.color_input(), keyword()) :: :ok
+  @spec show_color_info(color_input(), keyword()) :: :ok
   def show_color_info(color, opts \\ []) do
     show_formats = Keyword.get(opts, :show_formats, true)
     show_variants = Keyword.get(opts, :show_variants, false)
@@ -23,7 +23,7 @@ defmodule Alaja.Components.ColorWheel.Info do
     rgb = resolve_rgb(color)
     {r, g, b} = rgb
 
-    IO.puts("#{Orchestrator.to_ansi({r, g, b})}  ████████████████████#{ANSI.reset_attributes()}")
+    IO.puts("#{Alaja.ANSI.fg(r, g, b)}  ████████████████████#{ANSI.reset_attributes()}")
 
     IO.puts("")
 
@@ -38,7 +38,7 @@ defmodule Alaja.Components.ColorWheel.Info do
   capabilities. Falls back to ASCII half-block when the terminal does not
   support native image protocols.
   """
-  @spec show_harmony_ring(Orchestrator.color_input(), atom(), keyword()) :: :ok
+  @spec show_harmony_ring(color_input(), atom(), keyword()) :: :ok
   def show_harmony_ring(base_color, harmony_type \\ :triad, opts \\ []) do
     base_rgb = resolve_rgb(base_color)
     colors = ColorHarmonies.compute_harmony(base_rgb, harmony_type)
@@ -58,7 +58,7 @@ defmodule Alaja.Components.ColorWheel.Info do
   @doc """
   Shows a list of colors as linear swatches.
   """
-  @spec show_swatches([Orchestrator.color_input()], keyword()) :: :ok
+  @spec show_swatches([color_input()], keyword()) :: :ok
   def show_swatches(colors, opts \\ []) do
     per_row = Keyword.get(opts, :per_row, 4)
 
@@ -69,7 +69,7 @@ defmodule Alaja.Components.ColorWheel.Info do
       line =
         Enum.map_join(chunk, "  ", fn {r, g, b} ->
           hex = Converters.rgb_to_hex({r, g, b})
-          "#{Orchestrator.to_ansi({r, g, b})}████████#{ANSI.reset_attributes()} #{hex}"
+          "#{Alaja.ANSI.fg(r, g, b)}████████#{ANSI.reset_attributes()} #{hex}"
         end)
 
       IO.puts("  #{line}")
@@ -81,8 +81,7 @@ defmodule Alaja.Components.ColorWheel.Info do
   @doc """
   Shows a horizontal gradient between two colors.
   """
-  @spec show_gradient(Orchestrator.color_input(), Orchestrator.color_input(), pos_integer()) ::
-          :ok
+  @spec show_gradient(color_input(), color_input(), pos_integer()) :: :ok
   def show_gradient(start_color, end_color, steps \\ 20) do
     start_rgb = resolve_rgb(start_color)
     end_rgb = resolve_rgb(end_color)
@@ -91,7 +90,7 @@ defmodule Alaja.Components.ColorWheel.Info do
       Enum.map_join(0..(steps - 1), fn i ->
         factor = i / max(steps - 1, 1)
         {r, g, b} = blend(start_rgb, end_rgb, factor)
-        "#{Orchestrator.to_ansi({r, g, b})}██#{ANSI.reset_attributes()}"
+        "#{Alaja.ANSI.fg(r, g, b)}██#{ANSI.reset_attributes()}"
       end)
 
     IO.puts("  #{gradient}")
@@ -123,7 +122,7 @@ defmodule Alaja.Components.ColorWheel.Info do
 
     Enum.each(formats, fn {label, value} ->
       IO.puts(
-        "  #{Orchestrator.to_ansi({r, g, b})}#{String.pad_trailing(label, 10)}#{ANSI.reset_attributes()} #{value}"
+        "  #{Alaja.ANSI.fg(r, g, b)}#{String.pad_trailing(label, 10)}#{ANSI.reset_attributes()} #{value}"
       )
     end)
 
@@ -146,7 +145,7 @@ defmodule Alaja.Components.ColorWheel.Info do
 
     line =
       Enum.map_join(variants, "  ", fn {label, {r, g, b}} ->
-        "#{Orchestrator.to_ansi({r, g, b})}████#{ANSI.reset_attributes()} #{label}"
+        "#{Alaja.ANSI.fg(r, g, b)}████#{ANSI.reset_attributes()} #{label}"
       end)
 
     IO.puts("  #{line}")
@@ -163,16 +162,24 @@ defmodule Alaja.Components.ColorWheel.Info do
       hex = Converters.rgb_to_hex(rgb)
 
       IO.puts(
-        "  #{Orchestrator.to_ansi({r, g, b})}████#{ANSI.reset_attributes()} #{hex}  rgb(#{r},#{g},#{b})"
+        "  #{Alaja.ANSI.fg(r, g, b)}████#{ANSI.reset_attributes()} #{hex}  rgb(#{r},#{g},#{b})"
       )
     end)
 
     :ok
   end
 
-  @spec resolve_rgb(Orchestrator.color_input()) :: rgb()
+  @spec resolve_rgb(color_input()) :: rgb()
   defp resolve_rgb(input) when is_tuple(input) and tuple_size(input) == 3, do: input
-  defp resolve_rgb(input), do: Orchestrator.to_rgb!(input)
+
+  defp resolve_rgb(input) when is_binary(input) do
+    case Alaja.CLI.Color.parse(input) do
+      {:ok, rgb} -> rgb
+      _ -> {255, 255, 255}
+    end
+  end
+
+  defp resolve_rgb(_), do: {255, 255, 255}
 
   @spec blend(rgb(), rgb(), float()) :: rgb()
   defp blend({r1, g1, b1}, {r2, g2, b2}, factor) do

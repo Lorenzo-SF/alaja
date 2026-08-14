@@ -17,17 +17,17 @@ defmodule Alaja.CLI.Commands.Show.Gradient do
     specifying the gradient stops.
     """,
     options: [
-      {:from, :string, nil, "Start color (hex, rgb(), or named)"},
-      {:to, :string, nil, "End color (hex, rgb(), or named)"},
-      {:colors, :string, nil, "Comma-separated gradient stops"},
+      {:from, :string, nil, "Start color (<formato>:<codigo> o #hex)"},
+      {:to, :string, nil, "End color (<formato>:<codigo> o #hex)"},
+      {:colors, :string, nil, "Pipe-separated gradient stops (hex:a|hex:b|hex:c)"},
       {:direction, :string, "horizontal", "horizontal or vertical"},
       {:bg, :boolean, false, "Apply the gradient to the background instead of the foreground"},
       {:text_color, :string, nil, "Override the gradient with a single text color"}
     ],
     examples: [
-      {"Gradiente horizontal", "alaja gradient \"hola mundo\" --from red --to blue"},
+      {"Gradiente horizontal", "alaja gradient \"hola mundo\" --from hex:ff0000 --to hex:0000ff"},
       {"Gradiente vertical",
-       "alaja gradient \"subida\" --from yellow --to magenta --direction vertical"}
+       "alaja gradient \"subida\" --from #FFFF00 --to hex:ff00ff --direction vertical"}
     ]
   ]
 

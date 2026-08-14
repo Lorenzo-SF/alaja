@@ -328,7 +328,10 @@ defmodule Alaja.CLI.Commands.Show.Message do
       pos_x: global.pos_x,
       pos_y: global.pos_y,
       verbose: global.verbose,
-      align: global.align
+      align: global.align,
+      bg_color: global.bg_color,
+      no_color: global.no_color,
+      color: global.color
     ]
   end
 

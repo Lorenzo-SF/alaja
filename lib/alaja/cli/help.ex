@@ -231,6 +231,7 @@ defmodule Alaja.CLI.Help do
         ["--box-title TEXT", "Box title (with --box)"],
         ["--box-border TYPE", "Box border style (with --box)"],
         ["--box-color COLOR", "Box border color (with --box)"],
+        ["--bg-color COLOR", "Background color for the output (any display command)"],
         ["--verbose", "Output raw ANSI instead of rendering"],
         ["--quiet, -q", "Suppress output"],
         ["--stdin", "Read JSON from stdin (action)"]
@@ -388,8 +389,8 @@ defmodule Alaja.CLI.Help do
     {"Error message in red", "alaja error \"Build fallido\""},
     {"Big header with subtitle",
      "alaja header \"Alaja 3.0\" --subtitle \"Terminal UI framework\""},
-    {"Divider with title", "alaja separator \"Deploy\" --width 60 --color cyan"},
-    {"Gradient text", "alaja gradient \"hola mundo\" --from red --to blue"},
+    {"Divider with title", "alaja separator \"Deploy\" --width 60 --color hex:00ffff"},
+    {"Gradient text", "alaja gradient \"hola mundo\" --from hex:ff0000 --to hex:0000ff"},
     {"Table with borders", "alaja table --headers name,status --rows \"api,ok\" \"web,ok\""},
     {"Pretty-printed JSON", "echo '{\"name\":\"alaja\",\"v\":3}' | alaja json"},
     {"Progress bar with label", "alaja bar 60 --max 100 --label build --filled-char █"},
@@ -399,9 +400,9 @@ defmodule Alaja.CLI.Help do
     {"Log with retention", "alaja log \"line 1\" \"line 2\" --max-lines 5"},
     {"Stateful progress", "alaja progress --current 75 --total 100 --label build"},
     {"Breadcrumbs", "alaja breadcrumbs home lib alaja --current alaja"},
-    {"Bullet list", "alaja list \"fix deploy\" \"write tests\" --header \"To do\" --color cyan"},
+    {"Bullet list", "alaja list \"fix deploy\" \"write tests\" --header \"To do\" --color hex:00ffff"},
     {"Radar animation (3s)", "alaja pulsar \"Alaja\" --duration 3000"},
-    {"Color harmonies", "alaja color red --harmony triad"},
+    {"Color harmonies", "alaja color hex:ff0000 --harmony triad"},
     {"Batch from stdin", "echo '{\"type\":\"success\",\"text\":\"ok\"}' | alaja action"}
   ]
 
