@@ -26,8 +26,10 @@ defmodule Alaja.CLI.Commands.Show.Gradient do
     ],
     examples: [
       {"Two-stop horizontal", "alaja gradient \"alaja\" --from hex:ff6b6b --to hex:4ecdc4"},
-      {"Three-stop rainbow", "alaja gradient \"ship it\" --colors hex:ff0000|hex:00ff00|hex:0000ff"},
-      {"Vertical gradient", "alaja gradient \"release\" --from #FFFF00 --to hex:ff00ff --direction vertical"},
+      {"Three-stop rainbow",
+       "alaja gradient \"ship it\" --colors hex:ff0000|hex:00ff00|hex:0000ff"},
+      {"Vertical gradient",
+       "alaja gradient \"release\" --from #FFFF00 --to hex:ff00ff --direction vertical"},
       {"Background gradient", "alaja gradient \"urgent\" --from red --to yellow --bg"},
       {"Single-colour override", "alaja gradient \"quiet\" --text-color grey"},
       {"Brand title", "alaja gradient \"CACAFUTI\" --colors hex:7aa2f7|hex:f5c2e7|hex:abe9b3"}

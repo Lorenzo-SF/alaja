@@ -24,7 +24,8 @@ defmodule Alaja.CLI.Commands.Show.Header do
       {"Simple title", "alaja header \"Release 3.0\""},
       {"Title + subtitle", "alaja header \"Release 3.0\" --subtitle \"stable\""},
       {"Large banner", "alaja header \"Alaja\" --size large --color magenta"},
-      {"Coloured subtitle", "alaja header \"Build\" --subtitle \"main branch\" --subtitle-color grey"},
+      {"Coloured subtitle",
+       "alaja header \"Build\" --subtitle \"main branch\" --subtitle-color grey"},
       {"Custom width", "alaja header \"Release\" --width 40"},
       {"Pinned to terminal width", "alaja header \"Welcome\" --size large --width 120"}
     ]

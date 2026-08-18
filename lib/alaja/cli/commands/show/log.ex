@@ -27,7 +27,8 @@ defmodule Alaja.CLI.Commands.Show.Log do
     examples: [
       {"Few lines", "alaja log \"starting\" \"compiling\" \"ready\""},
       {"Retention cap", "alaja log \"line 1\" \"line 2\" \"line 3\" \"line 4\" --max-lines 3"},
-      {"Long build trace", "alaja log \"Resolving deps\" \"Compiling 12 files\" \"Running 240 tests\" \"All green\" --max-lines 10"},
+      {"Long build trace",
+       "alaja log \"Resolving deps\" \"Compiling 12 files\" \"Running 240 tests\" \"All green\" --max-lines 10"},
       {"From newline-separated stdin", "printf 'a\\nb\\nc\\n' | xargs -n1 alaja log"}
     ]
   ]

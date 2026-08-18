@@ -37,7 +37,8 @@ defmodule Alaja.CLI.Commands.Show.AnimatedBar do
       {"Quick demo (2s)", "alaja animated-bar 50 --max 100 --duration 2000"},
       {"Spinner style", "alaja animated-bar 30 --type spinner --duration 3000"},
       {"KITT-style sweep", "alaja animated-bar 70 --type kitt --kitt-width 5 --duration 4000"},
-      {"Pulse", "alaja animated-bar 0 --max 100 --type pulse --duration 2000 --label \"thinking...\""},
+      {"Pulse",
+       "alaja animated-bar 0 --max 100 --type pulse --duration 2000 --label \"thinking...\""},
       {"Wave", "alaja animated-bar 80 --type wave --filled-color cyan --duration 2500"},
       {"Rainbow", "alaja animated-bar 50 --type rainbow --duration 3000"},
       {"Snapshot frames to stdout", "alaja animated-bar 50 --max 100 --verbose"}

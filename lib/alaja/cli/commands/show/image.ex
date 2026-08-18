@@ -32,7 +32,8 @@ defmodule Alaja.CLI.Commands.Show.Image do
       {"Force kitty protocol", "alaja image --path pic.png --protocol kitty"},
       {"Force sixel", "alaja image --path pic.png --protocol sixel"},
       {"ASCII fallback", "alaja image --path photo.jpg --to-ascii-art --width 60"},
-      {"Detailed ASCII", "alaja image --path photo.jpg --to-ascii-art --ascii-style detailed --width 100"},
+      {"Detailed ASCII",
+       "alaja image --path photo.jpg --to-ascii-art --ascii-style detailed --width 100"},
       {"Grayscale ASCII", "alaja image --path photo.jpg --to-ascii-art --ascii-color false"}
     ]
   ]

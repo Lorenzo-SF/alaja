@@ -33,7 +33,9 @@ defmodule Alaja.CLI.NoColorTest do
 
       # Then restore the original values, if any.
       if original != nil, do: Application.put_env(:alaja, :no_color, original)
-      if original_loaded != nil, do: Application.put_env(:alaja, :__conf_loaded__, original_loaded)
+
+      if original_loaded != nil,
+        do: Application.put_env(:alaja, :__conf_loaded__, original_loaded)
     end)
 
     :ok

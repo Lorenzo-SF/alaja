@@ -26,7 +26,8 @@ defmodule Alaja.CLI.Commands.Action do
   @help_data [
     title: "Alaja Action",
     subtitle: "Execute Alaja commands from JSON input",
-    usage: "alaja action [--file FILE | --data JSON | (stdin)] [--parallel N] [--stop-on-error] [--dry-run]",
+    usage:
+      "alaja action [--file FILE | --data JSON | (stdin)] [--parallel N] [--stop-on-error] [--dry-run]",
     description: """
     Accepts JSON from stdin, a file, or inline `--data` and dispatches commands
     in-process via `Alaja.CLI.exec/1`. Supports single actions and batch
@@ -46,8 +47,10 @@ defmodule Alaja.CLI.Commands.Action do
       {:dry_run, :boolean, false, "Print what would run instead of executing"}
     ],
     examples: [
-      {"Single action from stdin", "echo '{\"command\":\"success\",\"args\":[\"Done!\"]}' | alaja action"},
-      {"Inline single action", "alaja action --data '{\"command\":\"info\",\"args\":[\"starting\"]}'"},
+      {"Single action from stdin",
+       "echo '{\"command\":\"success\",\"args\":[\"Done!\"]}' | alaja action"},
+      {"Inline single action",
+       "alaja action --data '{\"command\":\"info\",\"args\":[\"starting\"]}'"},
       {"From file", "alaja action --file pipeline.json"},
       {"Parallel batch", "alaja action --file pipeline.json --parallel 4"},
       {"Halt on first error", "alaja action --file pipeline.json --stop-on-error"},

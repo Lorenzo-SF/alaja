@@ -34,7 +34,8 @@ defmodule Alaja.CLI.Commands.Show.Progress do
       {"Half-way", "alaja progress --current 50"},
       {"With label", "alaja progress --current 75 --total 100 --label \"deploy\""},
       {"Wider bar", "alaja progress --current 30 --width 40 --label \"download\""},
-      {"From script", "for pct in 0 25 50 75 100; do alaja progress --current $pct --label \"step $pct\"; done"}
+      {"From script",
+       "for pct in 0 25 50 75 100; do alaja progress --current $pct --label \"step $pct\"; done"}
     ]
   ]
 

@@ -46,8 +46,10 @@ defmodule Alaja.CLI.Commands.Show.Message do
       {"Colour + bold", "alaja message \"Deploy\" --color cyan --bold"},
       {"Background colour", "alaja message \"Production\" --bg-color red --color white"},
       {"Multiple effects", "alaja message \"Breaking change\" --bold --underline --blink"},
-      {"Chunked styling", "alaja message --chunk \"Deploy|color:green|bold:true\" --chunk \"started|color:cyan\""},
-      {"Inside a box", "alaja warning \"Server down\" --box --box-title \"ALERT\" --box-color red"},
+      {"Chunked styling",
+       "alaja message --chunk \"Deploy|color:green|bold:true\" --chunk \"started|color:cyan\""},
+      {"Inside a box",
+       "alaja warning \"Server down\" --box --box-title \"ALERT\" --box-color red"},
       {"Aligned right", "alaja success \"Done\" --align right"},
       {"Padded for breathing room", "alaja info \"Waiting...\" --padding 2"}
     ]

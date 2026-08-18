@@ -116,18 +116,12 @@ defmodule Alaja.CLI.Help do
   # The six one-liners that pay for the entire CLI. Kept short so the
   # summary stays one screen tall even on a 24-line terminal.
   @quick_start [
-    {"Status message",
-     "alaja success \"Deploy completado\""},
-    {"Quick header",
-     "alaja header \"Release 3.0\" --subtitle \"ready for review\""},
-    {"Inline table",
-     "alaja table --headers name,status --rows \"api,OK\" \"db,WARN\""},
-    {"Pipe JSON",
-     "cat stats.json | alaja json"},
-    {"Theme picker",
-     "alaja theme set dracula"},
-    {"Multi-step from JSON",
-     "alaja action --file pipeline.json"}
+    {"Status message", "alaja success \"Deploy completado\""},
+    {"Quick header", "alaja header \"Release 3.0\" --subtitle \"ready for review\""},
+    {"Inline table", "alaja table --headers name,status --rows \"api,OK\" \"db,WARN\""},
+    {"Pipe JSON", "cat stats.json | alaja json"},
+    {"Theme picker", "alaja theme set dracula"},
+    {"Multi-step from JSON", "alaja action --file pipeline.json"}
   ]
 
   defp quick_start_text do
@@ -249,7 +243,8 @@ defmodule Alaja.CLI.Help do
   def command(cmd) do
     case Map.fetch(@commands, cmd) do
       {:ok, module} ->
-        if function_exported?(module, :help, 1), do: module.help(%Alaja.CLI.GlobalOpts{}),
+        if function_exported?(module, :help, 1),
+          do: module.help(%Alaja.CLI.GlobalOpts{}),
           else: :ok
 
       :error ->
@@ -477,92 +472,54 @@ defmodule Alaja.CLI.Help do
   # validated against the actual switches exposed by each command.
   @cookbook [
     # ── Status / feedback ────────────────────────────────────────────────
-    {"status",
-     "Pipeline status (CI logs, scripts)",
+    {"status", "Pipeline status (CI logs, scripts)",
      "alaja success \"deploy: v3.0.4 rolled out\""},
-    {"status",
-     "Fail loudly in scripts",
-     "alaja error \"postgres connection refused\""},
-    {"status",
-     "Caution without alarm",
+    {"status", "Fail loudly in scripts", "alaja error \"postgres connection refused\""},
+    {"status", "Caution without alarm",
      "alaja warning \"deprecated: --legacy flag, remove in 4.0\""},
     # ── Headers / structure ──────────────────────────────────────────────
-    {"structure",
-     "Section divider with title",
+    {"structure", "Section divider with title",
      "alaja separator \"Pipeline\" --width 60 --color hex:00ffff"},
-    {"structure",
-     "Big release banner",
+    {"structure", "Big release banner",
      "alaja header \"v3.0\" --subtitle \"Terminal UI framework\" --size large"},
-    {"structure",
-     "Breadcrumbs for nav",
-     "alaja breadcrumbs home users alice --current alice"},
+    {"structure", "Breadcrumbs for nav", "alaja breadcrumbs home users alice --current alice"},
     # ── Tables / data ────────────────────────────────────────────────────
-    {"data",
-     "Service health table",
+    {"data", "Service health table",
      "alaja table --headers service,status,uptime --rows api,OK,12d db,WARN,2h"},
-    {"data",
-     "JSON pretty-printer (file or stdin)",
-     "cat config.json | alaja json --indent 2"},
-    {"data",
-     "Bullet list with header",
+    {"data", "JSON pretty-printer (file or stdin)", "cat config.json | alaja json --indent 2"},
+    {"data", "Bullet list with header",
      "alaja list --header \"TODO\" \"fix deploy\" \"write tests\" \"update docs\""},
     # ── Progress / streaming ─────────────────────────────────────────────
-    {"progress",
-     "One-shot progress bar",
-     "alaja bar 60 --max 100 --label build --filled-char █"},
-    {"progress",
-     "Stateful progress (re-renderable)",
+    {"progress", "One-shot progress bar", "alaja bar 60 --max 100 --label build --filled-char █"},
+    {"progress", "Stateful progress (re-renderable)",
      "alaja progress --current 75 --total 100 --label build"},
-    {"progress",
-     "Animated bar (2s demo)",
+    {"progress", "Animated bar (2s demo)",
      "alaja animated-bar 50 --max 100 --duration 2000 --type kitt"},
-    {"progress",
-     "Log with retention",
+    {"progress", "Log with retention",
      "alaja log \"Compiling...\" \"Running tests...\" --max-lines 5"},
-    {"progress",
-     "Multi-task tracker",
+    {"progress", "Multi-task tracker",
      "alaja multibar --tasks 'build:Building,test:Testing,lint:Linting' --duration 3"},
     # ── Color / styling ──────────────────────────────────────────────────
-    {"style",
-     "Gradient title",
-     "alaja gradient \"alaja 3.0\" --from hex:ff6b6b --to hex:4ecdc4"},
-    {"style",
-     "Bordered callout",
+    {"style", "Gradient title", "alaja gradient \"alaja 3.0\" --from hex:ff6b6b --to hex:4ecdc4"},
+    {"style", "Bordered callout",
      "alaja warning \"production deploy in 5m\" --box --box-title DEPLOY"},
-    {"style",
-     "Centered message",
-     "alaja success \"Done\" --align center"},
+    {"style", "Centered message", "alaja success \"Done\" --align center"},
     # ── Color analysis ───────────────────────────────────────────────────
-    {"analysis",
-     "Generate harmonies",
-     "alaja color hex:ff6b6b --harmony triad"},
-    {"analysis",
-     "WCAG contrast check",
-     "alaja color hex:1e1e2e --contrast hex:cdd6f4"},
+    {"analysis", "Generate harmonies", "alaja color hex:ff6b6b --harmony triad"},
+    {"analysis", "WCAG contrast check", "alaja color hex:1e1e2e --contrast hex:cdd6f4"},
     # ── Images ───────────────────────────────────────────────────────────
-    {"images",
-     "Render a logo",
-     "alaja image --path logo.png --width 40"},
-    {"images",
-     "ASCII fallback when no graphics protocol",
+    {"images", "Render a logo", "alaja image --path logo.png --width 40"},
+    {"images", "ASCII fallback when no graphics protocol",
      "alaja image --path photo.jpg --to-ascii-art --ascii-style detailed"},
     # ── Themes ───────────────────────────────────────────────────────────
-    {"themes",
-     "Install and activate",
-     "alaja theme init && alaja theme set dracula"},
-    {"themes",
-     "Compare two themes",
-     "alaja theme show dracula nord"},
+    {"themes", "Install and activate", "alaja theme init && alaja theme set dracula"},
+    {"themes", "Compare two themes", "alaja theme show dracula nord"},
     # ── Batch / automation ───────────────────────────────────────────────
-    {"batch",
-     "Single action from stdin",
+    {"batch", "Single action from stdin",
      "echo '{\"command\":\"success\",\"args\":[\"Done!\"]}' | alaja action"},
-    {"batch",
-     "Multi-action with stop-on-error",
+    {"batch", "Multi-action with stop-on-error",
      "alaja action --file pipeline.json --stop-on-error"},
-    {"batch",
-     "Parallel actions",
-     "alaja action --file pipeline.json --parallel 4"}
+    {"batch", "Parallel actions", "alaja action --file pipeline.json --parallel 4"}
   ]
 
   defp cookbook_examples_text do

@@ -22,7 +22,8 @@ defmodule Alaja.CLI.Commands.Show.List do
       {"With header", "alaja list \"fix deploy\" \"write tests\" --header \"TODO\""},
       {"Coloured", "alaja list a b c --color cyan"},
       {"Right-aligned", "alaja list a b c --align right"},
-      {"Checklist (green)", "alaja list \"backup db\" \"rotate keys\" \"audit logs\" --color green"},
+      {"Checklist (green)",
+       "alaja list \"backup db\" \"rotate keys\" \"audit logs\" --color green"},
       {"From stdin", "cat todos.txt | xargs -I{} echo {} | xargs alaja list"}
     ]
   ]

@@ -15,7 +15,10 @@ defmodule Alaja.Components.PulsarImageTest do
   defp fixture_png(pixels) do
     height = length(pixels)
     width = length(List.first(pixels, []))
-    path = Path.join(System.tmp_dir!(), "pulsar_fixture_#{System.unique_integer([:positive])}.png")
+
+    path =
+      Path.join(System.tmp_dir!(), "pulsar_fixture_#{System.unique_integer([:positive])}.png")
+
     File.write!(path, PNG.generate_rgb(pixels, width, height))
     on_exit(fn -> File.rm(path) end)
     path

@@ -31,7 +31,8 @@ defmodule Alaja.CLI.Commands.Show.Animate do
       {"Pulse", "alaja animate --type pulse --text \"thinking\" --duration 2"},
       {"Rainbow", "alaja animate --type rainbow --colors red|green|blue|yellow --duration 3"},
       {"Custom chars", "alaja animate --chars \"|/-\\\\\" --text \"working\" --duration 2"},
-      {"Long task indicator", "alaja animate --type spinner --text \"Running tests\" --duration 30"}
+      {"Long task indicator",
+       "alaja animate --type spinner --text \"Running tests\" --duration 30"}
     ]
   ]
 

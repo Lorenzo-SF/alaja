@@ -12,7 +12,8 @@ defmodule Alaja.CLI.Commands.Color do
   @help_data [
     title: "Alaja Color",
     subtitle: "Color analysis, harmonies, conversions, and tone manipulation",
-    usage: "alaja color <color> [--harmony TYPE] [--darken N] [--lighten N] [--lab] [--xyz] [--kelvin] [--pantone] [--contrast C]",
+    usage:
+      "alaja color <color> [--harmony TYPE] [--darken N] [--lighten N] [--lab] [--xyz] [--kelvin] [--pantone] [--contrast C]",
     description: """
     Parses a colour in any supported format and displays its values across
     multiple colour spaces (HEX, RGB, HSL, HSV, CMYK, XTerm256, CIELAB,
@@ -23,7 +24,8 @@ defmodule Alaja.CLI.Commands.Color do
     cmyk:C;M;Y;K, xterm:N, theme:<key>.
     """,
     options: [
-      {:harmony, :string, nil, "Generate colour harmonies: triad, complementary, analogous, square, monochromatic, compound, split-complementary"},
+      {:harmony, :string, nil,
+       "Generate colour harmonies: triad, complementary, analogous, square, monochromatic, compound, split-complementary"},
       {:darken, :integer, nil, "Darken by N steps before displaying"},
       {:lighten, :integer, nil, "Lighten by N steps before displaying"},
       {:lab, :boolean, false, "Include CIELAB values"},

@@ -32,7 +32,9 @@ defmodule Alaja.CLI.Commands.SmokeTest do
   end
 
   test "action runs with --file pointing to a JSON file" do
-    path = Path.join(System.tmp_dir!(), "alaja_action_#{:erlang.unique_integer([:positive])}.json")
+    path =
+      Path.join(System.tmp_dir!(), "alaja_action_#{:erlang.unique_integer([:positive])}.json")
+
     File.write!(path, ~s({"command":"info","args":["from file"]}))
 
     try do

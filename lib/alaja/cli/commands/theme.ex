@@ -25,8 +25,8 @@ defmodule Alaja.CLI.Commands.Theme do
     ]
   ]
 
-  alias Alaja.{Config, Theme}
   alias Alaja.CLI.GlobalOpts
+  alias Alaja.{Config, Theme}
 
   @doc "Runs the `alaja theme` command."
   @spec run([String.t()]) :: :ok | no_return()
@@ -36,21 +36,23 @@ defmodule Alaja.CLI.Commands.Theme do
     if global.help do
       help(global)
     else
-      action = case rest do
-        [action | _] -> action
-        [] -> nil
-      end
-
-      case action do
-        nil -> help(global)
-        "init" -> run_init(global)
-        "set" -> run_set(rest, global)
-        "list" -> run_list(global)
-        "show" -> run_show(rest, global)
-        "all" -> run_all(global)
-        _ -> unknown_action(action, global)
-      end
+      dispatch(rest, global)
     end
+  end
+
+  # Sub-action dispatch. Pattern matching in function heads keeps
+  # the cyclomatic complexity below credo --strict (max 9).
+  defp dispatch([], global), do: help(global)
+  defp dispatch(["init" | _], global), do: run_init(global)
+  defp dispatch(["set", _name | _] = args, global), do: run_set(args, global)
+  defp dispatch(["set" | _], _global), do: usage_error("set <name>")
+  defp dispatch(["list" | _], global), do: run_list(global)
+  defp dispatch(["show" | names], global), do: run_show(names, global)
+  defp dispatch(["all" | _], global), do: run_all(global)
+  defp dispatch([action | _], global), do: unknown_action(action, global)
+
+  defp usage_error(hint) do
+    IO.puts(:stderr, "  Usage: alaja theme #{hint}")
   end
 
   # ── Actions ──────────────────────────────────────────────────────────────
@@ -98,20 +100,20 @@ defmodule Alaja.CLI.Commands.Theme do
   end
 
   defp run_list(_global) do
-    themes = Theme.list()
+    case Theme.list() do
+      [] ->
+        IO.puts("  No themes found. Run alaja theme init first.")
 
-    if themes == [] do
-      IO.puts("  No themes found. Run alaja theme init first.")
-    else
-      active = to_string(Config.get(:theme_active))
-
-      Enum.each(themes, fn name ->
-        marker = if name == active, do: " #{success_mark()} ← active", else: ""
-        IO.puts("  • #{name}#{marker}")
-      end)
-
-      IO.puts("")
+      themes ->
+        active = to_string(Config.get(:theme_active))
+        Enum.each(themes, &print_theme_line(&1, active))
+        IO.puts("")
     end
+  end
+
+  defp print_theme_line(name, active) do
+    marker = if name == active, do: " #{success_mark()} ← active", else: ""
+    IO.puts("  • #{name}#{marker}")
   end
 
   defp run_show(["show", "all" | _], global), do: show_all_themes(global)

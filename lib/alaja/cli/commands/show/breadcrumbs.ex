@@ -25,7 +25,8 @@ defmodule Alaja.CLI.Commands.Show.Breadcrumbs do
       {"Deployment env trail", "alaja breadcrumbs dev staging prod"},
       {"Arrow separator", "alaja breadcrumbs dev staging prod --separator \"→\""},
       {"Slash separator (URL-style)", "alaja breadcrumbs home users alice --separator \"/\""},
-      {"Coloured trail", "alaja breadcrumbs build test deploy --color cyan --current-color green"},
+      {"Coloured trail",
+       "alaja breadcrumbs build test deploy --color cyan --current-color green"},
       {"Custom separator colour", "alaja breadcrumbs repo branch commit --separator-color grey"}
     ]
   ]
