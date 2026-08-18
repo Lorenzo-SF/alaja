@@ -25,9 +25,12 @@ defmodule Alaja.CLI.Commands.Show.Gradient do
       {:text_color, :string, nil, "Override the gradient with a single text color"}
     ],
     examples: [
-      {"Gradiente horizontal", "alaja gradient \"hola mundo\" --from hex:ff0000 --to hex:0000ff"},
-      {"Gradiente vertical",
-       "alaja gradient \"subida\" --from #FFFF00 --to hex:ff00ff --direction vertical"}
+      {"Two-stop horizontal", "alaja gradient \"alaja\" --from hex:ff6b6b --to hex:4ecdc4"},
+      {"Three-stop rainbow", "alaja gradient \"ship it\" --colors hex:ff0000|hex:00ff00|hex:0000ff"},
+      {"Vertical gradient", "alaja gradient \"release\" --from #FFFF00 --to hex:ff00ff --direction vertical"},
+      {"Background gradient", "alaja gradient \"urgent\" --from red --to yellow --bg"},
+      {"Single-colour override", "alaja gradient \"quiet\" --text-color grey"},
+      {"Brand title", "alaja gradient \"CACAFUTI\" --colors hex:7aa2f7|hex:f5c2e7|hex:abe9b3"}
     ]
   ]
 
@@ -48,7 +51,7 @@ defmodule Alaja.CLI.Commands.Show.Gradient do
         ]
       )
 
-    if global.help or Keyword.get(opts, :help, false) do
+    if global.help do
       help()
     else
       text = Enum.join(positional, " ")

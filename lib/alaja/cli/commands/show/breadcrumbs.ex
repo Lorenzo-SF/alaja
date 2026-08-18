@@ -21,9 +21,12 @@ defmodule Alaja.CLI.Commands.Show.Breadcrumbs do
       {:current_color, :string, nil, "Color of the last (current) item"}
     ],
     examples: [
-      {"Ruta de navegación", "alaja breadcrumbs home lib alaja --current alaja"},
-      {"Breadcrumbs con flecha",
-       "alaja breadcrumbs dev staging prod --separator \"→\" --current prod"}
+      {"Code path", "alaja breadcrumbs home lib alaja"},
+      {"Deployment env trail", "alaja breadcrumbs dev staging prod"},
+      {"Arrow separator", "alaja breadcrumbs dev staging prod --separator \"→\""},
+      {"Slash separator (URL-style)", "alaja breadcrumbs home users alice --separator \"/\""},
+      {"Coloured trail", "alaja breadcrumbs build test deploy --color cyan --current-color green"},
+      {"Custom separator colour", "alaja breadcrumbs repo branch commit --separator-color grey"}
     ]
   ]
 
@@ -42,7 +45,7 @@ defmodule Alaja.CLI.Commands.Show.Breadcrumbs do
         ]
       )
 
-    if global.help or Keyword.get(opts, :help, false) or items == [] do
+    if global.help or items == [] do
       help()
     else
       bc_opts =

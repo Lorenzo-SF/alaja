@@ -23,8 +23,12 @@ defmodule Alaja.CLI.Commands.Show.Json do
       {:punctuation_color, :string, nil, "Color for punctuation (brackets, commas, colons)"}
     ],
     examples: [
-      {"JSON desde pipe", "echo '{\"name\":\"alaja\",\"v\":3}' | alaja json"},
-      {"JSON inline con indentación", "alaja json '{\"ok\":true,\"n\":1}' --indent 2"}
+      {"Inline JSON", "alaja json '{\"name\":\"alaja\",\"v\":3}'"},
+      {"From stdin", "echo '{\"ok\":true,\"n\":1}' | alaja json"},
+      {"Custom indent", "alaja json '{\"a\":1}' --indent 4"},
+      {"Pipe a real file", "cat config.json | alaja json"},
+      {"API response in CI", "curl -s https://api.example.com/v1/health | alaja json"},
+      {"Monochrome (no colour)", "alaja json '{\"k\":\"v\"}' --no-color"}
     ]
   ]
 
@@ -46,7 +50,7 @@ defmodule Alaja.CLI.Commands.Show.Json do
         ]
       )
 
-    if global.help or Keyword.get(opts, :help, false) do
+    if global.help do
       help()
     else
       json_str = Enum.join(positional, " ")

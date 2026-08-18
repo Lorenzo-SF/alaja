@@ -101,7 +101,7 @@ defmodule Alaja.CLI.Parser do
         else: first
 
     if String.ends_with?(first, quote_char) do
-      cleaned = String.slice(initial, 0..(-String.length(quote_char) - 1))
+      cleaned = String.slice(initial, 0..(-String.length(quote_char) - 1)//1)
       {cleaned, start_idx + 1}
     else
       collect_until_close(args, start_idx + 1, quote_char, total, initial)
@@ -115,7 +115,7 @@ defmodule Alaja.CLI.Parser do
       current = String.trim(Enum.at(args, idx))
 
       if String.ends_with?(current, quote_char) do
-        middle = String.slice(current, 0..(-String.length(quote_char) - 1))
+        middle = String.slice(current, 0..(-String.length(quote_char) - 1)//1)
         {Enum.join([acc, middle], " "), idx + 1}
       else
         collect_until_close(args, idx + 1, quote_char, total, Enum.join([acc, current], " "))

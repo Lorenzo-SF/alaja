@@ -37,6 +37,13 @@ defmodule Alaja.CLI.Commands.Show.Multibar do
       {:table_align, :string, "left", "Column alignment in the table"},
       {:status_color, :string, nil,
        "Comma-separated per-status colors (running,success,error,wait,info)"}
+    ],
+    examples: [
+      {"Demo (5s)", "alaja multibar --tasks 'build:Building,test:Testing,lint:Linting'"},
+      {"Long demo (15s)", "alaja multibar --tasks 'a:Task A,b:Task B' --duration 15"},
+      {"Custom title", "alaja multibar --tasks 'build:Build,test:Tests' --title \"CI pipeline\" --duration 10"},
+      {"Stdin-driven", "alaja multibar --tasks 'a:Task A,b:Task B' --stdin --duration 30"},
+      {"Coloured bars", "alaja multibar --tasks 'a:A,b:B' --bar-color green --bar-empty-char '.' --duration 8"}
     ]
   ]
 
@@ -67,7 +74,7 @@ defmodule Alaja.CLI.Commands.Show.Multibar do
         ]
       )
 
-    if global.help or Keyword.get(opts, :help, false) do
+    if global.help do
       help()
     else
       run_multibar(opts, global)

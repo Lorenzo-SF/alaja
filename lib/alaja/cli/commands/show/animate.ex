@@ -25,9 +25,13 @@ defmodule Alaja.CLI.Commands.Show.Animate do
       {:colors, :string, nil, "Comma-separated list of colors for multi-color animations"}
     ],
     examples: [
-      {"Spinner con texto", "alaja animate --type dots --text \"working\" --duration 2000"},
-      {"Spinner de línea",
-       "alaja animate --type line --text \"loading\" --color cyan --duration 1500"}
+      {"Default spinner", "alaja animate"},
+      {"With label", "alaja animate --text \"Building...\" --duration 3"},
+      {"KITT sweep", "alaja animate --type kitt --color cyan --duration 2"},
+      {"Pulse", "alaja animate --type pulse --text \"thinking\" --duration 2"},
+      {"Rainbow", "alaja animate --type rainbow --colors red|green|blue|yellow --duration 3"},
+      {"Custom chars", "alaja animate --chars \"|/-\\\\\" --text \"working\" --duration 2"},
+      {"Long task indicator", "alaja animate --type spinner --text \"Running tests\" --duration 30"}
     ]
   ]
 
@@ -49,7 +53,7 @@ defmodule Alaja.CLI.Commands.Show.Animate do
         ]
       )
 
-    if global.help or Keyword.get(opts, :help, false) do
+    if global.help do
       help()
     else
       type = Keyword.get(opts, :type, "spinner")

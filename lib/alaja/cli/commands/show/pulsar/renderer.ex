@@ -231,7 +231,7 @@ defmodule Alaja.CLI.Commands.Show.Pulsar.Renderer do
     ImageRenderer.render(pixels, width: width, height: height, align: :left)
   end
 
-  defp write_image_frame(pixels, global, left_pad, width, height, frame) do
+  defp write_image_frame(pixels, _global, left_pad, width, height, frame) do
     if frame == 0 do
       IO.write(ANSI.save_cursor())
     else

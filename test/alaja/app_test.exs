@@ -45,7 +45,13 @@ defmodule Alaja.AppTest do
       )
 
     on_exit(fn ->
-      if Process.alive?(app), do: App.stop(app)
+      if Process.alive?(app) do
+        try do
+          App.stop(app)
+        catch
+          :exit, _ -> :ok
+        end
+      end
     end)
 
     {:ok, app: app}
@@ -128,7 +134,13 @@ defmodule Alaja.AppTest do
       )
 
     on_exit(fn ->
-      if Process.alive?(app2), do: App.stop(app2)
+      if Process.alive?(app2) do
+        try do
+          App.stop(app2)
+        catch
+          :exit, _ -> :ok
+        end
+      end
     end)
 
     Process.sleep(10)

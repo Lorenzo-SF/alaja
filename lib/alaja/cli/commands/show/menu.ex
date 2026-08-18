@@ -18,8 +18,11 @@ defmodule Alaja.CLI.Commands.Show.Menu do
       {:align, :string, "left", "Alignment: left, center, right"}
     ],
     examples: [
-      {"Menú de opciones", "alaja menu \"¿Qué build?\" build test deploy"},
-      {"Menú con header", "alaja menu \"Selecciona\" --header \"Entorno\" --color cyan"}
+      {"Simple choice", "alaja menu build test deploy"},
+      {"With header", "alaja menu --header \"Pick environment\" dev staging prod"},
+      {"Coloured", "alaja menu \"Pick\" A B C --color cyan"},
+      {"Many options", "alaja menu --header \"Pick a port\" 80 443 3000 5432 6379 8080"},
+      {"Use in script", "env=$(alaja menu dev staging prod); echo \"deploying to $env\""}
     ]
   ]
 
@@ -33,7 +36,7 @@ defmodule Alaja.CLI.Commands.Show.Menu do
         switches: [header: :string, color: :string, align: :string]
       )
 
-    if global.help or Keyword.get(opts, :help, false) do
+    if global.help do
       help()
     else
       header = Keyword.get(opts, :header) || Enum.at(items, 0)

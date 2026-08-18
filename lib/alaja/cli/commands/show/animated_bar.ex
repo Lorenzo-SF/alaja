@@ -28,15 +28,19 @@ defmodule Alaja.CLI.Commands.Show.AnimatedBar do
       {:speed, :integer, 100, "Frames per second"},
       {:duration, :integer, nil, "Stop after N milliseconds (omit for unlimited)"},
       {:max_iterations, :integer, nil, "Hard cap on frame count"},
-      {:spinner, :integer, nil, "Spinner variant index"},
+      {:spinner, :string, nil, "Spinner variant name"},
       {:show_percent, :boolean, true, "Show percent label"},
       {:kitt_width, :integer, 3, "Width of the kitt animation tail"},
       {:verbose, :boolean, false, "Dump 20 frames to stdout instead of animating"}
     ],
     examples: [
-      {"Barra animada con label", "alaja animated-bar 50 --max 100 --label build"},
-      {"Barra kitt con cola ancha",
-       "alaja animated-bar 75 --max 100 --kitt-width 5 --filled-color green"}
+      {"Quick demo (2s)", "alaja animated-bar 50 --max 100 --duration 2000"},
+      {"Spinner style", "alaja animated-bar 30 --type spinner --duration 3000"},
+      {"KITT-style sweep", "alaja animated-bar 70 --type kitt --kitt-width 5 --duration 4000"},
+      {"Pulse", "alaja animated-bar 0 --max 100 --type pulse --duration 2000 --label \"thinking...\""},
+      {"Wave", "alaja animated-bar 80 --type wave --filled-color cyan --duration 2500"},
+      {"Rainbow", "alaja animated-bar 50 --type rainbow --duration 3000"},
+      {"Snapshot frames to stdout", "alaja animated-bar 50 --max 100 --verbose"}
     ]
   ]
 
@@ -72,8 +76,8 @@ defmodule Alaja.CLI.Commands.Show.AnimatedBar do
         ]
       )
 
-    if global.help or Keyword.get(opts, :help, false) do
-      help()
+    if global.help do
+      help(global)
     else
       value = parse_value(opts, positional)
       if is_nil(value), do: help(global), else: render(value, opts, global)

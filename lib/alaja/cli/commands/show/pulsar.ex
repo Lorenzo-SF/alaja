@@ -39,9 +39,12 @@ defmodule Alaja.CLI.Commands.Show.Pulsar do
       {:duration, :integer, nil, "Stop automatically after N ms (nil = run until Ctrl+C)"}
     ],
     examples: [
-      {"Radar 3 segundos", "alaja pulsar \"Alaja\" --duration 3000"},
-      {"Pulsar grande multicolor",
-       "alaja pulsar \"Deploy\" --width 50 --height 9 --colors hex:00ffff|hex:ff00ff --duration 2000"}
+      {"Quick 3s demo", "alaja pulsar \"Alaja\" --duration 3000"},
+      {"Multicolour radar", "alaja pulsar \"Deploy\" --width 50 --height 9 --colors hex:00ffff|hex:ff00ff --duration 2000"},
+      {"Long indicator (Ctrl+C to stop)", "alaja pulsar \"Working...\" --color cyan"},
+      {"Bigger frame", "alaja pulsar \"v3.0\" --width 80 --height 12 --duration 4000"},
+      {"Collapse direction", "alaja pulsar \"In\" --direction in --duration 2000"},
+      {"Custom pulse characters", "alaja pulsar \"Hi\" --pulse-chars \"▒░▒░\" --duration 2000"}
     ]
   ]
 
@@ -71,7 +74,7 @@ defmodule Alaja.CLI.Commands.Show.Pulsar do
         ]
       )
 
-    if global.help or Keyword.get(opts, :help, false) do
+    if global.help do
       help()
     else
       text = Keyword.get(opts, :text) || Enum.join(positional, " ")

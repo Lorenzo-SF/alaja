@@ -12,7 +12,35 @@ defmodule Alaja.CLI.Commands.Color do
   @help_data [
     title: "Alaja Color",
     subtitle: "Color analysis, harmonies, conversions, and tone manipulation",
-    size: :small
+    usage: "alaja color <color> [--harmony TYPE] [--darken N] [--lighten N] [--lab] [--xyz] [--kelvin] [--pantone] [--contrast C]",
+    description: """
+    Parses a colour in any supported format and displays its values across
+    multiple colour spaces (HEX, RGB, HSL, HSV, CMYK, XTerm256, CIELAB,
+    CIE XYZ), generates colour harmonies, computes WCAG contrast ratios,
+    and renders a visual colour wheel when possible.
+
+    Accepted colour formats: hex:#RRGGBB, rgb:R;G;B, hsl:H;S;L, hsv:H;S;V,
+    cmyk:C;M;Y;K, xterm:N, theme:<key>.
+    """,
+    options: [
+      {:harmony, :string, nil, "Generate colour harmonies: triad, complementary, analogous, square, monochromatic, compound, split-complementary"},
+      {:darken, :integer, nil, "Darken by N steps before displaying"},
+      {:lighten, :integer, nil, "Lighten by N steps before displaying"},
+      {:lab, :boolean, false, "Include CIELAB values"},
+      {:xyz, :boolean, false, "Include CIE XYZ values"},
+      {:kelvin, :boolean, false, "Include colour temperature in Kelvin"},
+      {:pantone, :boolean, false, "Include Pantone approximation"},
+      {:contrast, :string, nil, "Compute WCAG contrast ratio against this colour"}
+    ],
+    examples: [
+      {"Plain colour info", "alaja color hex:ff6b6b"},
+      {"Triad harmonies", "alaja color hex:ff6b6b --harmony triad"},
+      {"Darken a brand colour", "alaja color hex:4ecdc4 --darken 3"},
+      {"CIELAB values", "alaja color hex:1e1e2e --lab"},
+      {"Contrast check (WCAG)", "alaja color hex:1e1e2e --contrast hex:cdd6f4"},
+      {"From theme key", "alaja color theme:primary"},
+      {"Full report", "alaja color rgb:255;87;51 --lab --xyz --kelvin --pantone"}
+    ]
   ]
 
   alias Alaja.Buffer
@@ -55,7 +83,7 @@ defmodule Alaja.CLI.Commands.Color do
         ]
       )
 
-    if global.help or Keyword.get(opts, :help, false) do
+    if global.help do
       help()
     else
       analyze_or_help(positional, opts, global)

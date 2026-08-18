@@ -18,8 +18,12 @@ defmodule Alaja.CLI.Commands.Show.Separator do
       {:color, :string, nil, "Color of the line"}
     ],
     examples: [
-      {"Separador con título", "alaja separator \"DEPLOY\" --width 60 --color cyan"},
-      {"Línea simple con carácter propio", "alaja separator --char \"*\" --width 40"}
+      {"Plain rule", "alaja separator"},
+      {"Embedded title", "alaja separator \"DEPLOY\" --color cyan"},
+      {"Custom width", "alaja separator --width 100"},
+      {"Custom character", "alaja separator --char \"=\" --width 40"},
+      {"Stars", "alaja separator --char \"*\" --width 30"},
+      {"Thin line with title", "alaja separator \"Section\" --char \"─\" --color grey"}
     ]
   ]
 
@@ -35,7 +39,7 @@ defmodule Alaja.CLI.Commands.Show.Separator do
         switches: [char: :string, width: :integer, text: :string, color: :string]
       )
 
-    if global.help or Keyword.get(opts, :help, false) do
+    if global.help do
       help()
     else
       render(opts, global)

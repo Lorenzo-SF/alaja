@@ -26,7 +26,35 @@ defmodule Alaja.CLI.Commands.Action do
   @help_data [
     title: "Alaja Action",
     subtitle: "Execute Alaja commands from JSON input",
-    size: :small
+    usage: "alaja action [--file FILE | --data JSON | (stdin)] [--parallel N] [--stop-on-error] [--dry-run]",
+    description: """
+    Accepts JSON from stdin, a file, or inline `--data` and dispatches commands
+    in-process via `Alaja.CLI.exec/1`. Supports single actions and batch
+    operations.
+
+    Single-action shape: `{"command": "<cmd>", "args": ["..."]}`.
+    Batch shape: `{"actions": [{...}, {...}]}` with optional
+    `verbose` / `quiet` per top-level, plus `parallel`, `stop-on-error`,
+    and `dry-run` flags honoured here.
+    """,
+    options: [
+      {:file, :string, nil, "Path to a JSON file"},
+      {:data, :string, nil, "Inline JSON payload"},
+      {:stdin, :boolean, false, "Force stdin read (otherwise auto-detects pipe)"},
+      {:parallel, :integer, 1, "Max concurrent actions in a batch (N>1 uses Task.async_stream)"},
+      {:stop_on_error, :boolean, false, "Halt the batch on the first failure"},
+      {:dry_run, :boolean, false, "Print what would run instead of executing"}
+    ],
+    examples: [
+      {"Single action from stdin", "echo '{\"command\":\"success\",\"args\":[\"Done!\"]}' | alaja action"},
+      {"Inline single action", "alaja action --data '{\"command\":\"info\",\"args\":[\"starting\"]}'"},
+      {"From file", "alaja action --file pipeline.json"},
+      {"Parallel batch", "alaja action --file pipeline.json --parallel 4"},
+      {"Halt on first error", "alaja action --file pipeline.json --stop-on-error"},
+      {"Dry-run (preview)", "alaja action --file pipeline.json --dry-run"},
+      {"Batch shape",
+       "alaja action --data '{\"actions\":[{\"command\":\"info\",\"args\":[\"a\"]},{\"command\":\"info\",\"args\":[\"b\"]}]}'"}
+    ]
   ]
 
   alias Alaja.CLI.GlobalOpts
@@ -55,7 +83,7 @@ defmodule Alaja.CLI.Commands.Action do
         ]
       )
 
-    if global.help or Keyword.get(opts, :help, false) do
+    if global.help do
       help()
     else
       execute(opts, global)
@@ -297,20 +325,8 @@ defmodule Alaja.CLI.Commands.Action do
     cmd_str = to_string(cmd)
     string_args = Enum.map(args, &to_string/1)
 
-    extra =
-      if String.contains?(cmd_str, " ") do
-        [cmd_str | string_args]
-      else
-        [cmd_str | string_args]
-      end
-
-    extra =
-      if verbose do
-        extra ++ ["--verbose"]
-      else
-        extra
-      end
-
+    extra = [cmd_str | string_args]
+    extra = if verbose, do: extra ++ ["--verbose"], else: extra
     if quiet, do: extra ++ ["--quiet"], else: extra
   end
 

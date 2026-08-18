@@ -16,8 +16,11 @@ defmodule Alaja.CLI.Commands.Show.Ask do
       {:align, :string, "left", "Alignment: left, center, right"}
     ],
     examples: [
-      {"Pregunta simple", "alaja ask \"¿Nombre?\""},
-      {"Pregunta con color", "alaja ask \"¿Email?\" --color cyan"}
+      {"Simple prompt", "alaja ask \"What's your name?\""},
+      {"Coloured prompt", "alaja ask \"Project name?\" --color cyan"},
+      {"Centered", "alaja ask \"Continue?\" --align center"},
+      {"Shell-scriptable", "name=$(alaja ask \"Username?\"); echo \"hi $name\""},
+      {"With default in script", "read -p \"$(alaja ask 'Press enter to continue')\""}
     ]
   ]
 
@@ -31,7 +34,7 @@ defmodule Alaja.CLI.Commands.Show.Ask do
         switches: [color: :string, align: :string]
       )
 
-    if global.help or Keyword.get(opts, :help, false) do
+    if global.help do
       help()
     else
       question = Enum.join(positional, " ")

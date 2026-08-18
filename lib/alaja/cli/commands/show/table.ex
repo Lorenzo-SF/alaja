@@ -44,9 +44,12 @@ defmodule Alaja.CLI.Commands.Show.Table do
       {:table_align, :string, nil, "Default alignment for all cells"}
     ],
     examples: [
-      {"Tabla con bordes redondeados",
-       "alaja table --headers name,status --rows \"api,ok\" \"web,ok\" --border rounded --headers-color cyan"},
-      {"Tabla simple", "alaja table --headers a,b,c --rows \"1,2,3\" \"4,5,6\""}
+      {"Simple grid", "alaja table --headers name,status --rows \"api,OK\" \"db,WARN\""},
+      {"Custom border", "alaja table --headers a,b,c --rows \"1,2,3\" \"4,5,6\" --border double"},
+      {"No border", "alaja table --headers key,value --rows \"host,db.local\" \"port,5432\" --border none"},
+      {"Coloured headers", "alaja table --headers name,status,env --rows api,OK,prod web,WARN,stg --headers-color cyan --headers-effects bold"},
+      {"Right-aligned numbers", "alaja table --headers q1,q2,q3,q4 --rows sales,100,150,200,90 --table-align right"},
+      {"Health dashboard", "alaja table --headers service,status,uptime --rows api,OK,12d db,WARN,2h cache,OK,30d --border rounded --padding 2"}
     ]
   ]
 
@@ -82,7 +85,7 @@ defmodule Alaja.CLI.Commands.Show.Table do
     per_row_opts = parse_per_row_args(rest)
     opts = Keyword.merge(opts, per_row_opts)
 
-    if global.help or Keyword.get(opts, :help, false) do
+    if global.help do
       help()
     else
       headers_str = Keyword.get(opts, :headers, "")

@@ -30,8 +30,11 @@ defmodule Alaja.CLI.Commands.Show.Progress do
       {:label, :string, "", "Optional label drawn to the left of the bar"}
     ],
     examples: [
-      {"Progreso con label", "alaja progress --current 75 --total 100 --label build"},
-      {"Progreso por defecto", "alaja progress --current 50"}
+      {"Default state", "alaja progress"},
+      {"Half-way", "alaja progress --current 50"},
+      {"With label", "alaja progress --current 75 --total 100 --label \"deploy\""},
+      {"Wider bar", "alaja progress --current 30 --width 40 --label \"download\""},
+      {"From script", "for pct in 0 25 50 75 100; do alaja progress --current $pct --label \"step $pct\"; done"}
     ]
   ]
 
@@ -50,7 +53,7 @@ defmodule Alaja.CLI.Commands.Show.Progress do
         ]
       )
 
-    if global.help or Keyword.get(opts, :help, false) do
+    if global.help do
       help()
     else
       progress_state = %Components.ProgressState{

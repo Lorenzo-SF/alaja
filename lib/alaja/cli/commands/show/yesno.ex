@@ -17,8 +17,11 @@ defmodule Alaja.CLI.Commands.Show.YesNo do
       {:align, :string, "left", "Alignment: left, center, right"}
     ],
     examples: [
-      {"Confirmación con default sí", "alaja yesno \"¿Continuar?\" --default yes"},
-      {"Confirmación en cyan", "alaja yesno \"¿Borrar?\" --color red"}
+      {"Default no", "alaja yesno \"Continue?\""},
+      {"Default yes", "alaja yesno \"Apply migrations?\" --default yes"},
+      {"Destructive (red)", "alaja yesno \"Drop database?\" --color red"},
+      {"In a shell script", "if [ \"$(alaja yesno 'Deploy to prod?')\" = yes ]; then deploy; fi"},
+      {"Wrap with box", "alaja yesno \"Ship it?\" --box --box-title CONFIRM"}
     ]
   ]
 
@@ -32,7 +35,7 @@ defmodule Alaja.CLI.Commands.Show.YesNo do
         switches: [default: :string, color: :string, align: :string]
       )
 
-    if global.help or Keyword.get(opts, :help, false) do
+    if global.help do
       help()
     else
       question = Enum.join(positional, " ")

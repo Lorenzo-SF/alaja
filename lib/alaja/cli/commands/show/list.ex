@@ -18,9 +18,12 @@ defmodule Alaja.CLI.Commands.Show.List do
       {:align, :string, "left", "Alignment: left, center, right"}
     ],
     examples: [
-      {"Lista con header",
-       "alaja list \"fix deploy\" \"write tests\" --header \"To do\" --color cyan"},
-      {"Lista centrada", "alaja list a b c --align center --color magenta"}
+      {"Plain list", "alaja list \"first\" \"second\" \"third\""},
+      {"With header", "alaja list \"fix deploy\" \"write tests\" --header \"TODO\""},
+      {"Coloured", "alaja list a b c --color cyan"},
+      {"Right-aligned", "alaja list a b c --align right"},
+      {"Checklist (green)", "alaja list \"backup db\" \"rotate keys\" \"audit logs\" --color green"},
+      {"From stdin", "cat todos.txt | xargs -I{} echo {} | xargs alaja list"}
     ]
   ]
 
@@ -34,7 +37,7 @@ defmodule Alaja.CLI.Commands.Show.List do
         switches: [header: :string, color: :string, align: :string]
       )
 
-    if global.help or Keyword.get(opts, :help, false) or items == [] do
+    if global.help or items == [] do
       help()
     else
       header = Keyword.get(opts, :header)

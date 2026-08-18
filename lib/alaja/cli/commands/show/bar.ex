@@ -28,9 +28,13 @@ defmodule Alaja.CLI.Commands.Show.Bar do
       {:show_percent, :boolean, true, "Show the percent label at the right"}
     ],
     examples: [
-      {"Barra con label", "alaja bar 60 --max 100 --label build --filled-char █"},
-      {"Barra con colores",
-       "alaja bar 42 --max 100 --filled-color green --empty-color background"}
+      {"Plain bar", "alaja bar 60"},
+      {"With label", "alaja bar 60 --max 100 --label build"},
+      {"Custom chars", "alaja bar 42 --max 100 --filled-char � --empty-char ░"},
+      {"Custom colours", "alaja bar 80 --filled-color green --empty-color grey"},
+      {"Hide percent", "alaja bar 30 --no-show-percent"},
+      {"Wide bar for dashboards", "alaja bar 75 --max 100 --width 60 --label \"deploy\""},
+      {"Compact ASCII", "alaja bar 50 --filled-char \"#\" --empty-char \".\" --width 20"}
     ]
   ]
 
@@ -53,7 +57,7 @@ defmodule Alaja.CLI.Commands.Show.Bar do
         ]
       )
 
-    if global.help or Keyword.get(opts, :help, false) do
+    if global.help do
       help()
     else
       case positional do

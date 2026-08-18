@@ -21,8 +21,12 @@ defmodule Alaja.CLI.Commands.Show.Header do
       {:width, :integer, 80, "Width in characters"}
     ],
     examples: [
-      {"Header con subtítulo", "alaja header \"Release 3.0\" --subtitle \"stable\" --color cyan"},
-      {"Header grande en magenta", "alaja header \"Alaja\" --size large --color magenta"}
+      {"Simple title", "alaja header \"Release 3.0\""},
+      {"Title + subtitle", "alaja header \"Release 3.0\" --subtitle \"stable\""},
+      {"Large banner", "alaja header \"Alaja\" --size large --color magenta"},
+      {"Coloured subtitle", "alaja header \"Build\" --subtitle \"main branch\" --subtitle-color grey"},
+      {"Custom width", "alaja header \"Release\" --width 40"},
+      {"Pinned to terminal width", "alaja header \"Welcome\" --size large --width 120"}
     ]
   ]
 
@@ -44,7 +48,7 @@ defmodule Alaja.CLI.Commands.Show.Header do
         ]
       )
 
-    if global.help or Keyword.get(opts, :help, false) do
+    if global.help do
       help()
     else
       title = Enum.join(positional, " ")

@@ -42,8 +42,14 @@ defmodule Alaja.CLI.Commands.Show.Message do
       {:align, :string, nil, "Override alignment (else uses --align global)"}
     ],
     examples: [
-      {"Mensaje con color y negrita", "alaja message \"Hola\" --color cyan --bold"},
-      {"Fondo azul", "alaja message \"Deploy\" --bg-color blue --bold --underline"}
+      {"Plain text", "alaja message \"Hello world\""},
+      {"Colour + bold", "alaja message \"Deploy\" --color cyan --bold"},
+      {"Background colour", "alaja message \"Production\" --bg-color red --color white"},
+      {"Multiple effects", "alaja message \"Breaking change\" --bold --underline --blink"},
+      {"Chunked styling", "alaja message --chunk \"Deploy|color:green|bold:true\" --chunk \"started|color:cyan\""},
+      {"Inside a box", "alaja warning \"Server down\" --box --box-title \"ALERT\" --box-color red"},
+      {"Aligned right", "alaja success \"Done\" --align right"},
+      {"Padded for breathing room", "alaja info \"Waiting...\" --padding 2"}
     ]
   ]
 

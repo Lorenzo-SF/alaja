@@ -27,8 +27,13 @@ defmodule Alaja.CLI.Commands.Show.Image do
       {:ascii_style, :string, "detailed", "ASCII art style: blocks, detailed, simple, braille"}
     ],
     examples: [
-      {"Render de imagen", "alaja image path/to/logo.png"},
-      {"Imagen en ASCII", "alaja image logo.png --ascii --ascii-width 40"}
+      {"Render a logo", "alaja image --path logo.png"},
+      {"Bigger render", "alaja image --path hero.png --width 80 --height 30"},
+      {"Force kitty protocol", "alaja image --path pic.png --protocol kitty"},
+      {"Force sixel", "alaja image --path pic.png --protocol sixel"},
+      {"ASCII fallback", "alaja image --path photo.jpg --to-ascii-art --width 60"},
+      {"Detailed ASCII", "alaja image --path photo.jpg --to-ascii-art --ascii-style detailed --width 100"},
+      {"Grayscale ASCII", "alaja image --path photo.jpg --to-ascii-art --ascii-color false"}
     ]
   ]
 
@@ -52,7 +57,7 @@ defmodule Alaja.CLI.Commands.Show.Image do
         ]
       )
 
-    if global.help or Keyword.get(opts, :help, false) do
+    if global.help do
       help()
     else
       path = Keyword.get(opts, :path)
