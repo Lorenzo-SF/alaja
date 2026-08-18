@@ -23,14 +23,21 @@ defmodule Alaja.CLI.Commands.Show.Table do
     title: "Alaja Table",
     subtitle: "Display formatted tables with borders and styling",
     usage:
-      "alaja table --headers 'col1,col2,col3' --rows 'a,b,c;d,e,f' [--border S] [--padding N] [--border-color C] [--border-effects E,E] [--headers-color C] [--headers-align left|center|right] [--headers-effects E,E] [--rows-color C] [--rows-align left|center|right] [--rows-effects E,E] [--table-align left|center|right]",
+      "alaja table --headers 'col1,col2,col3' --rows 'a,b;c,d' [--border S] [--padding N] [--border-color C] [--border-effects E,E] [--headers-color C] [--headers-align left|center|right] [--headers-effects E,E] [--rows-color C] [--rows-align left|center|right] [--rows-effects E,E] [--table-align left|center|right] [--row-N-color C] [--row-N-align A] [--row-N-effects E,E]",
     description: """
-    Renders a multi-column table. Headers and rows are passed as
-    semicolon-separated lists; column-aligned values are accepted.
+    Renders a multi-column table.
+
+    Header columns are separated by `,`. Rows are separated by `;` within
+    a single `--rows` argument, or by repeating `--rows` once per row.
+    Cells inside a row are always separated by `,`.
+
+    Per-row styling uses `--row-N-{color,align,effects}` where N is
+    1-indexed. Both `effect` (legacy) and `effects` (canonical) are
+    accepted.
     """,
     options: [
       {:headers, :string, nil, "Comma-separated header titles"},
-      {:rows, :keep, nil, "Semicolon-separated rows; each row is comma-separated cells"},
+      {:rows, :keep, nil, "Rows: semicolon-separated within one arg, or repeat --rows per row"},
       {:border, :string, "rounded", "Border style (normal, rounded, double, single, bold, none)"},
       {:padding, :integer, 1, "Cell padding"},
       {:border_color, :string, nil, "Border color"},
@@ -44,16 +51,19 @@ defmodule Alaja.CLI.Commands.Show.Table do
       {:table_align, :string, nil, "Default alignment for all cells"}
     ],
     examples: [
-      {"Simple grid", "alaja table --headers name,status --rows \"api,OK\" \"db,WARN\""},
-      {"Custom border", "alaja table --headers a,b,c --rows \"1,2,3\" \"4,5,6\" --border double"},
+      {"Simple grid", "alaja table --headers name,status --rows 'api,OK;db,WARN'"},
+      {"Custom border",
+       "alaja table --headers a,b,c --rows '1,2,3;4,5,6' --border double"},
       {"No border",
-       "alaja table --headers key,value --rows \"host,db.local\" \"port,5432\" --border none"},
+       "alaja table --headers key,value --rows 'host,db.local;port,5432' --border none"},
       {"Coloured headers",
-       "alaja table --headers name,status,env --rows api,OK,prod web,WARN,stg --headers-color cyan --headers-effects bold"},
+       "alaja table --headers name,status,env --rows 'api,OK,prod;web,WARN,stg' --headers-color cyan --headers-effects bold"},
       {"Right-aligned numbers",
-       "alaja table --headers q1,q2,q3,q4 --rows sales,100,150,200,90 --table-align right"},
+       "alaja table --headers q1,q2,q3,q4 --rows 'sales,100,150,200,90' --table-align right"},
+      {"Per-row styling",
+       "alaja table --headers service,status --rows 'api,OK;db,WARN' --row-1-color green --row-2-color yellow"},
       {"Health dashboard",
-       "alaja table --headers service,status,uptime --rows api,OK,12d db,WARN,2h cache,OK,30d --border rounded --padding 2"}
+       "alaja table --headers service,status,uptime --rows 'api,OK,12d;db,WARN,2h;cache,OK,30d' --border rounded --padding 2"}
     ]
   ]
 
@@ -116,17 +126,27 @@ defmodule Alaja.CLI.Commands.Show.Table do
   defp build_headers(""), do: []
 
   defp build_headers(headers_str) do
-    String.split(headers_str, ";")
+    headers_str
+    |> String.split(",")
+    |> Enum.map(&String.trim/1)
+    |> Enum.reject(&(&1 == ""))
   end
 
   @spec build_rows([String.t()]) :: [[String.t()]]
   defp build_rows([]), do: []
 
+  # Rows can be passed in two equivalent ways (per `@help_data :usage`):
+  #
+  #   --rows "row1a,row1b;row2a,row2b"     # semicolons separate rows within one arg
+  #   --rows "row1a,row1b" --rows "row2a,row2b"  # repeated --rows, one row each
+  #
+  # Cels within a row are always comma-separated.
   defp build_rows(rows_opts) do
     rows_opts
     |> Enum.map(&String.trim/1)
-    |> Enum.flat_map(fn r -> String.split(r, "|") end)
-    |> Enum.map(fn r -> String.split(r, ";") end)
+    |> Enum.reject(&(&1 == ""))
+    |> Enum.flat_map(fn r -> String.split(r, ";") end)
+    |> Enum.map(fn r -> String.split(r, ",") |> Enum.map(&String.trim/1) end)
   end
 
   @spec build_table_opts(keyword(), GlobalOpts.t()) :: keyword()
@@ -196,9 +216,12 @@ defmodule Alaja.CLI.Commands.Show.Table do
     rest = String.trim_leading(flag, "--row-")
     parts = String.split(rest, "-", parts: 2)
 
-    with [row_str, suffix] when suffix in ~w(color align effect) <- parts,
+    with [row_str, suffix] when suffix in ~w(color align effects effect) <- parts,
          {row_num, ""} when row_num > 0 <- Integer.parse(row_str) do
-      build_per_row_key(row_num - 1, suffix, val)
+      # Normalise singular `effect` to plural `effects` so the
+      # backend's `_effects` matcher picks it up.
+      normalised = if suffix == "effect", do: "effects", else: suffix
+      build_per_row_key(row_num - 1, normalised, val)
     else
       _ -> nil
     end
