@@ -7,6 +7,7 @@ defmodule Alaja.CLI.Commands.Show.Message do
   `message` subcommand with full chunk styling.
   """
 
+  alias Alaja.CLI.Color
   alias Alaja.CLI.GlobalOpts
   alias Alaja.CLI.HelpFormatter
   alias Alaja.CLI.Parser
@@ -190,8 +191,8 @@ defmodule Alaja.CLI.Commands.Show.Message do
       help()
     else
       effects = build_effects(opts)
-      color = parse_color_opt(Keyword.get(opts, :color))
-      bg_color = parse_color_opt(Keyword.get(opts, :bg_color))
+      color = Color.parse_or_nil(Keyword.get(opts, :color))
+      bg_color = Color.parse_or_nil(Keyword.get(opts, :bg_color))
 
       chunk_opts =
         []
@@ -254,9 +255,9 @@ defmodule Alaja.CLI.Commands.Show.Message do
       pairs
       |> Enum.reject(fn [k, _] -> k in effect_keys end)
       |> Enum.flat_map(fn
-        ["color", v] -> [{:color, parse_color(v)}]
-        ["bg", v] -> [{:bg_color, parse_color(v)}]
-        ["bg_color", v] -> [{:bg_color, parse_color(v)}]
+        ["color", v] -> [{:color, Color.parse_or_nil(v)}]
+        ["bg", v] -> [{:bg_color, Color.parse_or_nil(v)}]
+        ["bg_color", v] -> [{:bg_color, Color.parse_or_nil(v)}]
         _ -> []
       end)
 
@@ -283,11 +284,7 @@ defmodule Alaja.CLI.Commands.Show.Message do
     if Keyword.get(opts, key, false), do: list ++ [effect], else: list
   end
 
-  defp parse_color(nil), do: nil
-  defp parse_color(s), do: Parser.parse_color_opt(s)
-
-  defp parse_color_opt(nil), do: nil
-  defp parse_color_opt(str), do: Parser.parse_color_opt(str)
+  # parse_color/1 delegates to Alaja.CLI.Color.parse_or_nil/1
 
   defp parse_align(nil), do: :left
   defp parse_align("left"), do: :left

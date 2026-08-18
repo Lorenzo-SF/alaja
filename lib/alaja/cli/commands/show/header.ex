@@ -1,6 +1,7 @@
 defmodule Alaja.CLI.Commands.Show.Header do
   @moduledoc "`alaja header` — Display styled headers."
 
+  alias Alaja.CLI.Color
   alias Alaja.CLI.GlobalOpts
   alias Alaja.CLI.HelpFormatter
   alias Alaja.Components.Header, as: HeaderComp
@@ -66,22 +67,15 @@ defmodule Alaja.CLI.Commands.Show.Header do
             {:ok, atom} -> atom
             {:error, _} -> :medium
           end,
-        color: parse_color(Keyword.get(opts, :color)),
-        subtitle_color: parse_color(Keyword.get(opts, :subtitle_color)),
+        color: Color.parse_or_nil(Keyword.get(opts, :color)),
+        subtitle_color: Color.parse_or_nil(Keyword.get(opts, :subtitle_color)),
         width: Keyword.get(opts, :width, 80)
       )
 
     Printer.print_raw(rendered, printer_opts(global))
   end
 
-  defp parse_color(nil), do: nil
-
-  defp parse_color(s) do
-    case Alaja.CLI.Color.parse(s) do
-      {:ok, c} -> c
-      _ -> nil
-    end
-  end
+  # parse_color/1 delegates to Alaja.CLI.Color.parse_or_nil/1
 
   defp printer_opts(g), do: GlobalOpts.to_printer_opts(g)
 

@@ -1,6 +1,7 @@
 defmodule Alaja.CLI.Commands.Show.Json do
   @moduledoc "`alaja json` — Pretty-print JSON with syntax highlighting."
 
+  alias Alaja.CLI.Color
   alias Alaja.CLI.GlobalOpts
   alias Alaja.CLI.HelpFormatter
   alias Alaja.Components.Json, as: JsonComp
@@ -75,12 +76,12 @@ defmodule Alaja.CLI.Commands.Show.Json do
     json_opts =
       [
         indent: Keyword.get(opts, :indent),
-        key_color: parse_color(Keyword.get(opts, :key_color)),
-        string_color: parse_color(Keyword.get(opts, :string_color)),
-        number_color: parse_color(Keyword.get(opts, :number_color)),
-        boolean_color: parse_color(Keyword.get(opts, :boolean_color)),
-        null_color: parse_color(Keyword.get(opts, :null_color)),
-        punctuation_color: parse_color(Keyword.get(opts, :punctuation_color))
+        key_color: Color.parse_or_nil(Keyword.get(opts, :key_color)),
+        string_color: Color.parse_or_nil(Keyword.get(opts, :string_color)),
+        number_color: Color.parse_or_nil(Keyword.get(opts, :number_color)),
+        boolean_color: Color.parse_or_nil(Keyword.get(opts, :boolean_color)),
+        null_color: Color.parse_or_nil(Keyword.get(opts, :null_color)),
+        punctuation_color: Color.parse_or_nil(Keyword.get(opts, :punctuation_color))
       ]
       |> Enum.reject(fn {_, v} -> is_nil(v) end)
 
@@ -88,14 +89,7 @@ defmodule Alaja.CLI.Commands.Show.Json do
     Printer.print_raw(rendered, printer_opts(global))
   end
 
-  defp parse_color(nil), do: nil
-
-  defp parse_color(s) do
-    case Alaja.CLI.Color.parse(s) do
-      {:ok, c} -> c
-      _ -> nil
-    end
-  end
+  # parse_color/1 delegates to Alaja.CLI.Color.parse_or_nil/1
 
   defp printer_opts(g), do: GlobalOpts.to_printer_opts(g)
 

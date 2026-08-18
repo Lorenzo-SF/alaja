@@ -1,6 +1,7 @@
 defmodule Alaja.CLI.Commands.Show.List do
   @moduledoc "`alaja list` — Display a styled list."
 
+  alias Alaja.CLI.Color
   alias Alaja.CLI.GlobalOpts
   alias Alaja.CLI.HelpFormatter
   alias Alaja.Components.List
@@ -42,7 +43,7 @@ defmodule Alaja.CLI.Commands.Show.List do
       help()
     else
       header = Keyword.get(opts, :header)
-      color = parse_color(Keyword.get(opts, :color))
+      color = Color.parse_or_nil(Keyword.get(opts, :color))
       align = parse_align(Keyword.get(opts, :align))
       list_content = List.build(items, header: header, color: color, align: align)
 
@@ -54,14 +55,7 @@ defmodule Alaja.CLI.Commands.Show.List do
   defp parse_align("right"), do: :right
   defp parse_align(_), do: :left
 
-  defp parse_color(nil), do: nil
-
-  defp parse_color(s) do
-    case Alaja.CLI.Color.parse(s) do
-      {:ok, c} -> c
-      _ -> nil
-    end
-  end
+  # parse_color/1 delegates to Alaja.CLI.Color.parse_or_nil/1
 
   @spec help(Alaja.CLI.GlobalOpts.t() | nil) :: :ok
   def help(global \\ nil), do: HelpFormatter.render(@help_data, global)

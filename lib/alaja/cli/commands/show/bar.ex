@@ -2,10 +2,10 @@ defmodule Alaja.CLI.Commands.Show.Bar do
   @moduledoc "`alaja bar` — Display progress bars."
 
   alias Alaja.Buffer
+  alias Alaja.CLI.Color
   alias Alaja.CLI.GlobalOpts
   alias Alaja.CLI.HelpFormatter
   alias Alaja.Components.Bar, as: BarComp
-
   alias Alaja.Printer
 
   @help_data [
@@ -88,8 +88,8 @@ defmodule Alaja.CLI.Commands.Show.Bar do
         width: width,
         filled_char: Keyword.get(opts, :filled_char),
         empty_char: Keyword.get(opts, :empty_char),
-        filled_color: parse_color(Keyword.get(opts, :filled_color)),
-        empty_color: parse_color(Keyword.get(opts, :empty_color)),
+        filled_color: Color.parse_or_nil(Keyword.get(opts, :filled_color)),
+        empty_color: Color.parse_or_nil(Keyword.get(opts, :empty_color)),
         show_percent: Keyword.get(opts, :show_percent, true)
       ]
       |> Enum.reject(fn {_, v} -> is_nil(v) end)
@@ -100,14 +100,7 @@ defmodule Alaja.CLI.Commands.Show.Bar do
     Printer.print_raw(output, printer_opts(global))
   end
 
-  defp parse_color(nil), do: nil
-
-  defp parse_color(s) do
-    case Alaja.CLI.Color.parse(s) do
-      {:ok, c} -> c
-      _ -> nil
-    end
-  end
+  # parse_color/1 delegates to Alaja.CLI.Color.parse_or_nil/1
 
   defp printer_opts(g), do: GlobalOpts.to_printer_opts(g)
 

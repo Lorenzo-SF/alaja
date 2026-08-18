@@ -1,6 +1,7 @@
 defmodule Alaja.CLI.Commands.Show.Menu do
   @moduledoc "`alaja menu` — Display an interactive selection menu."
 
+  alias Alaja.CLI.Color
   alias Alaja.CLI.GlobalOpts
   alias Alaja.CLI.HelpFormatter
   alias Alaja.Printer
@@ -41,7 +42,7 @@ defmodule Alaja.CLI.Commands.Show.Menu do
     else
       header = Keyword.get(opts, :header) || Enum.at(items, 0)
       menu_items = if Keyword.get(opts, :header), do: items, else: Enum.drop(items, 1)
-      color = parse_color(Keyword.get(opts, :color))
+      color = Color.parse_or_nil(Keyword.get(opts, :color))
       align = parse_align(Keyword.get(opts, :align))
 
       if is_nil(header) or menu_items == [] do
@@ -60,14 +61,7 @@ defmodule Alaja.CLI.Commands.Show.Menu do
     end
   end
 
-  defp parse_color(nil), do: nil
-
-  defp parse_color(s) do
-    case Alaja.CLI.Color.parse(s) do
-      {:ok, c} -> c
-      _ -> nil
-    end
-  end
+  # parse_color/1 delegates to Alaja.CLI.Color.parse_or_nil/1
 
   defp parse_align(nil), do: :left
   defp parse_align(a) when is_atom(a), do: a

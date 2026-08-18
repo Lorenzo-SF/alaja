@@ -2,6 +2,7 @@ defmodule Alaja.CLI.Commands.Show.Breadcrumbs do
   @moduledoc "`alaja breadcrumbs` — Display navigation breadcrumbs."
 
   alias Alaja.Buffer
+  alias Alaja.CLI.Color
   alias Alaja.CLI.GlobalOpts
   alias Alaja.CLI.HelpFormatter
   alias Alaja.Components.Breadcrumbs, as: BCComp
@@ -52,9 +53,9 @@ defmodule Alaja.CLI.Commands.Show.Breadcrumbs do
       bc_opts =
         [
           separator: Keyword.get(opts, :separator),
-          item_color: parse_color(Keyword.get(opts, :color)),
-          separator_color: parse_color(Keyword.get(opts, :separator_color)),
-          current_color: parse_color(Keyword.get(opts, :current_color))
+          item_color: Color.parse_or_nil(Keyword.get(opts, :color)),
+          separator_color: Color.parse_or_nil(Keyword.get(opts, :separator_color)),
+          current_color: Color.parse_or_nil(Keyword.get(opts, :current_color))
         ]
         |> Enum.reject(fn {_, v} -> is_nil(v) end)
 
@@ -66,14 +67,7 @@ defmodule Alaja.CLI.Commands.Show.Breadcrumbs do
     end
   end
 
-  defp parse_color(nil), do: nil
-
-  defp parse_color(s) do
-    case Alaja.CLI.Color.parse(s) do
-      {:ok, c} -> c
-      _ -> nil
-    end
-  end
+  # parse_color/1 delegates to Alaja.CLI.Color.parse_or_nil/1
 
   defp printer_opts(g), do: GlobalOpts.to_printer_opts(g)
 

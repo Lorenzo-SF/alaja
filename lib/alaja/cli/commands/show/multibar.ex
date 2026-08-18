@@ -6,10 +6,10 @@ defmodule Alaja.CLI.Commands.Show.Multibar do
   independent task with states: running, success, error, wait, info.
   """
 
+  alias Alaja.CLI.Color
   alias Alaja.CLI.Commands.Show.Multibar.{Data, Renderer}
   alias Alaja.CLI.GlobalOpts
   alias Alaja.CLI.HelpFormatter
-  alias Alaja.CLI.Parser
   alias Alaja.Components.MultiBar
   alias Alaja.Helpers
 
@@ -105,12 +105,12 @@ defmodule Alaja.CLI.Commands.Show.Multibar do
     duration = Keyword.get(opts, :duration, @default_duration)
     box_border = Data.parse_border(Keyword.get(opts, :border, "rounded"))
     bar_width = Keyword.get(opts, :bar_width, @default_bar_width)
-    bar_color = Parser.parse_color_opt(Keyword.get(opts, :bar_color))
+    bar_color = Color.parse_or_nil(Keyword.get(opts, :bar_color))
     bar_empty_char = Keyword.get(opts, :bar_empty_char)
     bar_filled_char = Keyword.get(opts, :bar_filled_char)
     table_border = Data.parse_border(Keyword.get(opts, :table_border, "normal"))
     table_align = parse_align(Keyword.get(opts, :table_align))
-    status_color = parse_color(Keyword.get(opts, :status_color))
+    status_color = Color.parse_or_nil(Keyword.get(opts, :status_color))
 
     multibar_opts =
       [
@@ -205,14 +205,7 @@ defmodule Alaja.CLI.Commands.Show.Multibar do
     end
   end
 
-  defp parse_color(nil), do: nil
-
-  defp parse_color(s) do
-    case Alaja.CLI.Color.parse(s) do
-      {:ok, c} -> c
-      _ -> nil
-    end
-  end
+  # parse_color/1 delegates to Alaja.CLI.Color.parse_or_nil/1
 
   defp parse_align(nil), do: nil
   defp parse_align(s) when is_binary(s), do: Helpers.safe_string_to_atom(s)

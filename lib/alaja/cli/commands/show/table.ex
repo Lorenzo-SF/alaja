@@ -52,8 +52,7 @@ defmodule Alaja.CLI.Commands.Show.Table do
     ],
     examples: [
       {"Simple grid", "alaja table --headers name,status --rows 'api,OK;db,WARN'"},
-      {"Custom border",
-       "alaja table --headers a,b,c --rows '1,2,3;4,5,6' --border double"},
+      {"Custom border", "alaja table --headers a,b,c --rows '1,2,3;4,5,6' --border double"},
       {"No border",
        "alaja table --headers key,value --rows 'host,db.local;port,5432' --border none"},
       {"Coloured headers",

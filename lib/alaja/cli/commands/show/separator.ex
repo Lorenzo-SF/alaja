@@ -1,6 +1,7 @@
 defmodule Alaja.CLI.Commands.Show.Separator do
   @moduledoc "`alaja separator` — Display horizontal separator lines."
 
+  alias Alaja.CLI.Color
   alias Alaja.CLI.GlobalOpts
   alias Alaja.CLI.HelpFormatter
   alias Alaja.Components.Separator, as: SepComp
@@ -50,20 +51,13 @@ defmodule Alaja.CLI.Commands.Show.Separator do
     char = Keyword.get(opts, :char, "─")
     width = Keyword.get(opts, :width, 60)
     text = Keyword.get(opts, :text)
-    color = parse_color(Keyword.get(opts, :color))
+    color = Color.parse_or_nil(Keyword.get(opts, :color))
 
     rendered = SepComp.render(text, char: char, width: width, color: color)
     Printer.print_raw(rendered, printer_opts(global))
   end
 
-  defp parse_color(nil), do: nil
-
-  defp parse_color(s) do
-    case Alaja.CLI.Color.parse(s) do
-      {:ok, c} -> c
-      _ -> nil
-    end
-  end
+  # parse_color/1 delegates to Alaja.CLI.Color.parse_or_nil/1
 
   defp printer_opts(g), do: GlobalOpts.to_printer_opts(g)
 

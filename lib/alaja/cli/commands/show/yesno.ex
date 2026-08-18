@@ -1,6 +1,7 @@
 defmodule Alaja.CLI.Commands.Show.YesNo do
   @moduledoc "`alaja yesno` — Ask a Yes/No question."
 
+  alias Alaja.CLI.Color
   alias Alaja.CLI.GlobalOpts
   alias Alaja.CLI.HelpFormatter
   alias Alaja.Printer
@@ -51,21 +52,14 @@ defmodule Alaja.CLI.Commands.Show.YesNo do
         _ -> :no
       end
 
-    color = parse_color(Keyword.get(opts, :color))
+    color = Color.parse_or_nil(Keyword.get(opts, :color))
     align = parse_align(Keyword.get(opts, :align))
 
     result = Printer.Interactive.yesno(question, default: default, color: color, align: align)
     IO.write(if result == :yes, do: "yes", else: "no")
   end
 
-  defp parse_color(nil), do: nil
-
-  defp parse_color(s) do
-    case Alaja.CLI.Color.parse(s) do
-      {:ok, c} -> c
-      _ -> nil
-    end
-  end
+  # parse_color/1 delegates to Alaja.CLI.Color.parse_or_nil/1
 
   defp parse_align(nil), do: :left
   defp parse_align(a) when is_atom(a), do: a

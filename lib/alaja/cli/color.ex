@@ -63,6 +63,22 @@ defmodule Alaja.CLI.Color do
   def parse(_), do: nil
 
   @doc """
+  Convenience wrapper: like `parse/1` but unwraps the `{:ok, _}` tag.
+  Returns the RGB tuple on success, `nil` on any failure or nil input.
+  """
+  @spec parse_or_nil(String.t() | nil) :: {0..255, 0..255, 0..255} | nil
+  def parse_or_nil(nil), do: nil
+
+  def parse_or_nil(str) when is_binary(str) do
+    case parse(str) do
+      {:ok, c} -> c
+      _ -> nil
+    end
+  end
+
+  def parse_or_nil(_), do: nil
+
+  @doc """
   Parsea una lista de colores separados por `|`.
 
   Devuelve `{:ok, [{r,g,b}, ...]}` o `{:error, msg}` acumulando todos
@@ -81,6 +97,23 @@ defmodule Alaja.CLI.Color do
   end
 
   def parse_list(_), do: nil
+
+  @doc """
+  Convenience wrapper: like `parse_list/1` but unwraps the `{:ok, _}`
+  tag. Returns the colour list on success, `nil` on any failure or
+  nil input.
+  """
+  @spec parse_list_or_nil(String.t() | nil) :: [{0..255, 0..255, 0..255}] | nil
+  def parse_list_or_nil(nil), do: nil
+
+  def parse_list_or_nil(str) when is_binary(str) do
+    case parse_list(str) do
+      {:ok, colors} -> colors
+      _ -> nil
+    end
+  end
+
+  def parse_list_or_nil(_), do: nil
 
   @doc false
   def normalize_hex("hex", code), do: String.trim_leading(code, "#")

@@ -1,6 +1,7 @@
 defmodule Alaja.CLI.Commands.Show.Gradient do
   @moduledoc "`alaja gradient` — Display gradient-colored text."
 
+  alias Alaja.CLI.Color
   alias Alaja.CLI.GlobalOpts
   alias Alaja.CLI.HelpFormatter
   alias Alaja.Components.Gradient, as: GradComp
@@ -64,13 +65,13 @@ defmodule Alaja.CLI.Commands.Show.Gradient do
   defp render(text, opts, global) do
     grad_opts =
       [
-        from: parse_color(Keyword.get(opts, :from)),
-        to: parse_color(Keyword.get(opts, :to)),
+        from: Color.parse_or_nil(Keyword.get(opts, :from)),
+        to: Color.parse_or_nil(Keyword.get(opts, :to)),
         # Pass the raw string to the back-end; the component parses it.
         colors: Keyword.get(opts, :colors),
         direction: parse_direction(Keyword.get(opts, :direction)),
         bg: Keyword.get(opts, :bg, false),
-        text_color: parse_color(Keyword.get(opts, :text_color))
+        text_color: Color.parse_or_nil(Keyword.get(opts, :text_color))
       ]
       |> Enum.reject(fn {_, v} -> is_nil(v) end)
 
@@ -78,14 +79,7 @@ defmodule Alaja.CLI.Commands.Show.Gradient do
     Printer.print_raw(rendered, printer_opts(global))
   end
 
-  defp parse_color(nil), do: nil
-
-  defp parse_color(s) do
-    case Alaja.CLI.Color.parse(s) do
-      {:ok, c} -> c
-      _ -> nil
-    end
-  end
+  # parse_color/1 delegates to Alaja.CLI.Color.parse_or_nil/1
 
   defp parse_direction(nil), do: :horizontal
   defp parse_direction("horizontal"), do: :horizontal
