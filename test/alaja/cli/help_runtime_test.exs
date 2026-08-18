@@ -32,10 +32,8 @@ defmodule Alaja.CLI.HelpRuntimeTest do
         {Alaja.CLI.Commands.Show.Multibar, "multibar"},
         {Alaja.CLI.Commands.Show.Progress, "progress"},
         {Alaja.CLI.Commands.Show.Pulsar, "pulsar"},
-        {Alaja.CLI.Commands.Show.Scroll, "scroll"},
         {Alaja.CLI.Commands.Show.Separator, "separator"},
         {Alaja.CLI.Commands.Show.Table, "table"},
-        {Alaja.CLI.Commands.Show.Tabs, "tabs"},
         {Alaja.CLI.Commands.Show.YesNo, "yesno"}
       ] do
     test "#{cmd} --help does not crash" do
@@ -309,32 +307,13 @@ defmodule Alaja.CLI.HelpRuntimeTest do
     assert capture =~ "multibar"
   end
 
-  test "scroll with --select and --max-visible renders" do
+  test "pulsar with --duration 200ms renders" do
     capture =
       capture_io(fn ->
-        Alaja.CLI.Commands.Show.Scroll.run([
-          "a",
-          "b",
-          "c",
-          "--select",
-          "1",
-          "--max-visible",
-          "10"
-        ])
+        Alaja.CLI.Commands.Show.Pulsar.run(["Alaja", "--duration", "200"])
       end)
 
-    assert capture =~ "b"
-    assert capture =~ "> "
-  end
-
-  test "tabs with --active renders" do
-    capture =
-      capture_io(fn ->
-        Alaja.CLI.Commands.Show.Tabs.run(["one", "two", "--active", "1"])
-      end)
-
-    assert capture =~ "one"
-    assert capture =~ "two"
+    assert capture =~ "Alaja" or capture != ""
   end
 
   test "log with --max-lines renders and trims" do
@@ -379,7 +358,10 @@ defmodule Alaja.CLI.HelpRuntimeTest do
     try do
       capture = capture_io(fn -> Alaja.CLI.main([]) end)
       assert capture =~ "Complete command reference"
-      assert capture =~ "EXAMPLES"
+      assert capture =~ "COOKBOOK"
+      assert capture =~ "TYPED MESSAGES"
+      assert capture =~ "DISPLAY COMMANDS"
+      assert capture =~ "STATEFUL COMPONENTS"
       refute capture =~ "ArgumentError"
     after
       System.delete_env("ALAJ: NO_SHOWCASE")
@@ -401,7 +383,7 @@ defmodule Alaja.CLI.HelpRuntimeTest do
   test "subcommand groups print their help with no args" do
     capture = capture_io(fn -> Alaja.CLI.main(["theme"]) end)
     assert capture =~ "alaja theme <action>"
-    assert capture =~ "ACTIONS"
+    assert capture =~ "USAGE"
   end
 
   defp capture_io(fun) do

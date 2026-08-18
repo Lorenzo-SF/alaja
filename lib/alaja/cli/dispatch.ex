@@ -31,10 +31,8 @@ defmodule Alaja.CLI.Dispatch do
     Multibar,
     Progress,
     Pulsar,
-    Scroll,
     Separator,
     Table,
-    Tabs,
     YesNo
   }
 
@@ -88,10 +86,6 @@ defmodule Alaja.CLI.Dispatch do
   def image(opts), do: Image.run(opts._args)
   @doc "Dispatches the `alaja list` command."
   def list(opts), do: List.run(opts._args)
-  @doc "Dispatches the `alaja scroll` command."
-  def scroll(opts), do: Scroll.run(opts._args)
-  @doc "Dispatches the `alaja tabs` command."
-  def tabs(opts), do: Tabs.run(opts._args)
   @doc "Dispatches the `alaja log` command."
   def log(opts), do: Log.run(opts._args)
   @doc "Dispatches the `alaja progress` command."
@@ -108,7 +102,4 @@ defmodule Alaja.CLI.Dispatch do
   def action(opts), do: Action.run(opts._args)
   @doc "Dispatches the `alaja theme` command."
   def theme(opts), do: Theme.run(opts._args)
-
-  @doc "Dispatches the deprecated `alaja config` command (prints deprecation notice and returns `:error`)."
-  def config(opts), do: Alaja.CLI.Commands.Config.run(opts._args)
 end

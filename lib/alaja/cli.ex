@@ -77,10 +77,6 @@ defmodule Alaja.CLI do
 
   command("list", "Styled list with optional header", run: {Dispatch, :list})
 
-  command("scroll", "Stateful scrollable list", run: {Dispatch, :scroll})
-
-  command("tabs", "Stateful tabbed interface", run: {Dispatch, :tabs})
-
   command("log", "Append-only log", run: {Dispatch, :log})
 
   command("progress", "Stateful progress bar", run: {Dispatch, :progress})

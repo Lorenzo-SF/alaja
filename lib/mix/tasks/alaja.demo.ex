@@ -42,8 +42,6 @@ defmodule Mix.Tasks.Alaja.Demo do
     "breadcrumbs" => :breadcrumbs,
     "animate" => :animate,
     "list" => :list,
-    "scroll" => :scroll,
-    "tabs" => :tabs,
     "log" => :log,
     "progress" => :progress,
     "pulsar" => :pulsar,
@@ -69,8 +67,6 @@ defmodule Mix.Tasks.Alaja.Demo do
     :list,
     :color,
     :action,
-    :scroll,
-    :tabs,
     :log,
     :progress,
     :pulsar,
@@ -170,18 +166,6 @@ defmodule Mix.Tasks.Alaja.Demo do
 
   defp render_one(:list) do
     Alaja.CLI.Commands.Show.List.run(["Fix deploy", "Write tests", "Update docs"])
-  end
-
-  defp render_one(:scroll) do
-    run_stateful("scroll", fn ->
-      Alaja.CLI.Commands.Show.Scroll.run(["alpha", "beta", "gamma", "delta", "epsilon", "zeta"])
-    end)
-  end
-
-  defp render_one(:tabs) do
-    run_stateful("tabs", fn ->
-      Alaja.CLI.Commands.Show.Tabs.run(["dev", "staging", "prod"])
-    end)
   end
 
   defp render_one(:log) do

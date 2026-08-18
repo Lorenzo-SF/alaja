@@ -2,16 +2,36 @@ defmodule Alaja.CLI.Help do
   @moduledoc """
   Help system for the Alaja CLI.
 
-  Renders help output using Alaja's own components for visually rich,
-  consistent terminal output. Every section gets its own accent color
-  and bordered tables, and the full help ends with a worked examples
-  section so users can copy-paste real commands.
+  Two surfaces:
+
+    * `summary/1` — compact one-screen catalog shown after the startup
+      showcase (or printed directly when the user runs `alaja` with no
+      args on a non-TTY).
+    * `full/1`    — the complete reference, grouped into navigable tabs
+      on a TTY (`←`/`→` to switch) or rendered sequentially when piped.
+
+  The CLI is split in two layers:
+
+    * **Display** — stateless, fire-and-forget renderers
+      (`message`, `header`, `separator`, `gradient`, `table`, `json`,
+      `bar`, `breadcrumbs`, `animate`, `list`, `image`).
+    * **Stateful** — components with internal state that update in
+      place (`log`, `progress`, `pulsar`, `multibar`,
+      `animated-bar`).
+    * **Interactive** — components that read input from the user
+      (`ask`, `menu`, `yesno`).
+
+  Every component is a real Elixir module under
+  `Alaja.Components.*`; the CLI command is a thin wrapper that parses
+  argv and delegates. See `mix alaja.demo` for an interactive gallery.
   """
 
   alias Alaja.Components.{Header, Separator, Table}
   alias IO.ANSI
 
-  # All direct commands mapped to their help module
+  # All direct commands mapped to their help module. Theme is the only
+  # command with a sub-action DSL (init / set / list / show / all) — its
+  # help is rendered by its own `@help_data` via HelpFormatter.
   @commands %{
     "message" => Alaja.CLI.Commands.Show.Message,
     "header" => Alaja.CLI.Commands.Show.Header,
@@ -25,11 +45,10 @@ defmodule Alaja.CLI.Help do
     "animate" => Alaja.CLI.Commands.Show.Animate,
     "image" => Alaja.CLI.Commands.Show.Image,
     "list" => Alaja.CLI.Commands.Show.List,
-    "scroll" => Alaja.CLI.Commands.Show.Scroll,
-    "tabs" => Alaja.CLI.Commands.Show.Tabs,
     "log" => Alaja.CLI.Commands.Show.Log,
     "progress" => Alaja.CLI.Commands.Show.Progress,
     "pulsar" => Alaja.CLI.Commands.Show.Pulsar,
+    "multibar" => Alaja.CLI.Commands.Show.Multibar,
     "ask" => Alaja.CLI.Commands.Show.Ask,
     "menu" => Alaja.CLI.Commands.Show.Menu,
     "yesno" => Alaja.CLI.Commands.Show.YesNo,
@@ -53,7 +72,11 @@ defmodule Alaja.CLI.Help do
   # ---------------------------------------------------------------------------
 
   @doc """
-  Renders a compact summary of available commands.
+  Renders a compact summary of available commands plus a quick-start
+  cookbook of the most useful one-liners.
+
+  Used both as the "what can I do here?" landing screen on first launch
+  and as the fallback when running `alaja` on a non-TTY.
   """
   @spec summary(map()) :: :ok
   def summary(descriptions) do
@@ -82,21 +105,47 @@ defmodule Alaja.CLI.Help do
 
     IO.puts("")
 
-    IO.write(section_title_text("QUICK REFERENCE", @green))
+    IO.write(section_title_text("QUICK START", @green))
 
-    Table.print(
-      headers: ["Command", "Description"],
-      rows: [
-        ["alaja --help", "Full reference for all commands"],
-        ["alaja <cmd> --help", "Command-specific help"],
-        ["alaja --version", "Print version"]
-      ],
-      table_border: :none,
-      padding: 1
-    )
+    quick_start_text()
 
     IO.puts("")
     :ok
+  end
+
+  # The six one-liners that pay for the entire CLI. Kept short so the
+  # summary stays one screen tall even on a 24-line terminal.
+  @quick_start [
+    {"Status message",
+     "alaja success \"Deploy completado\""},
+    {"Quick header",
+     "alaja header \"Release 3.0\" --subtitle \"ready for review\""},
+    {"Inline table",
+     "alaja table --headers name,status --rows \"api,OK\" \"db,WARN\""},
+    {"Pipe JSON",
+     "cat stats.json | alaja json"},
+    {"Theme picker",
+     "alaja theme set dracula"},
+    {"Multi-step from JSON",
+     "alaja action --file pipeline.json"}
+  ]
+
+  defp quick_start_text do
+    Enum.each(@quick_start, fn {comment, cmd} ->
+      IO.puts([
+        fg_color(@cyan),
+        ANSI.bright(),
+        "# ",
+        comment,
+        ANSI.reset(),
+        "\n",
+        fg_color({180, 220, 120}),
+        "  ",
+        cmd,
+        ANSI.reset(),
+        "\n"
+      ])
+    end)
   end
 
   # ---------------------------------------------------------------------------
@@ -106,11 +155,12 @@ defmodule Alaja.CLI.Help do
   @doc """
   Renders the complete help for all commands.
 
-  On an interactive terminal the sections are grouped into three tabs
-  (Overview / Commands / Examples); when piped or redirected everything
-  renders sequentially. `descriptions` (the host command list) is shown
-  inside the Commands tab on a TTY and is printed separately by the
-  caller (`summary/1`) otherwise.
+  On an interactive terminal the sections are grouped into tabs
+  (Overview / Display / Stateful / Interactive / Color / Action /
+  Theme / Cookbook); when piped or redirected everything renders
+  sequentially. `descriptions` (the host command list) is shown inside
+  the Overview tab on a TTY and is printed separately by the caller
+  (`summary/1`) otherwise.
   """
   @spec full(list() | keyword()) :: :ok
   def full(descriptions \\ []) do
@@ -151,9 +201,7 @@ defmodule Alaja.CLI.Help do
       "\n",
       action_command_text(),
       "\n",
-      theme_command_text(),
-      "\n",
-      examples_text(),
+      cookbook_text(),
       "\n",
       more_help_text(),
       "\n"
@@ -175,7 +223,7 @@ defmodule Alaja.CLI.Help do
       {"Color", panel_text([color_command_text()])},
       {"Action", panel_text([action_command_text()])},
       {"Theme", panel_text([theme_command_text()])},
-      {"Examples", panel_text([examples_text(), "\n", more_help_text()])}
+      {"Cookbook", panel_text([cookbook_text()])}
     ]
 
     base =
@@ -201,11 +249,17 @@ defmodule Alaja.CLI.Help do
   def command(cmd) do
     case Map.fetch(@commands, cmd) do
       {:ok, module} ->
-        if function_exported?(module, :help, 0), do: module.help(), else: :ok
+        if function_exported?(module, :help, 1), do: module.help(%Alaja.CLI.GlobalOpts{}),
+          else: :ok
 
       :error ->
-        IO.puts(:stderr, "Unknown command: '#{cmd}'")
-        {:error, :not_found}
+        # Theme has its own help via HelpFormatter + global arg
+        if cmd == "theme" do
+          Alaja.CLI.Commands.Theme.help(%Alaja.CLI.GlobalOpts{})
+        else
+          IO.puts(:stderr, "Unknown command: '#{cmd}'")
+          {:error, :not_found}
+        end
     end
   end
 
@@ -214,7 +268,10 @@ defmodule Alaja.CLI.Help do
   # ---------------------------------------------------------------------------
 
   defp global_options_text do
-    [section_title_text("GLOBAL OPTIONS", @cyan), global_options_table_text()]
+    [
+      section_title_text("GLOBAL OPTIONS", @cyan),
+      global_options_table_text()
+    ]
   end
 
   defp global_options_table_text do
@@ -232,6 +289,8 @@ defmodule Alaja.CLI.Help do
         ["--box-border TYPE", "Box border style (with --box)"],
         ["--box-color COLOR", "Box border color (with --box)"],
         ["--bg-color COLOR", "Background color for the output (any display command)"],
+        ["--no-color", "Disable ANSI output (respects NO_COLOR)"],
+        ["--color", "Force ANSI even when stdout is not a TTY"],
         ["--verbose", "Output raw ANSI instead of rendering"],
         ["--quiet, -q", "Suppress output"],
         ["--stdin", "Read JSON from stdin (action)"]
@@ -261,7 +320,7 @@ defmodule Alaja.CLI.Help do
         @green
       ),
       "\n",
-      "  Usage: alaja <command> <text>",
+      "  Usage: alaja <command> <text>  (use --align center|right to align)",
       "\n"
     ]
   end
@@ -279,14 +338,17 @@ defmodule Alaja.CLI.Help do
           ["table", "Rich tables with borders and per-cell styling"],
           ["json", "Pretty-printed JSON with syntax highlighting"],
           ["bar", "Progress bar with customizable appearance"],
-          ["animated-bar", "Animated progress bar"],
+          ["animated-bar", "Animated progress bar (spinner/kitt/pulse/wave/rainbow)"],
           ["breadcrumbs", "Navigation path display"],
           ["animate", "Animated spinners and indicators"],
           ["image", "Render images (kitty/iterm2/sixel/ASCII fallback)"],
           ["list", "Styled list with optional header"]
         ],
         @magenta
-      )
+      ),
+      "\n",
+      "  Run alaja <command> --help for the full option list.",
+      "\n"
     ]
   end
 
@@ -296,14 +358,17 @@ defmodule Alaja.CLI.Help do
       table_text(
         ["Command", "Description"],
         [
-          ["scroll", "Stateful scrollable list with selection marker"],
-          ["tabs", "Stateful tabbed interface with inverted active tab"],
-          ["log", "Append-only log with retention limit"],
+          ["log", "Append-only log with retention limit (struct-based)"],
           ["progress", "Stateful progress bar (struct-based, CLI-renderable)"],
-          ["pulsar", "Pulsar/radar animation with gradient wave effect"]
+          ["pulsar", "Pulsar/radar animation with gradient wave effect"],
+          ["multibar", "Multi-task progress tracker with parallel bars"],
+          ["animated-bar", "Animated bar with --duration / --max-iterations"]
         ],
         @blue
-      )
+      ),
+      "\n",
+      "  Stateful components keep a struct in memory and re-render in place.",
+      "\n"
     ]
   end
 
@@ -313,12 +378,15 @@ defmodule Alaja.CLI.Help do
       table_text(
         ["Command", "Description"],
         [
-          ["ask", "Interactive text input"],
-          ["menu", "Interactive selection menu"],
-          ["yesno", "Interactive yes/no question"]
+          ["ask", "Interactive text input (e.g. `alaja ask \"Name?\"`)"],
+          ["menu", "Interactive selection menu (`alaja menu \"Pick\" A B C`)"],
+          ["yesno", "Interactive yes/no question (`alaja yesno \"Continue?\"`)"]
         ],
         @yellow
-      )
+      ),
+      "\n",
+      "  Interactive commands require a TTY. They are no-ops on a pipe.",
+      "\n"
     ]
   end
 
@@ -343,6 +411,7 @@ defmodule Alaja.CLI.Help do
       ),
       "\n",
       "  Harmony types: triad, complementary, analogous, square, monochromatic, compound, split-complementary",
+      "  Color formats: hex:#RRGGBB, rgb:R;G;B, hsl:H;S;L, hsv:H;S;V, cmyk:C;M;Y;K, xterm:N, theme:<key>",
       "\n"
     ]
   end
@@ -356,10 +425,15 @@ defmodule Alaja.CLI.Help do
           ["echo JSON | alaja action", "Execute from stdin pipe"],
           ["alaja action --file FILE", "Execute from JSON file"],
           ["alaja action --data JSON", "Execute from inline JSON"],
-          ["alaja action --stdin", "Force stdin mode"]
+          ["alaja action --data BATCH --parallel 4", "Run actions concurrently"],
+          ["alaja action --data BATCH --stop-on-error", "Halt on first failure"],
+          ["alaja action --data BATCH --dry-run", "Print what would run"]
         ],
         @green
-      )
+      ),
+      "\n",
+      "  Action JSON shape: {\"command\":\"<cmd>\", \"args\":[\"...\"]} or {\"actions\":[...]}",
+      "\n"
     ]
   end
 
@@ -371,69 +445,159 @@ defmodule Alaja.CLI.Help do
         [
           ["alaja theme init", "Install default themes to ~/.config/alaja/themes"],
           ["alaja theme list", "List available themes"],
-          ["alaja theme set <name>", "Activate a theme"],
+          ["alaja theme set <name>", "Activate a theme (persisted)"],
           ["alaja theme show <name>", "Show a single theme's colour table"],
-          ["alaja theme show <name> <name> ...", "Show side-by-side comparison of given themes"],
-          ["alaja theme show list", "Show side-by-side comparison of all themes"],
-          ["alaja theme show all", "Show all themes sequentially"],
-          ["alaja theme all", "Show side-by-side comparison of all themes"]
+          ["alaja theme show <name> <name>...", "Show side-by-side comparison"],
+          ["alaja theme show list", "Compare all themes side-by-side"],
+          ["alaja theme show all", "Show all themes sequentially"]
         ],
         @purple,
         headers_color: :magenta
-      )
+      ),
+      "\n",
+      "  Theme colours are referenced from components as \"theme:<key>\".",
+      "\n"
     ]
   end
 
-  @examples [
-    {"Success message in green", "alaja success \"Deploy completado\""},
-    {"Error message in red", "alaja error \"Build fallido\""},
-    {"Big header with subtitle",
-     "alaja header \"Alaja 3.0\" --subtitle \"Terminal UI framework\""},
-    {"Divider with title", "alaja separator \"Deploy\" --width 60 --color hex:00ffff"},
-    {"Gradient text", "alaja gradient \"hola mundo\" --from hex:ff0000 --to hex:0000ff"},
-    {"Table with borders", "alaja table --headers name,status --rows \"api,ok\" \"web,ok\""},
-    {"Pretty-printed JSON", "echo '{\"name\":\"alaja\",\"v\":3}' | alaja json"},
-    {"Progress bar with label", "alaja bar 60 --max 100 --label build --filled-char █"},
-    {"Animated progress (2s)", "alaja animated-bar 50 --max 100 --duration 2000"},
-    {"Selectable list", "alaja scroll a b c --select 1"},
-    {"Tabs", "alaja tabs dev staging prod --active 1"},
-    {"Log with retention", "alaja log \"line 1\" \"line 2\" --max-lines 5"},
-    {"Stateful progress", "alaja progress --current 75 --total 100 --label build"},
-    {"Breadcrumbs", "alaja breadcrumbs home lib alaja --current alaja"},
-    {"Bullet list",
-     "alaja list \"fix deploy\" \"write tests\" --header \"To do\" --color hex:00ffff"},
-    {"Radar animation (3s)", "alaja pulsar \"Alaja\" --duration 3000"},
-    {"Color harmonies", "alaja color hex:ff0000 --harmony triad"},
-    {"Batch from stdin", "echo '{\"type\":\"success\",\"text\":\"ok\"}' | alaja action"}
+  # ---------------------------------------------------------------------------
+  # Cookbook — copy-pasteable recipes grouped by use case
+  # ---------------------------------------------------------------------------
+
+  defp cookbook_text do
+    [
+      section_title_text("COOKBOOK — copy-pasteable recipes", @orange),
+      "\n",
+      cookbook_examples_text()
+    ]
+  end
+
+  # Each recipe is a tuple {use-case, comment, command}. Comments are
+  # short so the cookbook fits one screen on a TTY. Commands have been
+  # validated against the actual switches exposed by each command.
+  @cookbook [
+    # ── Status / feedback ────────────────────────────────────────────────
+    {"status",
+     "Pipeline status (CI logs, scripts)",
+     "alaja success \"deploy: v3.0.4 rolled out\""},
+    {"status",
+     "Fail loudly in scripts",
+     "alaja error \"postgres connection refused\""},
+    {"status",
+     "Caution without alarm",
+     "alaja warning \"deprecated: --legacy flag, remove in 4.0\""},
+    # ── Headers / structure ──────────────────────────────────────────────
+    {"structure",
+     "Section divider with title",
+     "alaja separator \"Pipeline\" --width 60 --color hex:00ffff"},
+    {"structure",
+     "Big release banner",
+     "alaja header \"v3.0\" --subtitle \"Terminal UI framework\" --size large"},
+    {"structure",
+     "Breadcrumbs for nav",
+     "alaja breadcrumbs home users alice --current alice"},
+    # ── Tables / data ────────────────────────────────────────────────────
+    {"data",
+     "Service health table",
+     "alaja table --headers service,status,uptime --rows api,OK,12d db,WARN,2h"},
+    {"data",
+     "JSON pretty-printer (file or stdin)",
+     "cat config.json | alaja json --indent 2"},
+    {"data",
+     "Bullet list with header",
+     "alaja list --header \"TODO\" \"fix deploy\" \"write tests\" \"update docs\""},
+    # ── Progress / streaming ─────────────────────────────────────────────
+    {"progress",
+     "One-shot progress bar",
+     "alaja bar 60 --max 100 --label build --filled-char █"},
+    {"progress",
+     "Stateful progress (re-renderable)",
+     "alaja progress --current 75 --total 100 --label build"},
+    {"progress",
+     "Animated bar (2s demo)",
+     "alaja animated-bar 50 --max 100 --duration 2000 --type kitt"},
+    {"progress",
+     "Log with retention",
+     "alaja log \"Compiling...\" \"Running tests...\" --max-lines 5"},
+    {"progress",
+     "Multi-task tracker",
+     "alaja multibar --tasks 'build:Building,test:Testing,lint:Linting' --duration 3"},
+    # ── Color / styling ──────────────────────────────────────────────────
+    {"style",
+     "Gradient title",
+     "alaja gradient \"alaja 3.0\" --from hex:ff6b6b --to hex:4ecdc4"},
+    {"style",
+     "Bordered callout",
+     "alaja warning \"production deploy in 5m\" --box --box-title DEPLOY"},
+    {"style",
+     "Centered message",
+     "alaja success \"Done\" --align center"},
+    # ── Color analysis ───────────────────────────────────────────────────
+    {"analysis",
+     "Generate harmonies",
+     "alaja color hex:ff6b6b --harmony triad"},
+    {"analysis",
+     "WCAG contrast check",
+     "alaja color hex:1e1e2e --contrast hex:cdd6f4"},
+    # ── Images ───────────────────────────────────────────────────────────
+    {"images",
+     "Render a logo",
+     "alaja image --path logo.png --width 40"},
+    {"images",
+     "ASCII fallback when no graphics protocol",
+     "alaja image --path photo.jpg --to-ascii-art --ascii-style detailed"},
+    # ── Themes ───────────────────────────────────────────────────────────
+    {"themes",
+     "Install and activate",
+     "alaja theme init && alaja theme set dracula"},
+    {"themes",
+     "Compare two themes",
+     "alaja theme show dracula nord"},
+    # ── Batch / automation ───────────────────────────────────────────────
+    {"batch",
+     "Single action from stdin",
+     "echo '{\"command\":\"success\",\"args\":[\"Done!\"]}' | alaja action"},
+    {"batch",
+     "Multi-action with stop-on-error",
+     "alaja action --file pipeline.json --stop-on-error"},
+    {"batch",
+     "Parallel actions",
+     "alaja action --file pipeline.json --parallel 4"}
   ]
 
-  defp examples_text do
-    pairs =
-      Enum.map(@examples, fn {comment, command} ->
-        [
-          fg_color(@cyan),
-          ANSI.bright(),
-          "# ",
-          comment,
-          ANSI.reset(),
-          "\n",
-          fg_color({180, 220, 120}),
-          "  ",
-          command,
-          ANSI.reset(),
-          "\n"
-        ]
-      end)
-
-    [section_title_text("EXAMPLES", @orange), "\n", pairs]
+  defp cookbook_examples_text do
+    Enum.flat_map(@cookbook, fn {group, comment, cmd} ->
+      [
+        fg_color(@cyan),
+        ANSI.bright(),
+        "# ",
+        group,
+        " · ",
+        comment,
+        ANSI.reset(),
+        "\n",
+        fg_color({180, 220, 120}),
+        "  ",
+        cmd,
+        ANSI.reset(),
+        "\n"
+      ]
+    end)
   end
+
+  # ---------------------------------------------------------------------------
+  # Footer
+  # ---------------------------------------------------------------------------
 
   defp more_help_text do
     [
       section_title_text("MORE HELP", @cyan),
       table_text(
         ["Command", "Description"],
-        [["alaja <cmd> --help", "Detailed help for any command"]],
+        [
+          ["alaja <cmd> --help", "Detailed help for any command (incl. options + examples)"],
+          ["mix alaja.demo [component]", "Render every component for visual inspection"]
+        ],
         @cyan,
         table_border: :none
       )
@@ -448,6 +612,10 @@ defmodule Alaja.CLI.Help do
       table_text(["Command", "Description"], rows, @green)
     ]
   end
+
+  # ---------------------------------------------------------------------------
+  # Section builders
+  # ---------------------------------------------------------------------------
 
   defp table_text(headers, rows, color, opts \\ []) do
     Table.render(

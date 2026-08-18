@@ -186,14 +186,5 @@ defmodule Alaja.CLI.DispatchTest do
 
       :ok
     end
-
-    test "config/1 dispatches to Config.run" do
-      output =
-        ExUnit.CaptureIO.capture_io(fn ->
-          Dispatch.config(%{_args: ["--show"]})
-        end)
-
-      assert is_binary(output)
-    end
   end
 end
