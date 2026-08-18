@@ -103,7 +103,7 @@ defmodule Alaja.CLI.Commands.Show.Multibar do
   defp run_multibar_with_tasks(opts, global, tasks) do
     title = Keyword.get(opts, :title)
     duration = Keyword.get(opts, :duration, @default_duration)
-    _border = Data.parse_border(Keyword.get(opts, :border, "rounded"))
+    box_border = Data.parse_border(Keyword.get(opts, :border, "rounded"))
     bar_width = Keyword.get(opts, :bar_width, @default_bar_width)
     bar_color = Parser.parse_color_opt(Keyword.get(opts, :bar_color))
     bar_empty_char = Keyword.get(opts, :bar_empty_char)
@@ -116,6 +116,7 @@ defmodule Alaja.CLI.Commands.Show.Multibar do
       [
         tasks: tasks,
         title: title,
+        box_border: box_border,
         table_border: table_border,
         table_align: table_align,
         bar_width: bar_width,

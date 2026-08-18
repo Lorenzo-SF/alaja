@@ -157,8 +157,11 @@ defmodule Alaja.Components.AnimatedBar do
 
   defp animate_filled(count, position, :spinner, _char, opts) do
     filled_color = Keyword.get(opts, :filled_color)
+    # The animated frame uses animation_color when set, falling
+    # back to the static filled_color so a colour always shows up.
+    frame_color = resolve_color(opts[:animation_color]) || filled_color
     frame = Enum.at(@spinner_frames, rem(position, length(@spinner_frames)))
-    List.duplicate({frame, filled_color}, count)
+    List.duplicate({frame, frame_color}, count)
   end
 
   defp animate_filled(count, position, :kitt, char, opts) do
@@ -187,14 +190,20 @@ defmodule Alaja.Components.AnimatedBar do
 
   defp animate_filled(count, position, :pulse, _char, opts) do
     filled_color = Keyword.get(opts, :filled_color)
+    # The animated pulse uses animation_color so the user can make
+    # the pulse stand out from the static filled colour.
+    frame_color = resolve_color(opts[:animation_color]) || filled_color
     frame_idx = rem(position, length(@pulse_frames))
     pulse_char = Enum.at(@pulse_frames, frame_idx)
 
-    List.duplicate({pulse_char, filled_color}, count)
+    List.duplicate({pulse_char, frame_color}, count)
   end
 
   defp animate_filled(count, position, :wave, _char, opts) do
     filled_color = Keyword.get(opts, :filled_color)
+    # Same pattern as :spinner / :pulse — animation_color overrides
+    # filled_color for the moving wave cells.
+    frame_color = resolve_color(opts[:animation_color]) || filled_color
     wave_len = length(@wave_frames)
 
     if count == 0 do
@@ -203,7 +212,7 @@ defmodule Alaja.Components.AnimatedBar do
       for i <- 0..(count - 1) do
         wave_idx = rem(i + position, wave_len)
         wave_char = Enum.at(@wave_frames, wave_idx)
-        {wave_char, filled_color}
+        {wave_char, frame_color}
       end
     end
   end
