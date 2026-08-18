@@ -248,6 +248,13 @@ defmodule Alaja.CLI.Definition do
         Application.ensure_all_started(:alaja)
         Application.ensure_all_started(__otp_app__())
 
+        # Sync the CLI flag --no-color into the Application env BEFORE
+        # any command (or help renderer) asks Alaja.Config.color_enabled?/0.
+        # Without this the flag would only reach the printer level and
+        # leave Alaja.Config (and therefore Alaja.Theme.color/1) reporting
+        # colour as enabled. Priority stays: CLI flag > NO_COLOR env > IO.ANSI.
+        Alaja.CLI.NoColor.sync(args)
+
         result = Alaja.CLI.Definition.run_dispatch(__commands__(), args)
 
         unquote(halt_block)
