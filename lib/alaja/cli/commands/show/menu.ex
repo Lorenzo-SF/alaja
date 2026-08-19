@@ -46,6 +46,9 @@ defmodule Alaja.CLI.Commands.Show.Menu do
       align = parse_align(Keyword.get(opts, :align))
 
       if is_nil(header) or menu_items == [] do
+        # The user did not pass enough args. Print a friendly error
+        # so it is obvious why nothing happened, then show help.
+        missing_header_error(items)
         help()
       else
         options = Enum.map(menu_items, &{&1, &1})
@@ -71,6 +74,16 @@ defmodule Alaja.CLI.Commands.Show.Menu do
       {:ok, atom} -> atom
       {:error, _} -> :left
     end
+  end
+
+  # Render a friendly error when the user gives 2 positional args
+  # without --header. With the legacy interpretation the first arg
+  # would be silently treated as the header, which is confusing.
+  defp missing_header_error(items) do
+    IO.puts(
+      :stderr,
+      "Error: alaja menu needs a header. Use --header <text> or pass at least 2 positional args (got #{length(items)})."
+    )
   end
 
   @spec help(Alaja.CLI.GlobalOpts.t() | nil) :: :ok

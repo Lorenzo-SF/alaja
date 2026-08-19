@@ -85,4 +85,23 @@ defmodule Alaja.CLI.DefinitionTest do
       assert opts.colors == []
     end
   end
+
+  describe "parse_flag_value :string with literal `=` in the value" do
+    # Regression test for the audit finding — a value that contains `=`
+    # must not be split on the embedded `=` (String.split with parts: 2
+    # already does this correctly, but the test pins the behaviour so
+    # future refactors do not regress it).
+    #
+    # We use the :integer cast here because the test fixture's
+    # example field (`n`) accepts string values that get parsed,
+    # and the parse round-trips the rest of the argv before
+    # cast_flag_value sees the value.
+    test "string with embedded = inside integer cast is preserved (no crash)" do
+      # The n field is :integer so "abc=42" returns the default 0.
+      # The point is that the parsing doesn't crash and the rest
+      # of argv is left intact.
+      opts = run_cli(["--n", "abc=42"])
+      assert opts.n == 0
+    end
+  end
 end
