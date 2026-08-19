@@ -40,8 +40,13 @@ defmodule Alaja.CLI.Definition do
       }
   """
 
-  @type flag_type :: :string | :integer | :float | :boolean | :atom
-  @type arg_type :: :string | :integer | :float
+  @valid_flag_types [:string, :integer, :float, :boolean, :atom, :path, :url, :color_list, :keep]
+  @valid_arg_types [:string, :integer, :float, :boolean, :atom, :path, :url, :color_list, :keep]
+
+  @type flag_type ::
+          :string | :integer | :float | :boolean | :atom | :path | :url | :color_list | :keep
+  @type arg_type ::
+          :string | :integer | :float | :boolean | :atom | :path | :url | :color_list | :keep
 
   @doc false
   @spec __using__(Keyword.t()) :: Macro.t()
@@ -132,6 +137,13 @@ defmodule Alaja.CLI.Definition do
   @doc "Defines a CLI flag within a command."
   @spec flag(atom(), flag_type(), Keyword.t()) :: Macro.t()
   defmacro flag(name, type, opts \\ []) do
+    unless type in @valid_flag_types do
+      raise ArgumentError,
+            "invalid flag type: #{inspect(type)}. " <>
+              "Valid types: #{inspect(@valid_flag_types)}. " <>
+              "Flag: #{name}"
+    end
+
     quote do
       @current_command update_in(@current_command.flags, fn flags ->
                          flags ++
@@ -143,7 +155,12 @@ defmodule Alaja.CLI.Definition do
                                required: unquote(Keyword.get(opts, :required, false)),
                                values: unquote(Keyword.get(opts, :values)),
                                short: unquote(Keyword.get(opts, :short)),
-                               repeatable: unquote(Keyword.get(opts, :repeatable, false))
+                               repeatable: unquote(Keyword.get(opts, :repeatable, false)),
+                               env: unquote(Keyword.get(opts, :env)),
+                               min: unquote(Keyword.get(opts, :min)),
+                               max: unquote(Keyword.get(opts, :max)),
+                               conflicts_with: unquote(Keyword.get(opts, :conflicts_with, [])),
+                               requires: unquote(Keyword.get(opts, :requires, []))
                              }
                            ]
                        end)
@@ -153,6 +170,13 @@ defmodule Alaja.CLI.Definition do
   @doc "Defines a positional argument within a command."
   @spec argument(atom(), arg_type(), Keyword.t()) :: Macro.t()
   defmacro argument(name, type, opts \\ []) do
+    unless type in @valid_arg_types do
+      raise ArgumentError,
+            "invalid argument type: #{inspect(type)}. " <>
+              "Valid types: #{inspect(@valid_arg_types)}. " <>
+              "Argument: #{name}"
+    end
+
     quote do
       @current_command update_in(@current_command.arguments, fn args ->
                          args ++
@@ -553,45 +577,129 @@ defmodule Alaja.CLI.Definition do
   defp execute(cmd, flags, positional, parent_flags) do
     all_flags = parent_flags ++ flags
 
-    # Build a map of flag defaults + parsed values
-    # For repeatable flags, aggregate all values into a list
+    # Build a map of flag defaults + parsed values, shaded by:
+    #   * repeatable: aggregate all values into a list
+    #   * env: read from System.get_env/2 when the flag was not passed
+    #     on the CLI (CLI flag wins over env var)
     flag_values =
       cmd.flags
       |> Enum.map(fn f ->
         flag_values = Keyword.get_values(all_flags, f.name)
 
-        if f.repeatable and flag_values != [] do
-          {f.name, flag_values}
-        else
-          value = Keyword.get(all_flags, f.name, f.default)
-          {f.name, value}
+        cond do
+          f.repeatable and flag_values != [] ->
+            {f.name, flag_values}
+
+          is_list(flag_values) and flag_values != [] ->
+            {f.name, List.last(flag_values)}
+
+          true ->
+            value =
+              case Keyword.fetch(all_flags, f.name) do
+                {:ok, v} -> v
+                :error -> env_default(f)
+              end
+
+            # Validate numeric ranges if defined.
+            value = validate_range(f, value)
+            {f.name, value}
         end
       end)
       |> Map.new()
 
-    # Parse positional arguments
-    arg_values = parse_arguments(cmd.arguments, positional)
-
     # Validate required arguments
-    case validate_required_args(cmd.arguments, arg_values) do
+    case validate_required_args(cmd.arguments, parse_arguments(cmd.arguments, positional)) do
       {:error, missing} ->
         ErrorHandler.missing_args(cmd.name, missing)
 
       :ok ->
-        # Inject raw positional args so existing legacy handlers (that
-        # do their own OptionParser) can receive the unparsed list.
-        opts =
-          flag_values
-          |> Map.merge(arg_values)
-          |> struct_to_map()
-          |> Map.put(:_args, positional)
+        # Validate mutual exclusion and requirements between flags.
+        case validate_flags(cmd, flag_values) do
+          {:error, msg} ->
+            IO.puts(:stderr, msg)
+            exit({:shutdown, 1})
 
-        if match?({mod, fun} when is_atom(mod) and is_atom(fun), cmd.run) do
-          {mod, fun} = cmd.run
-          apply(mod, fun, [opts])
-        else
-          ErrorHandler.no_handler(cmd.name)
+          :ok ->
+            opts =
+              flag_values
+              |> Map.merge(parse_arguments(cmd.arguments, positional))
+              |> struct_to_map()
+              |> Map.put(:_args, positional)
+
+            if match?({mod, fun} when is_atom(mod) and is_atom(fun), cmd.run) do
+              {mod, fun} = cmd.run
+              apply(mod, fun, [opts])
+            else
+              ErrorHandler.no_handler(cmd.name)
+            end
         end
+    end
+  end
+
+  # Default value for a flag: explicit default > env var > nil.
+  defp env_default(%{env: nil, default: default}), do: default
+
+  defp env_default(%{env: env, default: default}) when is_binary(env) do
+    case System.get_env(env) do
+      nil -> default
+      val -> val
+    end
+  end
+
+  defp env_default(%{default: default}), do: default
+
+  defp validate_range(%{min: nil, max: nil}, value), do: value
+
+  defp validate_range(%{min: min, max: nil}, value) when is_number(value) and value < min,
+    do: raise(ArgumentError, "value #{value} is below minimum #{min}")
+
+  defp validate_range(%{min: nil, max: max}, value) when is_number(value) and value > max,
+    do: raise(ArgumentError, "value #{value} is above maximum #{max}")
+
+  defp validate_range(%{min: min, max: max}, value)
+       when is_number(value) and value >= min and value <= max,
+       do: value
+
+  defp validate_range(_, value), do: value
+
+  # Validate mutual exclusion and cross-flag requirements.
+  # Walks the command's flag definitions (not the parsed values) so
+  # that the conflicts/requires lists are accessible.
+  defp validate_flags(cmd, flag_values) do
+    # Mutual exclusion: if flag :a declares conflicts_with [:b], then
+    # both :a and :b cannot be present in flag_values.
+    conflicts =
+      Enum.find_value(cmd.flags, fn f ->
+        if Map.has_key?(flag_values, f.name) and f.conflicts_with != [] do
+          conflicting = Enum.find(f.conflicts_with, &Map.has_key?(flag_values, &1))
+
+          if conflicting do
+            {f.name, conflicting}
+          end
+        end
+      end)
+
+    case conflicts do
+      {a, b} ->
+        {:error, "Error: conflicting flags: --#{a} and --#{b} cannot be used together"}
+
+      nil ->
+        # Requirements: if flag :a declares requires [:b], then :b
+        # must also be present in flag_values.
+        missing =
+          Enum.flat_map(cmd.flags, fn f ->
+            if Map.has_key?(flag_values, f.name) and f.requires != [] do
+              Enum.filter(f.requires, &(not Map.has_key?(flag_values, &1)))
+            else
+              []
+            end
+          end)
+
+        if missing == [],
+          do: :ok,
+          else:
+            {:error,
+             "Error: missing required flags: #{missing |> Enum.map(&"--#{&1}") |> Enum.join(", ")}"}
     end
   end
 
