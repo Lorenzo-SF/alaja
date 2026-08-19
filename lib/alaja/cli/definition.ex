@@ -255,7 +255,19 @@ defmodule Alaja.CLI.Definition do
         # colour as enabled. Priority stays: CLI flag > NO_COLOR env > IO.ANSI.
         Alaja.CLI.NoColor.sync(args)
 
-        result = Alaja.CLI.Definition.run_dispatch(__commands__(), args)
+        # Top-level commands that have been migrated to raise
+        # `Alaja.CLI.ActionError` (and any future typed exceptions) need
+        # their error rendered to stderr and the process exited with
+        # status 1. Without this, the exception would propagate as an
+        # Elixir crash dump — confusing for end users.
+        result =
+          try do
+            Alaja.CLI.Definition.run_dispatch(__commands__(), args)
+          rescue
+            e in Alaja.CLI.ActionError ->
+              IO.puts(:stderr, "Error: #{Exception.message(e)}")
+              exit({:shutdown, 1})
+          end
 
         unquote(halt_block)
 

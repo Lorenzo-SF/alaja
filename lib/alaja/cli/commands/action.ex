@@ -93,21 +93,17 @@ defmodule Alaja.CLI.Commands.Action do
     end
   end
 
-  defp execute(opts, global) do
-    case get_json(opts) do
-      {:ok, json_str} ->
-        case Jason.decode(json_str) do
-          {:ok, data} ->
-            process_data(data, global, opts)
+  @doc false
+  def execute(opts, global) do
+    with {:ok, json_str} <- get_json(opts),
+         {:ok, data} <- Jason.decode(json_str) do
+      process_data(data, global, opts)
+    else
+      {:error, %Jason.DecodeError{} = err} ->
+        raise Alaja.CLI.ActionError, "invalid JSON: #{Exception.message(err)}"
 
-          {:error, error} ->
-            IO.puts(:stderr, "Error: invalid JSON: #{error}")
-            exit({:shutdown, 1})
-        end
-
-      {:error, reason} ->
-        IO.puts(:stderr, "Error: #{reason}")
-        exit({:shutdown, 1})
+      {:error, reason} when is_binary(reason) ->
+        raise Alaja.CLI.ActionError, reason
     end
   end
 
@@ -185,7 +181,8 @@ defmodule Alaja.CLI.Commands.Action do
 
   # ─── Data processing ──────────────────────────────────────────────────────
 
-  defp process_data(%{"actions" => actions} = data, _global, opts) do
+  @doc false
+  def process_data(%{"actions" => actions} = data, _global, opts) do
     verbose = Map.get(data, "verbose", false)
     quiet = Map.get(data, "quiet", false)
     parallel = Keyword.get(opts, :parallel, 1)
@@ -199,7 +196,8 @@ defmodule Alaja.CLI.Commands.Action do
     :ok
   end
 
-  defp process_data(data, _global, opts) when is_map(data) do
+  @doc false
+  def process_data(data, _global, opts) when is_map(data) do
     verbose = Map.get(data, "verbose", false)
     quiet = Map.get(data, "quiet", false)
     dry_run = Keyword.get(opts, :dry_run, false)
@@ -207,21 +205,33 @@ defmodule Alaja.CLI.Commands.Action do
     if dry_run do
       IO.puts("Would execute: #{inspect(data)}")
     else
-      execute_action(data, verbose, quiet)
+      # Use the safe wrapper so a single-action invocation surfaces
+      # errors the same way batch does. Without this, a missing
+      # `command` field would crash the BEAM with a stacktrace
+      # instead of the friendly "Error: ..." rendered by
+      # `dispatch_main`'s ActionError rescue.
+      case execute_action_safe(data, verbose, quiet) do
+        :ok -> :ok
+        {:error, _reason} -> :ok
+      end
     end
 
     :ok
   end
 
-  defp process_data(_data, _global, _opts) do
-    IO.puts(:stderr, "Error: expected a JSON object or object with 'actions' array")
-    exit({:shutdown, 1})
+  @doc false
+  def process_data(_data, _global, _opts) do
+    raise Alaja.CLI.ActionError,
+          "expected a JSON object or object with 'actions' array"
   end
 
   defp run_actions(actions, 1, false, false, verbose, quiet) do
     # Fast path: sequential, no stop-on-error, no dry-run. The common case.
+    # Uses the safe wrapper so a single ActionError does not abort the
+    # batch — the wrapper converts it to {:error, _} which is silently
+    # ignored here (consistent with the non-stop-on-error contract).
     Enum.each(actions, fn action ->
-      execute_action(action, verbose, quiet)
+      execute_action_safe(action, verbose, quiet)
     end)
   end
 
@@ -230,7 +240,7 @@ defmodule Alaja.CLI.Commands.Action do
     _ =
       actions
       |> Task.async_stream(
-        fn action -> {action, execute_action(action, verbose, quiet)} end,
+        fn action -> {action, execute_action_safe(action, verbose, quiet)} end,
         max_concurrency: parallel,
         ordered: false,
         on_timeout: :kill_task
@@ -298,9 +308,11 @@ defmodule Alaja.CLI.Commands.Action do
     end
   end
 
-  defp execute_action_safe(action, verbose, quiet) do
+  @doc false
+  def execute_action_safe(action, verbose, quiet) do
     execute_action(action, verbose, quiet)
   rescue
+    e in Alaja.CLI.ActionError -> {:error, Exception.message(e)}
     e -> {:error, Exception.message(e)}
   catch
     kind, reason -> {:error, {kind, reason}}
@@ -312,15 +324,15 @@ defmodule Alaja.CLI.Commands.Action do
 
     cond do
       is_nil(cmd) ->
-        IO.puts(:stderr, "  Error: missing 'command' field")
+        raise Alaja.CLI.ActionError, "missing 'command' field"
 
       String.downcase(to_string(cmd)) == "action" ->
-        IO.puts(:stderr, "  Error: recursive 'action' calls are not allowed")
-        exit({:shutdown, 1})
+        raise Alaja.CLI.ActionError, "recursive 'action' calls are not allowed"
 
       true ->
         full_args = build_args(cmd, args, verbose, quiet)
         Alaja.CLI.exec(full_args)
+        :ok
     end
   end
 
