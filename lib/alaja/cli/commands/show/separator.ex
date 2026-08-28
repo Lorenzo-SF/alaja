@@ -2,6 +2,7 @@ defmodule Alaja.CLI.Commands.Show.Separator do
   @moduledoc "`alaja separator` — Display horizontal separator lines."
 
   alias Alaja.CLI.Color
+  alias Alaja.CLI.Commands.Base
   alias Alaja.CLI.GlobalOpts
   alias Alaja.CLI.HelpFormatter
   alias Alaja.Components.Separator, as: SepComp
@@ -10,21 +11,33 @@ defmodule Alaja.CLI.Commands.Show.Separator do
   @help_data [
     title: "Alaja Separator",
     subtitle: "Display horizontal separator lines",
-    usage: "alaja separator [--char C] [--width N] [--text T] [--color C]",
-    description: "Draws a horizontal rule of the given character, optionally with embedded text.",
+    usage:
+      "alaja separator [--char C] [--text T] [--separator-color C] [--text-color C] [--width N]",
+    description: """
+    Draws a horizontal rule of the given character, optionally with an
+    embedded label.
+
+    `--separator-color` (or the legacy alias `--color`) drives the colour
+    of the decorative characters; `--text-color` (defaults to the
+    separator colour) drives the colour of the centred label.
+    """,
     options: [
-      {:char, :string, "─", "Character used to draw the line"},
-      {:width, :integer, 60, "Total width in characters"},
-      {:text, :string, nil, "Optional text embedded in the line"},
-      {:color, :string, nil, "Color of the line"}
+      {:char, :string, "─", "Character used to draw the decorative line"},
+      {:width, :integer, nil,
+       "Total width in characters (defaults to terminal width)"},
+      {:text, :string, nil, "Optional label embedded in the line"},
+      {:separator_color, :string, nil, "Colour for the decorative characters"},
+      {:color, :string, nil, "Alias for --separator-color (kept for back-compat)"},
+      {:text_color, :string, nil, "Colour of the centred label (defaults to separator colour)"}
     ],
     examples: [
       {"Plain rule", "alaja separator"},
-      {"Embedded title", "alaja separator \"DEPLOY\" --color cyan"},
-      {"Custom width", "alaja separator --width 100"},
-      {"Custom character", "alaja separator --char \"=\" --width 40"},
-      {"Stars", "alaja separator --char \"*\" --width 30"},
-      {"Thin line with title", "alaja separator \"Section\" --char \"─\" --color grey"}
+      {"Embedded title",
+       "alaja separator \"DEPLOY\" --separator-color hex:#00ffff --text-color hex:#ff00ff"},
+      {"Custom character",
+       "alaja separator --char \"=\" --width 40 --separator-color theme:secondary"},
+      {"Thin line with title",
+       "alaja separator \"Section\" --char \"─\" --separator-color grey"}
     ]
   ]
 
@@ -37,7 +50,14 @@ defmodule Alaja.CLI.Commands.Show.Separator do
 
     {opts, _, _} =
       OptionParser.parse(rest,
-        switches: [char: :string, width: :integer, text: :string, color: :string]
+        switches: [
+          char: :string,
+          width: :integer,
+          text: :string,
+          separator_color: :string,
+          color: :string,
+          text_color: :string
+        ]
       )
 
     if global.help do
@@ -49,15 +69,22 @@ defmodule Alaja.CLI.Commands.Show.Separator do
 
   defp render(opts, global) do
     char = Keyword.get(opts, :char, "─")
-    width = Keyword.get(opts, :width, 60)
+    width = Keyword.get(opts, :width) || Base.term_width()
     text = Keyword.get(opts, :text)
-    color = Color.parse_or_nil(Keyword.get(opts, :color))
+    separator_color =
+      Color.parse_or_nil(Keyword.get(opts, :separator_color) || Keyword.get(opts, :color))
+    text_color = Color.parse_or_nil(Keyword.get(opts, :text_color))
 
-    rendered = SepComp.render(text, char: char, width: width, color: color)
+    rendered =
+      SepComp.render(text,
+        char: char,
+        width: width,
+        separator_color: separator_color,
+        text_color: text_color
+      )
+
     Printer.print_raw(rendered, printer_opts(global))
   end
-
-  # parse_color/1 delegates to Alaja.CLI.Color.parse_or_nil/1
 
   defp printer_opts(g), do: GlobalOpts.to_printer_opts(g)
 

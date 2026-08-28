@@ -11,17 +11,23 @@ defmodule Alaja.CLI.Commands.Show.Gradient do
     title: "Alaja Gradient",
     subtitle: "Gradient-colored text (multi-color support)",
     usage:
-      "alaja gradient <text> [--from C] [--to C] [--colors C,C,C] [--direction horizontal|vertical] [--bg] [--text-color C]",
+      "alaja gradient <text[;line2[;line3...]]> [--from C] [--to C] [--colors C[|C[|C...]]] [--direction right_to_left|left_to_right|up_to_down|down_to_up|horizontal|vertical] [--bg] [--text-color C]",
     description: """
     Renders text with a gradient color treatment. Specify either
     `--from` and `--to` (linear interpolation) or a `--colors` list
     specifying the gradient stops.
+
+    To apply the gradient to several lines at once, separate the lines
+    with `;` (e.g. `"line1;line2;line3"`) and combine with the vertical
+    directions (`up_to_down` / `down_to_up`).
     """,
     options: [
       {:from, :string, nil, "Start color (<formato>:<codigo> o #hex)"},
       {:to, :string, nil, "End color (<formato>:<codigo> o #hex)"},
-      {:colors, :string, nil, "Pipe-separated gradient stops (hex:a|hex:b|hex:c)"},
-      {:direction, :string, "horizontal", "horizontal or vertical"},
+      {:colors, :string, nil,
+       "List of gradient stops separated by `|` or `,` (e.g. hex:ff0000|hex:00ff00|hex:0000ff)"},
+      {:direction, :string, "right_to_left",
+       "Gradient direction: right_to_left (default), left_to_right, up_to_down (list only), down_to_up (list only), horizontal, vertical"},
       {:bg, :boolean, false, "Apply the gradient to the background instead of the foreground"},
       {:text_color, :string, nil, "Override the gradient with a single text color"}
     ],
@@ -33,7 +39,9 @@ defmodule Alaja.CLI.Commands.Show.Gradient do
        "alaja gradient \"release\" --from #FFFF00 --to hex:ff00ff --direction vertical"},
       {"Background gradient", "alaja gradient \"urgent\" --from red --to yellow --bg"},
       {"Single-colour override", "alaja gradient \"quiet\" --text-color grey"},
-      {"Brand title", "alaja gradient \"CACAFUTI\" --colors hex:7aa2f7|hex:f5c2e7|hex:abe9b3"}
+      {"Brand title", "alaja gradient \"CACAFUTI\" --colors hex:7aa2f7|hex:f5c2e7|hex:abe9b3"},
+      {"Multiline vertical",
+       "alaja gradient \"alaja;line2;line3\" --from hex:ff0000 --to hex:0000ff --direction down_to_up"}
     ]
   ]
 
@@ -75,16 +83,26 @@ defmodule Alaja.CLI.Commands.Show.Gradient do
       ]
       |> Enum.reject(fn {_, v} -> is_nil(v) end)
 
+    # `;` inside a quoted argument is a user-friendly way to split the
+    # text into multiple lines. Translate it to a real newline so the
+    # component's `split_lines/1` picks it up; vertical directions need
+    # this to colour each line independently.
+    text = String.replace(text, ";", "\n")
+
     rendered = GradComp.render(text, grad_opts)
     Printer.print_raw(rendered, printer_opts(global))
   end
 
   # parse_color/1 delegates to Alaja.CLI.Color.parse_or_nil/1
 
-  defp parse_direction(nil), do: :horizontal
-  defp parse_direction("horizontal"), do: :horizontal
-  defp parse_direction("vertical"), do: :vertical
-  defp parse_direction(_), do: :horizontal
+  defp parse_direction(nil), do: :right_to_left
+  defp parse_direction("horizontal"), do: :right_to_left
+  defp parse_direction("right_to_left"), do: :right_to_left
+  defp parse_direction("left_to_right"), do: :left_to_right
+  defp parse_direction("vertical"), do: :up_to_down
+  defp parse_direction("up_to_down"), do: :up_to_down
+  defp parse_direction("down_to_up"), do: :down_to_up
+  defp parse_direction(_), do: :right_to_left
 
   defp printer_opts(g), do: GlobalOpts.to_printer_opts(g)
 

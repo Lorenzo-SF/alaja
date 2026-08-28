@@ -89,8 +89,12 @@ defmodule Alaja.CLI.Color do
   def parse_list(nil), do: nil
 
   def parse_list(str) when is_binary(str) do
+    # Accept both `|` and `,` as separators so that users coming
+    # from `alaja gradient` (which historically used `|`) can also
+    # pass comma-separated lists to commands like `alaja table`
+    # or `alaja header`.
     str
-    |> String.split("|")
+    |> String.split(~r/[|,]/, trim: false)
     |> Enum.map(&String.trim/1)
     |> Enum.reject(&(&1 == ""))
     |> parse_each()

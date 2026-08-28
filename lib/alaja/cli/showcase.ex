@@ -104,7 +104,7 @@ defmodule Alaja.CLI.Showcase do
         "--speed",
         Integer.to_string(@pulsar_speed),
         "--colors",
-        "gradient_1;gradient_2;gradient_3;gradient_4;gradient_5;gradient_6"
+        "theme:gradient_1|theme:gradient_2|theme:gradient_3|theme:gradient_4|theme:gradient_5|theme:gradient_6"
       ])
     end)
   end

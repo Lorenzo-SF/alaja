@@ -138,7 +138,7 @@ defmodule Alaja.Components.AnimatedBar do
       if verbose do
         IO.puts(frame)
       else
-        IO.write("\r#{frame}")
+        IO.write("\r\e[K#{frame}")
       end
 
       Process.sleep(speed)

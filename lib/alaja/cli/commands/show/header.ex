@@ -2,6 +2,7 @@ defmodule Alaja.CLI.Commands.Show.Header do
   @moduledoc "`alaja header` — Display styled headers."
 
   alias Alaja.CLI.Color
+  alias Alaja.CLI.Commands.Base
   alias Alaja.CLI.GlobalOpts
   alias Alaja.CLI.HelpFormatter
   alias Alaja.Components.Header, as: HeaderComp
@@ -11,15 +12,28 @@ defmodule Alaja.CLI.Commands.Show.Header do
     title: "Alaja Header",
     subtitle: "Display styled headers with optional subtitle",
     usage:
-      "alaja header <title> [--subtitle T] [--size small|medium|large] [--color C] [--subtitle-color C] [--width N]",
-    description:
-      "Renders a styled header with optional subtitle. The title is drawn from the first positional argument.",
+      "alaja header <title[;line2;...]> [--subtitle S] [--size small|medium|large] [--color C[|C|...]] [--subtitle-color C[|C|...]] [--separator-char CHAR] [--separator-color C[|C|...]] [--separator-length N] [--width N]",
+    description: """
+    Renders a styled header with optional subtitle.
+
+    The title (and subtitle) may contain several lines separated by `;`
+    inside a quoted argument. When several colours are provided via
+    `--color` (or `--subtitle-color`) the list is matched positionally
+    against the lines of the corresponding text.
+    """,
     options: [
-      {:subtitle, :string, nil, "Subtitle text below the title"},
+      {:subtitle, :string, nil, "Subtitle text (use `;` to split lines)"},
       {:size, :string, "medium", "Size: small, medium, large"},
-      {:color, :string, nil, "Title color"},
-      {:subtitle_color, :string, nil, "Subtitle color"},
-      {:width, :integer, 80, "Width in characters"}
+      {:color, :string, nil,
+       "Title colour (single value or `|` / `,` separated list, one per line)"},
+      {:subtitle_color, :string, nil,
+       "Subtitle colour (single value or `|` / `,` separated list)"},
+      {:separator_char, :string, nil, "Character used for decorative lines"},
+      {:separator_color, :string, nil,
+       "Colour of the decorative lines (single value or list)"},
+      {:separator_length, :integer, nil,
+       "Override the length of the decorative lines (defaults to terminal width)"},
+      {:width, :integer, 80, "Total width in characters (default: terminal width)"}
     ],
     examples: [
       {"Simple title", "alaja header \"Release 3.0\""},
@@ -27,8 +41,11 @@ defmodule Alaja.CLI.Commands.Show.Header do
       {"Large banner", "alaja header \"Alaja\" --size large --color magenta"},
       {"Coloured subtitle",
        "alaja header \"Build\" --subtitle \"main branch\" --subtitle-color grey"},
-      {"Custom width", "alaja header \"Release\" --width 40"},
-      {"Pinned to terminal width", "alaja header \"Welcome\" --size large --width 120"}
+      {"Multiple colours per line",
+       "alaja header \"line1;line2;line3\" --color \"hex:#fa00ce|theme:primary|theme:ternary\""},
+      {"Custom separator",
+       "alaja header \"Release\" --separator-char \"*\" --separator-color theme:secondary"},
+      {"Width pinned to terminal", "alaja header \"Welcome\" --size large"}
     ]
   ]
 
@@ -46,6 +63,9 @@ defmodule Alaja.CLI.Commands.Show.Header do
           size: :string,
           color: :string,
           subtitle_color: :string,
+          separator_char: :string,
+          separator_color: :string,
+          separator_length: :integer,
           width: :integer
         ]
       )
@@ -67,15 +87,23 @@ defmodule Alaja.CLI.Commands.Show.Header do
             {:ok, atom} -> atom
             {:error, _} -> :medium
           end,
-        color: Color.parse_or_nil(Keyword.get(opts, :color)),
-        subtitle_color: Color.parse_or_nil(Keyword.get(opts, :subtitle_color)),
-        width: Keyword.get(opts, :width, 80)
+        color: Color.parse_list_or_nil(Keyword.get(opts, :color)) ||
+          Color.parse_or_nil(Keyword.get(opts, :color)),
+        subtitle_color: Color.parse_list_or_nil(Keyword.get(opts, :subtitle_color)) ||
+          Color.parse_or_nil(Keyword.get(opts, :subtitle_color)),
+        separator_char: Keyword.get(opts, :separator_char),
+        separator_color: Color.parse_list_or_nil(Keyword.get(opts, :separator_color)) ||
+          Color.parse_or_nil(Keyword.get(opts, :separator_color)),
+        separator_length: Keyword.get(opts, :separator_length),
+        width: width_or_terminal(Keyword.get(opts, :width))
       )
 
     Printer.print_raw(rendered, printer_opts(global))
   end
 
-  # parse_color/1 delegates to Alaja.CLI.Color.parse_or_nil/1
+  defp width_or_terminal(nil), do: Base.term_width()
+  defp width_or_terminal(w) when is_integer(w), do: w
+  defp width_or_terminal(_), do: Base.term_width()
 
   defp printer_opts(g), do: GlobalOpts.to_printer_opts(g)
 

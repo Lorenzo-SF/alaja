@@ -22,11 +22,14 @@ defmodule Alaja.CLI.Commands.Show.Message do
       "alaja message <text> [--text T] [--color C] [--bg-color C] [--bold] [--italic] [--underline] [--dim] [--blink] [--reverse] [--hidden] [--strikethrough] [--padding N] [--addline C] [--chunk K=V]...",
     description: """
     Renders a styled message. Pass plain text as a positional argument,
-    or use `--text` plus styling switches. Use `--chunk key=value` to
-    emit multiple styled chunks with their own colors and effects.
+    or use `--text` plus styling switches. You can repeat `--text` as
+    many times as needed – each `--text` starts a new chunk, and all
+    switches that follow belong to that chunk until the next `--text`
+    (or end of line). This unifies the old `--text` + `--chunk` usage
+    under a single token.
     """,
     options: [
-      {:text, :string, nil, "Message text (or pass positional text)"},
+      {:text, :string, nil, "Message text (or pass positional text). Repeat to chain chunks."},
       {:color, :string, nil, "Foreground color"},
       {:bg_color, :string, nil, "Background color"},
       {:bold, :boolean, false, "Bold"},
@@ -39,15 +42,17 @@ defmodule Alaja.CLI.Commands.Show.Message do
       {:strikethrough, :boolean, false, "Strikethrough"},
       {:padding, :integer, nil, "Padding around the message"},
       {:addline, :string, nil, "Char to insert between chunks (eg space, comma)"},
-      {:chunk, :keep, nil, "key=value for a styled chunk (use multiple times)"},
+      {:chunk, :keep, nil, "key=value for a styled chunk (kept for back-compat)"},
       {:align, :string, nil, "Override alignment (else uses --align global)"}
     ],
     examples: [
       {"Plain text", "alaja message \"Hello world\""},
-      {"Colour + bold", "alaja message \"Deploy\" --color cyan --bold"},
+      {"Colour + bold", "alaja message --text \"Deploy\" --color cyan --bold"},
+      {"Repeated --text chunks",
+       "alaja message --text \"Deploy \" --color green --bold --text \"started\" --color cyan"},
       {"Background colour", "alaja message \"Production\" --bg-color red --color white"},
       {"Multiple effects", "alaja message \"Breaking change\" --bold --underline --blink"},
-      {"Chunked styling",
+      {"Chunked styling (legacy)",
        "alaja message --chunk \"Deploy|color:green|bold:true\" --chunk \"started|color:cyan\""},
       {"Inside a box",
        "alaja warning \"Server down\" --box --box-title \"ALERT\" --box-color red"},
@@ -89,32 +94,36 @@ defmodule Alaja.CLI.Commands.Show.Message do
   defp handle_message([], global, nil), do: help(global)
 
   defp handle_message(rest, global, nil) do
-    {opts, positional, _} =
-      OptionParser.parse(rest,
-        switches: [
-          text: :string,
-          color: :string,
-          bg_color: :string,
-          bold: :boolean,
-          italic: :boolean,
-          underline: :boolean,
-          dim: :boolean,
-          blink: :boolean,
-          reverse: :boolean,
-          hidden: :boolean,
-          strikethrough: :boolean,
-          padding: :integer,
-          addline: :string,
-          chunk: :keep
-        ]
-      )
-
-    chunk_args = Keyword.get_values(opts, :chunk)
-
-    if chunk_args != [] do
-      build_multi_chunk(chunk_args, opts, global)
+    if "--text" in rest do
+      build_repeated_text_chunks(rest, global)
     else
-      build_single_chunk(opts, positional, global)
+      {opts, positional, _} =
+        OptionParser.parse(rest,
+          switches: [
+            text: :string,
+            color: :string,
+            bg_color: :string,
+            bold: :boolean,
+            italic: :boolean,
+            underline: :boolean,
+            dim: :boolean,
+            blink: :boolean,
+            reverse: :boolean,
+            hidden: :boolean,
+            strikethrough: :boolean,
+            padding: :integer,
+            addline: :string,
+            chunk: :keep
+          ]
+        )
+
+      chunk_args = Keyword.get_values(opts, :chunk)
+
+      if chunk_args != [] do
+        build_multi_chunk(chunk_args, opts, global)
+      else
+        build_single_chunk(opts, positional, global)
+      end
     end
   end
 
@@ -214,6 +223,109 @@ defmodule Alaja.CLI.Commands.Show.Message do
       msg = MessageInfo.new([chunk], align: align, padding: padding, add_line: addline)
       output(msg, global)
     end
+  end
+
+  # Handles `alaja message --text "..." ... --text "..." ...`
+  #
+  # Splits the raw args at each `--text` token, builds a `ChunkText`
+  # for every segment (text + its trailing options) and renders the
+  # resulting multi-chunk message. Global options (`--align`,
+  # `--padding`, `--addline`, …) are taken from the *first* segment
+  # that sets them, mirroring the behaviour of the single-chunk path.
+  defp build_repeated_text_chunks(rest, global) do
+    segments = split_by_text(rest)
+    chunks_meta =
+      Enum.flat_map(segments, fn segment ->
+        case segment_to_chunk(segment) do
+          nil -> []
+          {text, tail} -> [{text, parse_segment_opts(tail)}]
+        end
+      end)
+
+    if chunks_meta == [] do
+      help(global)
+    else
+      chunks =
+        Enum.map(chunks_meta, fn {text, opts} ->
+          effects = build_effects(opts)
+          color = Color.parse_or_nil(Keyword.get(opts, :color))
+          bg_color = Color.parse_or_nil(Keyword.get(opts, :bg_color))
+
+          chunk_opts =
+            []
+            |> maybe_add(:color, color)
+            |> maybe_add(:bg_color, bg_color)
+            |> maybe_add(:effects, effects)
+
+          ChunkText.new(text, chunk_opts)
+        end)
+
+      {_text, first_opts} = hd(chunks_meta)
+
+      align =
+        case Keyword.get(first_opts, :align) do
+          nil -> global.align
+          val -> parse_align(val)
+        end
+
+      padding = Keyword.get(first_opts, :padding, 0)
+      addline = parse_addline(Keyword.get(first_opts, :addline))
+
+      msg = MessageInfo.new(chunks, align: align, padding: padding, add_line: addline)
+      output(msg, global)
+    end
+  end
+
+  # Splits `args` into a list of segments separated by the literal
+  # `--text` token. Each segment is a list of strings; the first
+  # element is either the chunk text (when it does not start with `--`)
+  # or the first option of a segment with no text.
+  defp split_by_text([]), do: [[]]
+
+  defp split_by_text(args) do
+    {segments, current} =
+      Enum.reduce(args, {[], []}, fn
+        "--text", {acc, cur} ->
+          {acc ++ [Enum.reverse(cur)], []}
+
+        arg, {acc, cur} ->
+          {acc, [arg | cur]}
+      end)
+
+    segments ++ [Enum.reverse(current)]
+  end
+
+  defp segment_to_chunk([]), do: nil
+
+  defp segment_to_chunk([first | rest]) when is_binary(first) do
+    if String.starts_with?(first, "--") do
+      {nil, [first | rest]}
+    else
+      {first, rest}
+    end
+  end
+
+  defp parse_segment_opts(opts) do
+    {parsed, _positional, _invalid} =
+      OptionParser.parse(opts,
+        switches: [
+          color: :string,
+          bg_color: :string,
+          bold: :boolean,
+          italic: :boolean,
+          underline: :boolean,
+          dim: :boolean,
+          blink: :boolean,
+          reverse: :boolean,
+          hidden: :boolean,
+          strikethrough: :boolean,
+          padding: :integer,
+          addline: :string,
+          align: :string
+        ]
+      )
+
+    parsed
   end
 
   defp parse_chunk(chunk_str) do

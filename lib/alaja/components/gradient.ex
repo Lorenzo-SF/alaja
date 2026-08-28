@@ -41,7 +41,7 @@ defmodule Alaja.Components.Gradient do
   """
   @spec render(String.t(), keyword()) :: String.t() | {:error, String.t()}
   def render(text, opts \\ []) do
-    direction = Keyword.get(opts, :direction, :left_to_right)
+    direction = Keyword.get(opts, :direction, :right_to_left)
     bg = Keyword.get(opts, :bg, false)
     text_color = Keyword.get(opts, :text_color)
     colors_str = Keyword.get(opts, :colors)
@@ -50,7 +50,7 @@ defmodule Alaja.Components.Gradient do
     if direction in [:up_to_down, :down_to_up] do
       render_vertical_gradient(lines, opts, colors_str, direction, bg, text_color)
     else
-      render_horizontal_gradient(lines, opts, colors_str, bg, text_color)
+      render_horizontal_gradient(lines, opts, colors_str, bg, text_color, direction)
     end
   end
 
@@ -146,7 +146,14 @@ defmodule Alaja.Components.Gradient do
   end
 
   @doc false
-  def render_horizontal_gradient(lines, opts, colors_str, bg, text_color) do
+  def render_horizontal_gradient(lines, opts, colors_str, bg, text_color, direction) do
+    horiz_direction =
+      case direction do
+        :right_to_left -> :left_to_right
+        :left_to_right -> :right_to_left
+        _ -> :left_to_right
+      end
+
     case colors_str do
       nil ->
         [from, to] =
@@ -156,7 +163,7 @@ defmodule Alaja.Components.Gradient do
           )
 
         apply_gradient_text(Enum.join(lines, "\n"), from, to,
-          direction: :left_to_right,
+          direction: horiz_direction,
           bg: bg,
           text_color: text_color
         )
@@ -164,7 +171,7 @@ defmodule Alaja.Components.Gradient do
       str ->
         case Parser.parse_color_list(str) do
           {:ok, colors_list} when length(colors_list) >= 2 ->
-            Enum.map_join(lines, "\n", &render_horizontal_line(&1, colors_list, bg, text_color)) <>
+            Enum.map_join(lines, "\n", &render_horizontal_line(&1, colors_list, bg, text_color, direction)) <>
               Alaja.ANSI.reset_attributes()
 
           _ ->
@@ -175,7 +182,7 @@ defmodule Alaja.Components.Gradient do
               )
 
             apply_gradient_text(Enum.join(lines, "\n"), from, to,
-              direction: :left_to_right,
+              direction: horiz_direction,
               bg: bg,
               text_color: text_color
             )
@@ -184,9 +191,10 @@ defmodule Alaja.Components.Gradient do
   end
 
   @doc false
-  def render_horizontal_line(line, colors_list, bg, text_color) do
+  def render_horizontal_line(line, colors_list, bg, text_color, direction) do
     steps = String.length(line)
     color_steps = Gradients.multicolor(colors_list, steps)
+    color_steps = if direction == :right_to_left, do: Enum.reverse(color_steps), else: color_steps
     apply_multicolor_text(line, color_steps, bg: bg, text_color: text_color)
   end
 
