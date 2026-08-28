@@ -696,8 +696,7 @@ defmodule Alaja.CLI.Definition do
         if missing == [],
           do: :ok,
           else:
-            {:error,
-             "Error: missing required flags: #{Enum.map_join(missing, ", ", &"--#{&1}")}"}
+            {:error, "Error: missing required flags: #{Enum.map_join(missing, ", ", &"--#{&1}")}"}
     end
   end
 

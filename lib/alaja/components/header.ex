@@ -57,6 +57,7 @@ defmodule Alaja.Components.Header do
     width = Keyword.get(opts, :width) || Alaja.CLI.Commands.Base.term_width()
 
     title_colors = normalize_color_list(Keyword.get(opts, :color)) || [@default_color]
+
     subtitle_colors =
       normalize_color_list(Keyword.get(opts, :subtitle_color)) || [@default_subtitle_color]
 
@@ -64,7 +65,8 @@ defmodule Alaja.Components.Header do
     separator_colors = normalize_color_list(Keyword.get(opts, :separator_color)) || title_colors
 
     # Determine separator characters for top and bottom lines
-    bottom_separator_char = if size == :large, do: default_separator_char(:medium), else: default_separator_char(:small)
+    bottom_separator_char =
+      if size == :large, do: default_separator_char(:medium), else: default_separator_char(:small)
 
     width = max(width, longest_line_length([title, subtitle], separator_char))
 
@@ -75,7 +77,8 @@ defmodule Alaja.Components.Header do
     buffer = Buffer.new(width, total_lines)
 
     # --- top decorative line ---------------------------------------------
-    buffer = fill_row(buffer, 0, separator_char, Enum.at(separator_colors, 0, @default_color), width)
+    buffer =
+      fill_row(buffer, 0, separator_char, Enum.at(separator_colors, 0, @default_color), width)
 
     # --- title lines (may be several) -----------------------------------
     {buffer, idx} =

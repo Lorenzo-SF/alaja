@@ -30,8 +30,10 @@ defmodule Alaja.CLI.Commands.Show.Message do
     """,
     options: [
       {:text, :string, nil, "Message text (or pass positional text). Repeat to chain chunks."},
-      {:color, :string, nil, "Foreground color"},
-      {:bg_color, :string, nil, "Background color"},
+      {:color, :string, nil,
+       "Foreground color (<format>:<code>; formats: rgb, argb, hex, xterm, cmyk, hsl, hsv, hwb, theme). Example: rgb:255,0,0"},
+      {:bg_color, :string, nil,
+       "Background color (<format>:<code>; formats: rgb, argb, hex, xterm, cmyk, hsl, hsv, hwb, theme). Example: hex:00ff00"},
       {:bold, :boolean, false, "Bold"},
       {:italic, :boolean, false, "Italic"},
       {:underline, :boolean, false, "Underline"},
@@ -234,6 +236,7 @@ defmodule Alaja.CLI.Commands.Show.Message do
   # that sets them, mirroring the behaviour of the single-chunk path.
   defp build_repeated_text_chunks(rest, global) do
     segments = split_by_text(rest)
+
     chunks_meta =
       Enum.flat_map(segments, fn segment ->
         case segment_to_chunk(segment) do

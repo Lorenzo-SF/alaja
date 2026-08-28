@@ -23,12 +23,14 @@ defmodule Alaja.CLI.Commands.Show.Separator do
     """,
     options: [
       {:char, :string, "─", "Character used to draw the decorative line"},
-      {:width, :integer, nil,
-       "Total width in characters (defaults to terminal width)"},
+      {:width, :integer, nil, "Total width in characters (defaults to terminal width)"},
       {:text, :string, nil, "Optional label embedded in the line"},
-      {:separator_color, :string, nil, "Colour for the decorative characters"},
-      {:color, :string, nil, "Alias for --separator-color (kept for back-compat)"},
-      {:text_color, :string, nil, "Colour of the centred label (defaults to separator colour)"}
+      {:separator_color, :string, nil,
+       "Colour for the decorative characters (<format>:<code>; formats: rgb, argb, hex, xterm, cmyk, hsl, hsv, hwb, theme). Example: theme:primary"},
+      {:color, :string, nil,
+       "Alias for --separator-color (kept for back-compat; <format>:<code>; formats: rgb, argb, hex, xterm, cmyk, hsl, hsv, hwb, theme)"},
+      {:text_color, :string, nil,
+       "Colour of the centred label (<format>:<code>; formats: rgb, argb, hex, xterm, cmyk, hsl, hsv, hwb, theme). Example: hex:ff0000 (defaults to separator colour)"}
     ],
     examples: [
       {"Plain rule", "alaja separator"},
@@ -36,8 +38,7 @@ defmodule Alaja.CLI.Commands.Show.Separator do
        "alaja separator \"DEPLOY\" --separator-color hex:#00ffff --text-color hex:#ff00ff"},
       {"Custom character",
        "alaja separator --char \"=\" --width 40 --separator-color theme:secondary"},
-      {"Thin line with title",
-       "alaja separator \"Section\" --char \"─\" --separator-color grey"}
+      {"Thin line with title", "alaja separator \"Section\" --char \"─\" --separator-color grey"}
     ]
   ]
 
@@ -71,8 +72,10 @@ defmodule Alaja.CLI.Commands.Show.Separator do
     char = Keyword.get(opts, :char, "─")
     width = Keyword.get(opts, :width) || Base.term_width()
     text = Keyword.get(opts, :text)
+
     separator_color =
       Color.parse_or_nil(Keyword.get(opts, :separator_color) || Keyword.get(opts, :color))
+
     text_color = Color.parse_or_nil(Keyword.get(opts, :text_color))
 
     rendered =

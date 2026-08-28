@@ -22,10 +22,12 @@ defmodule Alaja.CLI.Commands.Show.Gradient do
     directions (`up_to_down` / `down_to_up`).
     """,
     options: [
-      {:from, :string, nil, "Start color (<formato>:<codigo> o #hex)"},
-      {:to, :string, nil, "End color (<formato>:<codigo> o #hex)"},
+      {:from, :string, nil,
+       "Start color (<format>:<code>; formats: rgb, argb, hex, xterm, cmyk, hsl, hsv, hwb, theme). Example: rgb:255,0,0"},
+      {:to, :string, nil,
+       "End color (<format>:<code>; formats: rgb, argb, hex, xterm, cmyk, hsl, hsv, hwb, theme). Example: hex:ff0000"},
       {:colors, :string, nil,
-       "List of gradient stops separated by `|` or `,` (e.g. hex:ff0000|hex:00ff00|hex:0000ff)"},
+       "List of gradient stops separated by `|` (NOT commas; e.g. hex:ff0000|hex:00ff00|hex:0000ff; formats: rgb, argb, hex, xterm, cmyk, hsl, hsv, hwb, theme). Example: theme:primary|theme:secondary|rgb:0,255,0"},
       {:direction, :string, "right_to_left",
        "Gradient direction: right_to_left (default), left_to_right, up_to_down (list only), down_to_up (list only), horizontal, vertical"},
       {:bg, :boolean, false, "Apply the gradient to the background instead of the foreground"},

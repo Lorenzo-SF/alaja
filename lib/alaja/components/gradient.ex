@@ -171,7 +171,11 @@ defmodule Alaja.Components.Gradient do
       str ->
         case Parser.parse_color_list(str) do
           {:ok, colors_list} when length(colors_list) >= 2 ->
-            Enum.map_join(lines, "\n", &render_horizontal_line(&1, colors_list, bg, text_color, direction)) <>
+            Enum.map_join(
+              lines,
+              "\n",
+              &render_horizontal_line(&1, colors_list, bg, text_color, direction)
+            ) <>
               Alaja.ANSI.reset_attributes()
 
           _ ->

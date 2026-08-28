@@ -25,12 +25,12 @@ defmodule Alaja.CLI.Commands.Show.Header do
       {:subtitle, :string, nil, "Subtitle text (use `;` to split lines)"},
       {:size, :string, "medium", "Size: small, medium, large"},
       {:color, :string, nil,
-       "Title colour (single value or `|` / `,` separated list, one per line)"},
+       "Title colour (<format>:<code> or list of colours separated by `|`; formats: rgb, argb, hex, xterm, cmyk, hsl, hsv, hwb, theme). Example: rgb:255,0,0|theme:primary"},
       {:subtitle_color, :string, nil,
-       "Subtitle colour (single value or `|` / `,` separated list)"},
+       "Subtitle colour (<format>:<code> or list of colours separated by `|`; formats: rgb, argb, hex, xterm, cmyk, hsl, hsv, hwb, theme). Example: hex:ff0000|theme:secondary"},
       {:separator_char, :string, nil, "Character used for decorative lines"},
       {:separator_color, :string, nil,
-       "Colour of the decorative lines (single value or list)"},
+       "Colour of the decorative lines (<format>:<code> or list separated by `|`; formats: rgb, argb, hex, xterm, cmyk, hsl, hsv, hwb, theme). Example: theme:primary"},
       {:separator_length, :integer, nil,
        "Override the length of the decorative lines (defaults to terminal width)"},
       {:width, :integer, 80, "Total width in characters (default: terminal width)"}
@@ -87,13 +87,16 @@ defmodule Alaja.CLI.Commands.Show.Header do
             {:ok, atom} -> atom
             {:error, _} -> :medium
           end,
-        color: Color.parse_list_or_nil(Keyword.get(opts, :color)) ||
-          Color.parse_or_nil(Keyword.get(opts, :color)),
-        subtitle_color: Color.parse_list_or_nil(Keyword.get(opts, :subtitle_color)) ||
-          Color.parse_or_nil(Keyword.get(opts, :subtitle_color)),
+        color:
+          Color.parse_list_or_nil(Keyword.get(opts, :color)) ||
+            Color.parse_or_nil(Keyword.get(opts, :color)),
+        subtitle_color:
+          Color.parse_list_or_nil(Keyword.get(opts, :subtitle_color)) ||
+            Color.parse_or_nil(Keyword.get(opts, :subtitle_color)),
         separator_char: Keyword.get(opts, :separator_char),
-        separator_color: Color.parse_list_or_nil(Keyword.get(opts, :separator_color)) ||
-          Color.parse_or_nil(Keyword.get(opts, :separator_color)),
+        separator_color:
+          Color.parse_list_or_nil(Keyword.get(opts, :separator_color)) ||
+            Color.parse_or_nil(Keyword.get(opts, :separator_color)),
         separator_length: Keyword.get(opts, :separator_length),
         width: width_or_terminal(Keyword.get(opts, :width))
       )

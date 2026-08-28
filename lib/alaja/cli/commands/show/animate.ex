@@ -22,7 +22,8 @@ defmodule Alaja.CLI.Commands.Show.Animate do
       {:color, :string, nil, "Single color for the animation"},
       {:speed, :integer, 100, "Frames per second"},
       {:chars, :string, nil, "Custom spinner characters (overrides the type defaults)"},
-      {:colors, :string, nil, "Comma-separated list of colors for multi-color animations"}
+      {:colors, :string, nil,
+       "List of colors separated by `|` (NOT commas; formats: rgb, argb, hex, xterm, cmyk, hsl, hsv, hwb, theme). Example: theme:primary|theme:secondary|rgb:255,0,0"}
     ],
     examples: [
       {"Default spinner", "alaja animate"},

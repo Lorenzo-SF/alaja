@@ -64,8 +64,10 @@ defmodule Alaja.Components.Separator do
   @spec render(String.t() | nil, keyword()) :: Buffer.t()
   def render(text \\ nil, opts \\ []) do
     char = Keyword.get(opts, :char, @default_char)
+
     separator_color =
       Keyword.get(opts, :separator_color) || Keyword.get(opts, :color) || @default_color
+
     text_color = Keyword.get(opts, :text_color) || separator_color
     width = Keyword.get(opts, :width) || Alaja.CLI.Commands.Base.term_width()
 

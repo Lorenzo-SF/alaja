@@ -55,6 +55,7 @@ defmodule Alaja.Components.Breadcrumbs do
     # colour positionally for each item, cycling through the list.
     item_colors = expand_color_list(items, item_color, @default_item_color)
     last_idx = length(items) - 1
+
     current_colors =
       if is_list(current_color) do
         current_color
@@ -63,6 +64,7 @@ defmodule Alaja.Components.Breadcrumbs do
       end
 
     sep_str = " #{separator} "
+
     total_w =
       items
       |> Enum.with_index()
@@ -75,35 +77,41 @@ defmodule Alaja.Components.Breadcrumbs do
 
     items
     |> Enum.with_index()
-  |> Enum.reduce({buffer, x}, fn {item, idx}, {buf, cx} ->
-    color = if idx == last_idx do
-      Enum.at(current_colors, idx, Enum.at(current_colors, 0))
-    else
-      # Use item_color directly if not a list of colors
-      if is_nil(item_colors) do
-        item_color
-      else
-        Enum.at(item_colors, idx, Enum.at(item_colors, 0))
-      end
-    end
-    buf = write_string(buf, cx, 0, item, color)
+    |> Enum.reduce({buffer, x}, fn {item, idx}, {buf, cx} ->
+      color =
+        if idx == last_idx do
+          Enum.at(current_colors, idx, Enum.at(current_colors, 0))
+        else
+          # Use item_color directly if not a list of colors
+          if is_nil(item_colors) do
+            item_color
+          else
+            Enum.at(item_colors, idx, Enum.at(item_colors, 0))
+          end
+        end
 
-    if idx < last_idx do
-      {write_string(buf, cx + String.length(item), 0, sep_str, sep_color),
-       cx + String.length(item) + String.length(sep_str)}
-    else
-      {buf, cx + String.length(item)}
-    end
-  end)
-  |> elem(0)
+      buf = write_string(buf, cx, 0, item, color)
+
+      if idx < last_idx do
+        {write_string(buf, cx + String.length(item), 0, sep_str, sep_color),
+         cx + String.length(item) + String.length(sep_str)}
+      else
+        {buf, cx + String.length(item)}
+      end
+    end)
+    |> elem(0)
   end
 
   defp expand_color_list(items, colors, default) when is_list(colors),
-    do: Enum.map(0..(length(items) - 1)//1, fn i -> Enum.at(colors, i, Enum.at(colors, 0) || default) end) |> Enum.map(&(&1 || default))
+    do:
+      Enum.map(0..(length(items) - 1)//1, fn i ->
+        Enum.at(colors, i, Enum.at(colors, 0) || default)
+      end)
+      |> Enum.map(&(&1 || default))
 
   defp expand_color_list(_items, _color, _default),
-    do: nil  # marker: use the single colour
-
+    # marker: use the single colour
+    do: nil
 
   defp write_string(buffer, x, y, string, fg) do
     string

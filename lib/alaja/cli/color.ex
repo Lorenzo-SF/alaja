@@ -22,9 +22,12 @@ defmodule Alaja.CLI.Color do
   Un nombre suelto (`red`) o un formato desconocido siguen siendo
   invalidos y devuelven `{:error, msg}` con el color literal.
 
-  Listas de colores: separadas por `|`:
+  Listas de colores: separadas **SOLO** por `|` (NO por comas):
 
       db|theme:error|rgb:255;0;0
+
+  El separador `|` separa colores distintos. Las comas (`;` o `,`) solo se
+  usan dentro de un color para separar sus componentes (ej: `rgb:255,0,0`).
 
   `theme:<key>` resuelve un color del tema activo; si la key no existe
   en el tema, se devuelve blanco `{255, 255, 255}` por defecto.
@@ -79,22 +82,32 @@ defmodule Alaja.CLI.Color do
   def parse_or_nil(_), do: nil
 
   @doc """
-  Parsea una lista de colores separados por `|`.
+  Parsea una lista de colores separados por `|` (NO por comas).
 
   Devuelve `{:ok, [{r,g,b}, ...]}` o `{:error, msg}` acumulando todos
   los colores que fallaron la validacion. `nil` pasa como `nil`.
+
+  El separador `|` separa colores distintos. Las comas (`;` o `,`) solo se
+  usan dentro de un color para separar sus componentes (ej: `rgb:255,0,0`).
+
+  ## Ejemplos
+
+      iex> Color.parse_list("rgb:255,0,0|theme:primary")
+      {:ok, [{255, 0, 0}, {_, _, _}]}
+
+      iex> Color.parse_list("hex:#ff0000;00ff00|rgb:0,0,255")
+      {:ok, [{255, 0, 0}, {0, 255, 0}, {0, 0, 255}]}
   """
   @spec parse_list(String.t() | nil) ::
           {:ok, [{0..255, 0..255, 0..255}]} | {:error, String.t()} | nil
   def parse_list(nil), do: nil
 
   def parse_list(str) when is_binary(str) do
-    # Accept both `|` and `,` as separators so that users coming
-    # from `alaja gradient` (which historically used `|`) can also
-    # pass comma-separated lists to commands like `alaja table`
-    # or `alaja header`.
+    # List separator is only `|` to avoid splitting inside color codes like
+    # `rgb:255,0,0`. Users can use commas for color components but must use
+    # pipe for separate colors.
     str
-    |> String.split(~r/[|,]/, trim: false)
+    |> String.split("|", trim: true)
     |> Enum.map(&String.trim/1)
     |> Enum.reject(&(&1 == ""))
     |> parse_each()
