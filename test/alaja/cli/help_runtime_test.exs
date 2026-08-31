@@ -26,11 +26,8 @@ defmodule Alaja.CLI.HelpRuntimeTest do
         {Alaja.CLI.Commands.Show.Image, "image"},
         {Alaja.CLI.Commands.Show.Json, "json"},
         {Alaja.CLI.Commands.Show.List, "list"},
-        {Alaja.CLI.Commands.Show.Log, "log"},
         {Alaja.CLI.Commands.Show.Menu, "menu"},
         {Alaja.CLI.Commands.Show.Message, "message"},
-        {Alaja.CLI.Commands.Show.Multibar, "multibar"},
-        {Alaja.CLI.Commands.Show.Progress, "progress"},
         {Alaja.CLI.Commands.Show.Pulsar, "pulsar"},
         {Alaja.CLI.Commands.Show.Separator, "separator"},
         {Alaja.CLI.Commands.Show.Table, "table"},
@@ -108,7 +105,7 @@ defmodule Alaja.CLI.HelpRuntimeTest do
           "--to",
           "blue",
           "--direction",
-          "horizontal",
+          "left_to_right",
           "--bg",
           "--text-color",
           "white"
@@ -298,15 +295,6 @@ defmodule Alaja.CLI.HelpRuntimeTest do
     assert capture =~ "animated-bar"
   end
 
-  test "multibar --help shows usage" do
-    capture =
-      capture_io(fn ->
-        Alaja.CLI.Commands.Show.Multibar.run(["--help"])
-      end)
-
-    assert capture =~ "multibar"
-  end
-
   test "pulsar with --duration 200ms renders" do
     capture =
       capture_io(fn ->
@@ -314,36 +302,6 @@ defmodule Alaja.CLI.HelpRuntimeTest do
       end)
 
     assert capture =~ "Alaja" or capture != ""
-  end
-
-  test "log with --max-lines renders and trims" do
-    capture =
-      capture_io(fn ->
-        Alaja.CLI.Commands.Show.Log.run(["a", "b", "c", "--max-lines", "2"])
-      end)
-
-    assert capture =~ "b"
-    assert capture =~ "c"
-    refute capture =~ "a"
-  end
-
-  test "progress with --current, --total, --width, --label renders" do
-    capture =
-      capture_io(fn ->
-        Alaja.CLI.Commands.Show.Progress.run([
-          "--current",
-          "50",
-          "--total",
-          "100",
-          "--width",
-          "20",
-          "--label",
-          "build"
-        ])
-      end)
-
-    assert capture =~ "build"
-    assert capture =~ "50%"
   end
 
   test "main --version prints the version" do

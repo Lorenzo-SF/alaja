@@ -79,14 +79,19 @@ defmodule Alaja.CLI.GlobalOptsTest do
       assert opts.color == false
     end
 
-    test "parses --color flag (force)" do
-      {opts, _rest} = GlobalOpts.parse(["--color"])
+    test "parses --force-color flag (force)" do
+      {opts, _rest} = GlobalOpts.parse(["--force-color"])
       assert opts.color == true
       assert opts.no_color == false
     end
 
-    test "--no-color and --color both set (last wins on no_color side)" do
-      {opts, _rest} = GlobalOpts.parse(["--no-color", "--color"])
+    test "parses --force-colour alias (force)" do
+      {opts, _rest} = GlobalOpts.parse(["--force-colour"])
+      assert opts.color == true
+    end
+
+    test "--no-color and --force-color both set (last wins on no_color side)" do
+      {opts, _rest} = GlobalOpts.parse(["--no-color", "--force-color"])
       assert opts.color == true
       assert opts.no_color == true
     end

@@ -48,7 +48,13 @@ defmodule Alaja.Components.Breadcrumbs do
     separator = Keyword.get(opts, :separator, @default_separator)
     item_color = Keyword.get(opts, :item_color, @default_item_color)
     current_color = Keyword.get(opts, :current_color, @default_current_color)
-    sep_color = Keyword.get(opts, :separator_color, @default_separator_color)
+
+    sep_color =
+      case Keyword.get(opts, :separator_color) do
+        [c | _] -> c
+        nil -> @default_separator_color
+        other -> other
+      end
 
     # Allow both a single colour and a list of colours. When the user
     # passes a list for `:item_color` (or `:current_color`) we pick the

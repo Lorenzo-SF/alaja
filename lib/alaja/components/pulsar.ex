@@ -22,8 +22,10 @@ defmodule Alaja.Components.Pulsar do
   - `:align` — text alignment (:left, :center, :right; default: :center)
   """
 
+  alias Alaja.ANSI
   alias Alaja.Buffer
   alias Alaja.Cell
+  alias Alaja.Components.Box
   alias Alaja.ImageRenderer
 
   @default_pulse_chars ["░", "▒", "▓", "█"]
@@ -390,4 +392,261 @@ defmodule Alaja.Components.Pulsar do
       content_type: :text
     ]
   end
+
+  # ---------------------------------------------------------------------------
+  # Animation runtime — drives the loop that calls render_frame/3 and
+  # render_frame_pixels/3 each tick. The CLI is a thin wrapper that
+  # parses argv into `opts` (component opts) and `global` (placement).
+  # ---------------------------------------------------------------------------
+
+  @doc """
+  Runs the pulsar animation in the terminal. Blocks until `duration`
+  (ms) elapses; returns `:ok` when finished.
+
+  `opts` carries component-level settings (width, height, speed,
+  direction, colors, pulse_chars, align, content_type, content_position_x,
+  content_position_y, image_path, duration). `global` is a keyword list
+  with positioning flags from the CLI: `raw`, `pos_x`, `pos_y`, `box`,
+  `box_title`, `box_border`, `box_color`, `align`, `no_color`. Any
+  unknown key is ignored, so the CLI can pass the whole global struct.
+  """
+  @spec run(String.t(), keyword(), keyword()) :: :ok
+  def run(text, opts, global) when is_binary(text) and is_list(opts) do
+    duration = Keyword.get(opts, :duration)
+    speed = Keyword.get(opts, :speed, 100)
+    content_type = Keyword.get(opts, :content_type, :text)
+
+    case content_type do
+      :image -> run_image(text, opts, global, speed, duration)
+      _ -> run_text(text, opts, global, speed, duration)
+    end
+  end
+
+  defp run_text(text, opts, global, speed, duration) do
+    height = Keyword.get(opts, :height, @default_height)
+    box_height = if global[:box], do: height + 2, else: height
+    use_abs = global[:raw] || (global[:pos_x] || 0) > 0 || (global[:pos_y] || 0) > 0
+    start_x = (global[:pos_x] || 0) + 1
+    start_y = (global[:pos_y] || 0) + 1
+    align = global[:align] || :left
+    internal_align = Keyword.get(opts, :align, :center)
+
+    left_pad =
+      if align == internal_align,
+        do: 0,
+        else: calculate_left_padding(align, Keyword.get(opts, :width, @default_width))
+
+    # Abort cleanly when the animation would not fit vertically. Without
+    # this guard, the relative cursor-up escape would walk past row 1 and
+    # wipe unrelated content above the pulsar.
+    term_h =
+      case :io.rows() do
+        {:ok, h} -> h
+        _ -> 24
+      end
+
+    if start_y + box_height - 1 > term_h do
+      IO.write(
+        :stderr,
+        "alaja pulsar: not enough vertical space (#{start_y + box_height - 1} > #{term_h}); aborting\n"
+      )
+
+      :ok
+    else
+      IO.write(ANSI.hide_cursor())
+
+      try do
+        ctx = %{
+          start_x: start_x,
+          start_y: start_y,
+          left_pad: left_pad,
+          box_height: box_height,
+          use_abs: use_abs,
+          no_color: global[:no_color] || false
+        }
+
+        animate_text_loop(text, opts, global, speed, duration, ctx)
+      after
+        IO.write(ANSI.show_cursor())
+      end
+
+      :ok
+    end
+  end
+
+  defp animate_text_loop(text, opts, global, speed, duration, ctx, frame \\ 0) do
+    cond do
+      duration && duration > 0 && frame * speed >= duration ->
+        IO.write([ANSI.clear_line_down(), ANSI.show_cursor()])
+        :ok
+
+      true ->
+        frame_output = render_frame(text, frame, opts)
+        output = wrap_if_boxed(frame_output, global, ctx.no_color)
+        write_text_frame(output, frame, ctx)
+        :timer.sleep(speed)
+        animate_text_loop(text, opts, global, speed, duration, ctx, frame + 1)
+    end
+  end
+
+  # Raw mode: redraw each line at its target (start_x, start_y + row).
+  # sync_output_start/end batches the frame so the terminal renders it in
+  # one shot (no flicker). Frame 0 also hides the cursor (only useful in
+  # raw mode).
+  defp write_text_frame(output, 0, %{use_abs: true} = ctx) do
+    positioned = position_abs(output, ctx.start_x, ctx.start_y, ctx.left_pad)
+    IO.write([ANSI.hide_cursor(), positioned])
+  end
+
+  defp write_text_frame(output, _frame, %{use_abs: true} = ctx) do
+    positioned = position_abs(output, ctx.start_x, ctx.start_y, ctx.left_pad)
+    IO.write([ANSI.sync_output_start(), positioned, ANSI.sync_output_end()])
+  end
+
+  # Relative mode: pad each line with spaces on the left, restore cursor
+  # on frame N>0 so subsequent frames overwrite the previous.
+  defp write_text_frame(output, 0, %{use_abs: false} = ctx) do
+    padded = pad_left(output, ctx.left_pad)
+    IO.write([ANSI.save_cursor(), padded])
+  end
+
+  defp write_text_frame(output, _frame, %{use_abs: false} = ctx) do
+    padded = pad_left(output, ctx.left_pad)
+    IO.write([ANSI.restore_cursor(), ANSI.clear_line_down(), padded])
+  end
+
+  defp position_abs(output, start_x, start_y, left_pad) do
+    output
+    |> IO.iodata_to_binary()
+    |> String.split("\n")
+    |> Enum.with_index()
+    |> Enum.map_join(fn {line, row} ->
+      ANSI.move_to(start_x + left_pad, start_y + row) <> line
+    end)
+  end
+
+  defp pad_left(output, left_pad) do
+    output
+    |> IO.iodata_to_binary()
+    |> String.split("\n")
+    |> Enum.map_join("\n", fn line -> String.duplicate(" ", left_pad) <> line end)
+  end
+
+  defp wrap_if_boxed(buffer, global, _no_color) do
+    if global[:box] do
+      box_opts =
+        []
+        |> maybe_add(:title, global[:box_title])
+        |> maybe_add(:border, global[:box_border])
+        |> maybe_add(:border_color, global[:box_color])
+
+      buffer
+      |> Box.render(box_opts)
+      |> Buffer.to_iodata()
+    else
+      Buffer.to_iodata(buffer)
+    end
+  end
+
+  defp calculate_left_padding(align, content_width) do
+    terminal_width =
+      case :io.columns() do
+        {:ok, w} -> w
+        _ -> 80
+      end
+
+    available = terminal_width - content_width
+
+    case align do
+      :left -> 0
+      :center -> max(0, div(available, 2))
+      :right -> max(0, available)
+    end
+  end
+
+  defp run_image(text, opts, global, speed, duration) do
+    image_path = Keyword.get(opts, :image_path)
+
+    cond do
+      is_nil(image_path) or image_path == "" ->
+        IO.puts(:stderr, "Error: --image-path is required when using --content-type image")
+        exit({:shutdown, 1})
+
+      not File.exists?(image_path) ->
+        IO.puts(:stderr, "Error: Image file not found: #{image_path}")
+        exit({:shutdown, 1})
+
+      true ->
+        IO.write(ANSI.hide_cursor())
+
+        try do
+          animate_image_loop(text, opts, global, image_path, speed, duration)
+        after
+          IO.write(ANSI.show_cursor())
+        end
+
+        :ok
+    end
+  end
+
+  defp animate_image_loop(text, opts, global, image_path, speed, duration, frame \\ 0) do
+    if duration && duration > 0 && frame * speed >= duration do
+      :ok
+    else
+      case render_frame_pixels(image_path, frame, opts) do
+        {:ok, pixels} ->
+          ctx = build_image_ctx(opts, global)
+          write_image_frame(pixels, frame, ctx)
+          :timer.sleep(speed)
+          animate_image_loop(text, opts, global, image_path, speed, duration, frame + 1)
+
+        {:error, reason} ->
+          IO.puts(:stderr, "Error rendering image: #{reason}")
+      end
+    end
+  end
+
+  defp build_image_ctx(opts, global) do
+    width = Keyword.get(opts, :width, @default_width)
+    height = Keyword.get(opts, :height, @default_height)
+    use_abs = global[:raw] || (global[:pos_x] || 0) > 0 || (global[:pos_y] || 0) > 0
+    start_x = (global[:pos_x] || 0) + 1
+    start_y = (global[:pos_y] || 0) + 1
+    align = global[:align] || :left
+    internal_align = Keyword.get(opts, :align, :center)
+
+    left_pad =
+      if align == internal_align,
+        do: 0,
+        else: calculate_left_padding(align, width)
+
+    %{
+      width: width,
+      height: height,
+      start_x: start_x,
+      start_y: start_y,
+      left_pad: left_pad,
+      use_abs: use_abs
+    }
+  end
+
+  defp write_image_frame(pixels, _frame, %{use_abs: true} = ctx) do
+    IO.write(ANSI.move_to(ctx.start_x + ctx.left_pad, ctx.start_y))
+    ImageRenderer.render(pixels, width: ctx.width, height: ctx.height, align: :left)
+  end
+
+  defp write_image_frame(pixels, 0, %{use_abs: false} = ctx) do
+    IO.write(ANSI.save_cursor())
+    if ctx.left_pad > 0, do: IO.write(String.duplicate(" ", ctx.left_pad))
+    ImageRenderer.render(pixels, width: ctx.width, height: ctx.height, align: :left)
+  end
+
+  defp write_image_frame(pixels, _frame, %{use_abs: false} = ctx) do
+    IO.write([ANSI.restore_cursor(), ANSI.clear_line_down()])
+    if ctx.left_pad > 0, do: IO.write(String.duplicate(" ", ctx.left_pad))
+    ImageRenderer.render(pixels, width: ctx.width, height: ctx.height, align: :left)
+  end
+
+  defp maybe_add(list, _key, nil), do: list
+  defp maybe_add(list, key, value), do: Keyword.put(list, key, value)
 end

@@ -5,10 +5,9 @@ defmodule Alaja.CLI.Commands.Show.TableTest do
   These tests cover the historical bugs where the CLI parsing format
   diverged from what `@help_data :usage` documented:
 
-    * B13: `--headers 'a,b,c'` was split by `;` (now split by `,`).
-    * B14: `--rows '1,2;3,4'` was split first by `|` then by `;` (now
-      split by `,` per row, with rows separated by `;`-equivalent
-      spaces).
+    * B13: `--headers 'a;b;c'` was split by `,` (now split by `;`).
+    * B14: `--rows '1;2;;3;4'` was split by `,` then by `;` (now split
+      by `;` per cell, with rows separated by `;;`).
     * B15: `--row-N-effect bold` was accepted as `rows_<n>_effect` (singular)
       but the backend only matches `rows_<n>_effects` (plural). The fix
       normalises singular to plural.
@@ -24,14 +23,14 @@ defmodule Alaja.CLI.Commands.Show.TableTest do
   # End-to-end smoke tests
   # -----------------------------------------------------------------
 
-  test "renders a simple grid with comma-separated headers" do
+  test "renders a simple grid with semicolon-separated headers" do
     output =
       capture_io(fn ->
         Table.run([
           "--headers",
-          "name,status",
+          "name;status",
           "--rows",
-          "api,OK;db,WARN"
+          "api;OK;;db;WARN"
         ])
       end)
 
@@ -41,21 +40,20 @@ defmodule Alaja.CLI.Commands.Show.TableTest do
   end
 
   test "renders a single-column header without splitting it" do
+    # Without the new spec the legacy `name,status` should now appear as
+    # ONE column called "name,status" because `,` is not a separator.
     output =
       capture_io(fn ->
         Table.run([
           "--headers",
           "name,status",
           "--rows",
-          "alice;bob"
+          "alice"
         ])
       end)
 
-    # The header should be ONE column, not split into two.
-    assert output =~ "name"
-    assert output =~ "status"
+    assert output =~ "name,status"
     assert output =~ "alice"
-    assert output =~ "bob"
   end
 
   test "rows with multiple cells render correctly" do
@@ -63,9 +61,9 @@ defmodule Alaja.CLI.Commands.Show.TableTest do
       capture_io(fn ->
         Table.run([
           "--headers",
-          "service,status,uptime",
+          "service;status;uptime",
           "--rows",
-          "api,OK,12d;db,WARN,2h"
+          "api;OK;12d;;db;WARN;2h"
         ])
       end)
 
@@ -80,9 +78,9 @@ defmodule Alaja.CLI.Commands.Show.TableTest do
       capture_io(fn ->
         Table.run([
           "--headers",
-          " name , status ",
+          " name ; status ",
           "--rows",
-          " api , OK ; db , WARN "
+          " api ; OK ;; db ; WARN "
         ])
       end)
 
@@ -92,16 +90,29 @@ defmodule Alaja.CLI.Commands.Show.TableTest do
     assert output =~ "db"
   end
 
+  test "literal semicolon inside a cell via \\;" do
+    output =
+      capture_io(fn ->
+        Table.run([
+          "--headers",
+          "name;note",
+          "--rows",
+          "alice;ok\\;on-call;;bob;warn\\;backup"
+        ])
+      end)
+
+    assert output =~ "ok;on-call"
+    assert output =~ "warn;backup"
+  end
+
   # -----------------------------------------------------------------
   # Regression tests for the historical bugs
   # -----------------------------------------------------------------
 
-  test "B13 regression: --headers split by `,`, not `;`" do
-    # Old behaviour: `String.split("a,b,c", ";")` returned ["a,b,c"] (one header).
-    # Fixed: split by `,` gives ["a", "b", "c"] (three headers).
+  test "B13 regression: --headers split by `;`, not `,`" do
     output =
       capture_io(fn ->
-        Table.run(["--headers", "a,b,c", "--rows", "1,2,3", "4,5,6"])
+        Table.run(["--headers", "a;b;c", "--rows", "1;2;3;;4;5;6"])
       end)
 
     assert output =~ "a"
@@ -109,17 +120,14 @@ defmodule Alaja.CLI.Commands.Show.TableTest do
     assert output =~ "c"
   end
 
-  test "B14 regression: --rows cells split by `,`" do
-    # Old behaviour: each --rows value was split by `|` and then each
-    # chunk by `;`. The fixed parser splits each --rows by `;` for
-    # rows then `,` for cells within each row.
+  test "B14 regression: --rows cells split by `;`" do
     output =
       capture_io(fn ->
         Table.run([
           "--headers",
-          "x,y",
+          "x;y",
           "--rows",
-          "1,2;3,4;5,6"
+          "1;2;;3;4;;5;6"
         ])
       end)
 
@@ -136,9 +144,9 @@ defmodule Alaja.CLI.Commands.Show.TableTest do
       capture_io(fn ->
         Table.run([
           "--headers",
-          "name,status",
+          "name;status",
           "--rows",
-          "api,OK;db,WARN",
+          "api;OK;;db;WARN",
           "--row-1-effects",
           "bold",
           "--row-2-effects",
@@ -146,9 +154,6 @@ defmodule Alaja.CLI.Commands.Show.TableTest do
         ])
       end)
 
-    # If the suffix were `effect` (singular), the parser would not match
-    # the backend's `_effects` matcher and the options would be silently
-    # dropped. The rendered table should still contain the row labels.
     assert output =~ "api"
     assert output =~ "db"
     assert output =~ "OK"
@@ -160,16 +165,14 @@ defmodule Alaja.CLI.Commands.Show.TableTest do
       capture_io(fn ->
         Table.run([
           "--headers",
-          "name,status",
+          "name;status",
           "--rows",
-          "api,OK",
+          "api;OK",
           "--row-1-effect",
           "bold"
         ])
       end)
 
-    # The parser normalises singular to plural so existing scripts keep
-    # working without changes.
     assert output =~ "api"
     assert output =~ "OK"
   end

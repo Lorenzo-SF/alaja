@@ -26,10 +26,7 @@ defmodule Alaja.CLI.Dispatch do
     Image,
     Json,
     List,
-    Log,
     Menu,
-    Multibar,
-    Progress,
     Pulsar,
     Separator,
     Table,
@@ -74,8 +71,6 @@ defmodule Alaja.CLI.Dispatch do
   def bar(opts), do: Bar.run(opts._args)
   @doc "Dispatches the `alaja animated-bar` command."
   def animated_bar(opts), do: AnimatedBar.run(opts._args)
-  @doc "Dispatches the `alaja multibar` command."
-  def multibar(opts), do: Multibar.run(opts._args)
   @doc "Dispatches the `alaja breadcrumbs` command."
   def breadcrumbs(opts), do: Breadcrumbs.run(opts._args)
   @doc "Dispatches the `alaja animate` command."
@@ -86,10 +81,6 @@ defmodule Alaja.CLI.Dispatch do
   def image(opts), do: Image.run(opts._args)
   @doc "Dispatches the `alaja list` command."
   def list(opts), do: List.run(opts._args)
-  @doc "Dispatches the `alaja log` command."
-  def log(opts), do: Log.run(opts._args)
-  @doc "Dispatches the `alaja progress` command."
-  def progress(opts), do: Progress.run(opts._args)
   @doc "Dispatches the `alaja ask` command."
   def ask(opts), do: Ask.run(opts._args)
   @doc "Dispatches the `alaja menu` command."

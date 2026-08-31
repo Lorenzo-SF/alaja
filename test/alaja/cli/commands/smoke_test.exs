@@ -7,9 +7,9 @@ defmodule Alaja.CLI.Commands.SmokeTest do
   The goal is to catch regressions where a documented switch stops
   being accepted at runtime.
 
-  Stateful commands (`multibar`, `animated_bar`, `animate`, `pulsar`,
-  `ask`, `menu`, `yesno`) are invoked with `--duration` or similar
-  so they exit on their own rather than waiting for stdin.
+  Stateful commands (`animated_bar`, `animate`, `pulsar`, `ask`, `menu`,
+  `yesno`) are invoked with `--duration` or similar so they exit on their
+  own rather than waiting for stdin.
   """
 
   use ExUnit.Case, async: true
@@ -107,52 +107,9 @@ defmodule Alaja.CLI.Commands.SmokeTest do
     assert output != ""
   end
 
-  test "log renders multiple lines" do
-    output =
-      capture_io(fn ->
-        Alaja.CLI.Commands.Show.Log.run(["line a", "line b", "line c"])
-      end)
-
-    assert output =~ "line a"
-    assert output =~ "line b"
-    assert output =~ "line c"
-  end
-
   test "menu --help does not crash" do
     output = capture_io(fn -> Alaja.CLI.Commands.Show.Menu.run(["--help"]) end)
     assert output =~ "Alaja Menu"
-  end
-
-  test "multibar runs a 1s demo" do
-    output =
-      capture_io(fn ->
-        Alaja.CLI.Commands.Show.Multibar.run([
-          "--tasks",
-          "build:Building,test:Testing",
-          "--duration",
-          "1"
-        ])
-      end)
-
-    # demo may or may not render text depending on TTY detection
-    assert is_binary(output)
-  end
-
-  test "progress renders at given percentage" do
-    output =
-      capture_io(fn ->
-        Alaja.CLI.Commands.Show.Progress.run([
-          "--current",
-          "75",
-          "--total",
-          "100",
-          "--label",
-          "deploy"
-        ])
-      end)
-
-    assert output =~ "deploy"
-    assert output =~ "75"
   end
 
   test "pulsar runs with --duration 200ms" do
@@ -164,16 +121,16 @@ defmodule Alaja.CLI.Commands.SmokeTest do
     assert is_binary(output)
   end
 
-  test "table renders CSV-like input" do
+  test "table renders semicolon-separated input" do
     output =
       capture_io(fn ->
         Alaja.CLI.Commands.Show.Table.run([
           "--headers",
-          "name,status",
+          "name;status",
           "--rows",
-          "api,OK",
+          "api;OK",
           "--rows",
-          "db,WARN"
+          "db;WARN"
         ])
       end)
 

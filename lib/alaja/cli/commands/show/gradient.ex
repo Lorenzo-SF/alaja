@@ -11,7 +11,7 @@ defmodule Alaja.CLI.Commands.Show.Gradient do
     title: "Alaja Gradient",
     subtitle: "Gradient-colored text (multi-color support)",
     usage:
-      "alaja gradient <text[;line2[;line3...]]> [--from C] [--to C] [--colors C[|C[|C...]]] [--direction right_to_left|left_to_right|up_to_down|down_to_up|horizontal|vertical] [--bg] [--text-color C]",
+      "alaja gradient <text[;line2[;line3...]]> [--from C] [--to C] [--colors C[|C[|C...]]] [--direction left_to_right|right_to_left|up_to_down|down_to_up] [--bg] [--color C]",
     description: """
     Renders text with a gradient color treatment. Specify either
     `--from` and `--to` (linear interpolation) or a `--colors` list
@@ -29,9 +29,9 @@ defmodule Alaja.CLI.Commands.Show.Gradient do
       {:colors, :string, nil,
        "List of gradient stops separated by `|` (NOT commas; e.g. hex:ff0000|hex:00ff00|hex:0000ff; formats: rgb, argb, hex, xterm, cmyk, hsl, hsv, hwb, theme). Example: theme:primary|theme:secondary|rgb:0,255,0"},
       {:direction, :string, "right_to_left",
-       "Gradient direction: right_to_left (default), left_to_right, up_to_down (list only), down_to_up (list only), horizontal, vertical"},
+       "Gradient direction: right_to_left (default), left_to_right, up_to_down (multi-line only), down_to_up (multi-line only)"},
       {:bg, :boolean, false, "Apply the gradient to the background instead of the foreground"},
-      {:text_color, :string, nil, "Override the gradient with a single text color"}
+      {:color, :string, nil, "Override the gradient with a single text color"}
     ],
     examples: [
       {"Two-stop horizontal", "alaja gradient \"alaja\" --from hex:ff6b6b --to hex:4ecdc4"},
@@ -40,7 +40,7 @@ defmodule Alaja.CLI.Commands.Show.Gradient do
       {"Vertical gradient",
        "alaja gradient \"release\" --from #FFFF00 --to hex:ff00ff --direction vertical"},
       {"Background gradient", "alaja gradient \"urgent\" --from red --to yellow --bg"},
-      {"Single-colour override", "alaja gradient \"quiet\" --text-color grey"},
+      {"Single-colour override", "alaja gradient \"quiet\" --color grey"},
       {"Brand title", "alaja gradient \"CACAFUTI\" --colors hex:7aa2f7|hex:f5c2e7|hex:abe9b3"},
       {"Multiline vertical",
        "alaja gradient \"alaja;line2;line3\" --from hex:ff0000 --to hex:0000ff --direction down_to_up"}
@@ -60,7 +60,7 @@ defmodule Alaja.CLI.Commands.Show.Gradient do
           colors: :string,
           direction: :string,
           bg: :boolean,
-          text_color: :string
+          color: :string
         ]
       )
 
@@ -81,7 +81,7 @@ defmodule Alaja.CLI.Commands.Show.Gradient do
         colors: Keyword.get(opts, :colors),
         direction: parse_direction(Keyword.get(opts, :direction)),
         bg: Keyword.get(opts, :bg, false),
-        text_color: Color.parse_or_nil(Keyword.get(opts, :text_color))
+        text_color: Color.parse_or_nil(Keyword.get(opts, :color))
       ]
       |> Enum.reject(fn {_, v} -> is_nil(v) end)
 
@@ -98,13 +98,19 @@ defmodule Alaja.CLI.Commands.Show.Gradient do
   # parse_color/1 delegates to Alaja.CLI.Color.parse_or_nil/1
 
   defp parse_direction(nil), do: :right_to_left
-  defp parse_direction("horizontal"), do: :right_to_left
   defp parse_direction("right_to_left"), do: :right_to_left
   defp parse_direction("left_to_right"), do: :left_to_right
-  defp parse_direction("vertical"), do: :up_to_down
   defp parse_direction("up_to_down"), do: :up_to_down
   defp parse_direction("down_to_up"), do: :down_to_up
-  defp parse_direction(_), do: :right_to_left
+
+  defp parse_direction(other) do
+    IO.puts(
+      :stderr,
+      "Error: --direction must be one of left_to_right, right_to_left, up_to_down, down_to_up, got '#{other}'"
+    )
+
+    exit({:shutdown, 1})
+  end
 
   defp printer_opts(g), do: GlobalOpts.to_printer_opts(g)
 

@@ -252,7 +252,7 @@ defmodule Alaja.CLI.Commands.Theme do
     Enum.reduce(themes, row, fn name, acc ->
       case get_in(theme_data, [name, key]) do
         [r, g, b] ->
-          swatch = "\e[48;2;#{r};#{g};#{b}m#{String.pad_trailing("", 6)}\e[0m"
+          swatch = "\e[48;2;#{r};#{g};#{b}m#{String.pad_trailing("", theme_col_w)}\e[0m"
           acc ++ [swatch]
 
         _ ->

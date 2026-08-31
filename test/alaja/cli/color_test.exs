@@ -3,6 +3,26 @@ defmodule Alaja.CLI.ColorTest do
 
   alias Alaja.CLI.Color
 
+  describe "parse accepts uppercase formats" do
+    test "CMYK:10;40;60;8" do
+      assert {:ok, _} = Color.parse("CMYK:10;40;60;8")
+    end
+
+    test "HEX:ff3940" do
+      assert {:ok, _} = Color.parse("HEX:ff3940")
+    end
+
+    test "Argb:44;141;255;10" do
+      assert {:ok, _} = Color.parse("Argb:44;141;255;10")
+    end
+  end
+
+  describe "parse_list accepts uppercase formats" do
+    test "HEX:ff0000|hex:00ff00" do
+      assert {:ok, [_, _]} = Color.parse_list("HEX:ff0000|hex:00ff00")
+    end
+  end
+
   describe "parse/1 — formato estricto <formato>:<codigo>" do
     test "rgb con separador ;" do
       assert {:ok, {255, 0, 0}} = Color.parse("rgb:255;0;0")

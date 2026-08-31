@@ -63,10 +63,6 @@ defmodule Alaja.CLI do
 
   command("animated-bar", "Animated progress bar", run: {Dispatch, :animated_bar})
 
-  command("multibar", "Multi-task progress tracker with parallel bars",
-    run: {Dispatch, :multibar}
-  )
-
   command("breadcrumbs", "Navigation path display", run: {Dispatch, :breadcrumbs})
 
   command("animate", "Animated spinners and indicators", run: {Dispatch, :animate})
@@ -76,10 +72,6 @@ defmodule Alaja.CLI do
   command("image", "Render images (kitty/iterm2/sixel/ASCII)", run: {Dispatch, :image})
 
   command("list", "Styled list with optional header", run: {Dispatch, :list})
-
-  command("log", "Append-only log", run: {Dispatch, :log})
-
-  command("progress", "Stateful progress bar", run: {Dispatch, :progress})
 
   command("ask", "Interactive text input", run: {Dispatch, :ask})
 

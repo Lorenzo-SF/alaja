@@ -51,7 +51,6 @@ defmodule Alaja.CLI.Commands.Show.AnimatedBar do
 
   alias Alaja.CLI.GlobalOpts
   alias Alaja.Components.AnimatedBar, as: ABComp
-  alias Alaja.Components.Box
 
   @doc "Runs the `alaja animated-bar` command from raw argv; prints help on `--help` or no value."
   @spec run([String.t()]) :: :ok | no_return()
@@ -110,7 +109,6 @@ defmodule Alaja.CLI.Commands.Show.AnimatedBar do
     speed = Keyword.get(opts, :speed, 100)
     duration = Keyword.get(opts, :duration)
     max_iterations = Keyword.get(opts, :max_iterations)
-    max_frames = compute_max_frames(duration, speed, max_iterations)
 
     bar_opts =
       [
@@ -125,7 +123,8 @@ defmodule Alaja.CLI.Commands.Show.AnimatedBar do
         show_percent: Keyword.get(opts, :show_percent, true),
         kitt_width: Keyword.get(opts, :kitt_width, 3),
         speed: speed,
-        max_frames: max_frames
+        max_iterations: max_iterations,
+        duration: duration
       ]
       |> Enum.reject(fn {_, v} -> is_nil(v) end)
 
@@ -139,102 +138,8 @@ defmodule Alaja.CLI.Commands.Show.AnimatedBar do
         IO.puts(frame)
       end)
     else
-      run_animated(value, max, bar_opts, global)
+      ABComp.run(value, max, bar_opts, GlobalOpts.to_keyword(global))
     end
-  end
-
-  defp run_animated(value, max, bar_opts, global) do
-    box_height = if global.box, do: 3, else: 1
-    speed = Keyword.get(bar_opts, :speed, 100)
-    max_frames = Keyword.get(bar_opts, :max_frames, 100_000)
-    use_abs = global.raw || global.pos_x > 0 || global.pos_y > 0
-
-    state = %{
-      value: value,
-      max: max,
-      speed: speed,
-      bar_opts: bar_opts,
-      global: global,
-      box_height: box_height,
-      use_abs: use_abs,
-      start_x: global.pos_x + 1,
-      start_y: global.pos_y + 1
-    }
-
-    # Guard against running the redraw loop in a terminal that cannot
-    # fit the bar (or boxed bar). Without this check, the cursor-up
-    # escape (\e[NA) used to clear the previous frame would walk past
-    # row 1 and start wiping shell history / scrollback above, visibly
-    # destroying unrelated content. Bail out cleanly with a stderr
-    # note so the user can resize or scroll before retrying.
-    term_h =
-      case :io.rows() do
-        {:ok, h} -> h
-        _ -> 24
-      end
-
-    if box_height > term_h do
-      IO.write(
-        :stderr,
-        "alaja animated-bar: not enough vertical space (#{box_height} > #{term_h}); aborting\n"
-      )
-
-      :ok
-    else
-      if state.use_abs do
-        IO.write(Alaja.ANSI.hide_cursor())
-      end
-
-      frames = Stream.iterate(0, &(&1 + 1)) |> Stream.take(max_frames)
-      Enum.each(frames, &animate_bar_frame(&1, state))
-
-      if state.use_abs do
-        IO.write(Alaja.ANSI.show_cursor())
-      end
-    end
-  end
-
-  defp animate_bar_frame(position, state) do
-    frame =
-      ABComp.render_frame(state.value, state.max, position, state.bar_opts)
-      |> Alaja.Buffer.to_iodata()
-      |> IO.iodata_to_binary()
-
-    wrapped = wrap_bar_frame(frame, state.global)
-
-    if state.use_abs do
-      IO.write([
-        Alaja.ANSI.move_to(state.start_x, state.start_y),
-        Alaja.ANSI.clear_line_down(),
-        wrapped
-      ])
-    else
-      write_bar_frame_relative(wrapped, position, state.box_height)
-    end
-
-    Process.sleep(state.speed)
-  end
-
-  defp wrap_bar_frame(frame, global) do
-    if global.box do
-      box_opts =
-        []
-        |> maybe_add(:title, global.box_title)
-        |> maybe_add(:border, global.box_border)
-        |> maybe_add(:border_color, global.box_color)
-
-      Box.render(frame, box_opts)
-      |> Alaja.Buffer.to_iodata()
-      |> IO.iodata_to_binary()
-    else
-      frame
-    end
-  end
-
-  defp write_bar_frame_relative(wrapped, 0, _box_height), do: IO.write(wrapped)
-
-  defp write_bar_frame_relative(wrapped, _position, box_height) do
-    IO.write("\e[#{box_height}A\e[J#{wrapped}")
   end
 
   defp parse_type("kitt"), do: :kitt
@@ -243,24 +148,9 @@ defmodule Alaja.CLI.Commands.Show.AnimatedBar do
   defp parse_type("rainbow"), do: :rainbow
   defp parse_type(_), do: :spinner
 
-  # `--duration N` (ms) implies max_frames = ceil(duration / speed).
-  # When no duration is set we return 100_000 to preserve the original
-  # "animation runs forever" behaviour while still capping runaway loops
-  # (the smoke tests pass `--duration 500` to terminate cleanly).
-  # `--max-iterations` overrides the cap when provided.
-  defp compute_max_frames(duration, _speed, nil) when is_nil(duration), do: 100_000
-
-  defp compute_max_frames(duration_ms, speed, nil)
-       when is_integer(duration_ms) and duration_ms > 0 do
-    max(1, div(duration_ms + speed - 1, speed))
-  end
-
-  defp compute_max_frames(_duration, _speed, max_iter)
-       when is_integer(max_iter) and max_iter > 0 do
-    max_iter
-  end
-
-  defp compute_max_frames(_, _, _), do: 100_000
+  # Animation loop and frame-count math live in
+  # `Alaja.Components.AnimatedBar.run/4` (backend). The CLI is a thin
+  # wrapper that parses argv and delegates.
 
   defp parse_color(nil), do: nil
 
@@ -270,9 +160,6 @@ defmodule Alaja.CLI.Commands.Show.AnimatedBar do
       _ -> nil
     end
   end
-
-  defp maybe_add(list, _key, nil), do: list
-  defp maybe_add(list, key, value), do: Keyword.put(list, key, value)
 
   @spec help(Alaja.CLI.GlobalOpts.t() | nil) :: :ok
   def help(global \\ nil), do: HelpFormatter.render(@help_data, global)

@@ -55,8 +55,14 @@ defmodule Alaja.CLI.Color do
     str = String.trim(str)
 
     case String.split(str, ":", parts: 2) do
-      [format, code] when format in @formats ->
-        parse_format(format, code |> String.trim() |> String.replace(";", ","), str)
+      [format, code] ->
+        format_down = String.downcase(format)
+
+        if format_down in @formats do
+          parse_format(format_down, code |> String.trim() |> String.replace(";", ","), str)
+        else
+          parse_detected(String.replace(str, ";", ","))
+        end
 
       _ ->
         parse_detected(String.replace(str, ";", ","))

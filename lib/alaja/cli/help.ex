@@ -16,8 +16,7 @@ defmodule Alaja.CLI.Help do
       (`message`, `header`, `separator`, `gradient`, `table`, `json`,
       `bar`, `breadcrumbs`, `animate`, `list`, `image`).
     * **Stateful** — components with internal state that update in
-      place (`log`, `progress`, `pulsar`, `multibar`,
-      `animated-bar`).
+      place (`pulsar`, `animated-bar`).
     * **Interactive** — components that read input from the user
       (`ask`, `menu`, `yesno`).
 
@@ -45,10 +44,7 @@ defmodule Alaja.CLI.Help do
     "animate" => Alaja.CLI.Commands.Show.Animate,
     "image" => Alaja.CLI.Commands.Show.Image,
     "list" => Alaja.CLI.Commands.Show.List,
-    "log" => Alaja.CLI.Commands.Show.Log,
-    "progress" => Alaja.CLI.Commands.Show.Progress,
     "pulsar" => Alaja.CLI.Commands.Show.Pulsar,
-    "multibar" => Alaja.CLI.Commands.Show.Multibar,
     "ask" => Alaja.CLI.Commands.Show.Ask,
     "menu" => Alaja.CLI.Commands.Show.Menu,
     "yesno" => Alaja.CLI.Commands.Show.YesNo,
@@ -118,7 +114,7 @@ defmodule Alaja.CLI.Help do
   @quick_start [
     {"Status message", "alaja success \"Deploy completado\""},
     {"Quick header", "alaja header \"Release 3.0\" --subtitle \"ready for review\""},
-    {"Inline table", "alaja table --headers name,status --rows \"api,OK\" \"db,WARN\""},
+    {"Inline table", "alaja table --headers name;status --rows \"api;OK\" \"db;WARN\""},
     {"Pipe JSON", "cat stats.json | alaja json"},
     {"Theme picker", "alaja theme set dracula"},
     {"Multi-step from JSON", "alaja action --file pipeline.json"}
@@ -285,7 +281,6 @@ defmodule Alaja.CLI.Help do
         ["--box-color COLOR", "Box border color (with --box)"],
         ["--bg-color COLOR", "Background color for the output (any display command)"],
         ["--no-color", "Disable ANSI output (respects NO_COLOR)"],
-        ["--color", "Force ANSI even when stdout is not a TTY"],
         ["--verbose", "Output raw ANSI instead of rendering"],
         ["--quiet, -q", "Suppress output"],
         ["--stdin", "Read JSON from stdin (action)"]
@@ -353,10 +348,7 @@ defmodule Alaja.CLI.Help do
       table_text(
         ["Command", "Description"],
         [
-          ["log", "Append-only log with retention limit (struct-based)"],
-          ["progress", "Stateful progress bar (struct-based, CLI-renderable)"],
           ["pulsar", "Pulsar/radar animation with gradient wave effect"],
-          ["multibar", "Multi-task progress tracker with parallel bars"],
           ["animated-bar", "Animated bar with --duration / --max-iterations"]
         ],
         @blue
@@ -485,20 +477,14 @@ defmodule Alaja.CLI.Help do
     {"structure", "Breadcrumbs for nav", "alaja breadcrumbs home users alice --current alice"},
     # ── Tables / data ────────────────────────────────────────────────────
     {"data", "Service health table",
-     "alaja table --headers service,status,uptime --rows api,OK,12d db,WARN,2h"},
+     "alaja table --headers service;status;uptime --rows \"api;OK;12d;;db;WARN;2h\""},
     {"data", "JSON pretty-printer (file or stdin)", "cat config.json | alaja json --indent 2"},
     {"data", "Bullet list with header",
      "alaja list --header \"TODO\" \"fix deploy\" \"write tests\" \"update docs\""},
     # ── Progress / streaming ─────────────────────────────────────────────
     {"progress", "One-shot progress bar", "alaja bar 60 --max 100 --label build --filled-char █"},
-    {"progress", "Stateful progress (re-renderable)",
-     "alaja progress --current 75 --total 100 --label build"},
     {"progress", "Animated bar (2s demo)",
      "alaja animated-bar 50 --max 100 --duration 2000 --type kitt"},
-    {"progress", "Log with retention",
-     "alaja log \"Compiling...\" \"Running tests...\" --max-lines 5"},
-    {"progress", "Multi-task tracker",
-     "alaja multibar --tasks 'build:Building,test:Testing,lint:Linting' --duration 3"},
     # ── Color / styling ──────────────────────────────────────────────────
     {"style", "Gradient title", "alaja gradient \"alaja 3.0\" --from hex:ff6b6b --to hex:4ecdc4"},
     {"style", "Bordered callout",

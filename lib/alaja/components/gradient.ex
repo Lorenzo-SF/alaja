@@ -198,33 +198,55 @@ defmodule Alaja.Components.Gradient do
   def render_horizontal_line(line, colors_list, bg, text_color, direction) do
     steps = String.length(line)
     color_steps = Gradients.multicolor(colors_list, steps)
-    color_steps = if direction == :right_to_left, do: Enum.reverse(color_steps), else: color_steps
+    color_steps = color_steps
     apply_multicolor_text(line, color_steps, bg: bg, text_color: text_color)
   end
 
   @doc false
   def apply_vertical_gradient(lines, color_list, direction, bg, text_color) do
-    line_count = max(length(lines), 1)
-    color_steps = Gradients.multicolor(color_list, line_count)
+    line_count = length(lines)
 
-    color_steps =
-      if direction == :down_to_up, do: Enum.reverse(color_steps), else: color_steps
-
-    body =
-      lines
-      |> Enum.with_index()
-      |> Enum.map_join("\n", fn {line, idx} ->
-        color = Enum.at(color_steps, min(idx, length(color_steps) - 1))
-
-        if bg do
-          tc = text_color || {255, 255, 255}
-          "#{bg_code(color)}#{fg_code(tc)}#{line}"
-        else
-          "#{fg_code(color)}#{line}"
+    # Si solo hay 1 línea (o ninguna), usar el path horizontal equivalente
+    if line_count <= 1 do
+      # Traducir dirección vertical a horizontal:
+      # :up_to_down (top→bottom) cuando hay 1 línea ≡ left_to_right
+      # :down_to_up (bottom→top) cuando hay 1 línea ≡ right_to_left
+      horiz_direction =
+        case direction do
+          :up_to_down -> :left_to_right
+          :down_to_up -> :right_to_left
+          d -> d
         end
-      end)
 
-    body <> Alaja.ANSI.reset_attributes()
+      text = if line_count == 1, do: Enum.at(lines, 0), else: ""
+
+      apply_gradient_text(text, Enum.at(color_list, 0), Enum.at(color_list, -1),
+        direction: horiz_direction,
+        bg: bg,
+        text_color: text_color
+      )
+    else
+      color_steps = Gradients.multicolor(color_list, line_count)
+
+      color_steps =
+        if direction == :down_to_up, do: Enum.reverse(color_steps), else: color_steps
+
+      body =
+        lines
+        |> Enum.with_index()
+        |> Enum.map_join("\n", fn {line, idx} ->
+          color = Enum.at(color_steps, min(idx, length(color_steps) - 1))
+
+          if bg do
+            tc = text_color || {255, 255, 255}
+            "#{bg_code(color)}#{fg_code(tc)}#{line}"
+          else
+            "#{fg_code(color)}#{line}"
+          end
+        end)
+
+      body <> Alaja.ANSI.reset_attributes()
+    end
   end
 
   @doc false

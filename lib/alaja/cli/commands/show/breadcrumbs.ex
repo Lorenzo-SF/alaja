@@ -14,12 +14,12 @@ defmodule Alaja.CLI.Commands.Show.Breadcrumbs do
     usage:
       "alaja breadcrumbs <item1> <item2> ... <itemN> [--separator C] [--color C] [--separator-color C] [--current-color C]",
     description:
-      "Draws a horizontal trail of items separated by a separator character. The last item is highlighted as `current`.",
+      "Draws a horizontal trail of items separated by a separator character. The last item is highlighted as `current`. All switches are kebab-case (`--separator-color`, not `--separator_color`).",
     options: [
       {:separator, :string, "›", "Separator character between items"},
       {:color, :string, nil, "Color for items (item_color in back)"},
-      {:separator_color, :string, nil, "Color of the separator"},
-      {:current_color, :string, nil, "Color of the last (current) item"}
+      {:"separator-color", :string, nil, "Color of the separator"},
+      {:"current-color", :string, nil, "Color of the last (current) item"}
     ],
     examples: [
       {"Code path", "alaja breadcrumbs home lib alaja"},
@@ -37,15 +37,17 @@ defmodule Alaja.CLI.Commands.Show.Breadcrumbs do
   def run(args) do
     {global, rest} = GlobalOpts.parse(args)
 
-    {opts, items, _} =
-      OptionParser.parse(rest,
-        switches: [
-          separator: :string,
-          color: :string,
-          separator_color: :string,
-          current_color: :string
+    switches =
+      [
+        separator: :string,
+        color: :string
+      ] ++
+        [
+          {String.to_atom("separator-color"), :string},
+          {String.to_atom("current-color"), :string}
         ]
-      )
+
+    {opts, items, _} = OptionParser.parse(rest, switches: switches)
 
     if global.help or items == [] do
       help()
@@ -53,9 +55,9 @@ defmodule Alaja.CLI.Commands.Show.Breadcrumbs do
       bc_opts =
         [
           separator: Keyword.get(opts, :separator),
-          item_color: Color.parse_or_nil(Keyword.get(opts, :color)),
-          separator_color: Color.parse_or_nil(Keyword.get(opts, :separator_color)),
-          current_color: Color.parse_or_nil(Keyword.get(opts, :current_color))
+          item_color: Color.parse_list_or_nil(Keyword.get(opts, :color)),
+          separator_color: Color.parse_list_or_nil(Keyword.get(opts, :"separator-color")),
+          current_color: Color.parse_list_or_nil(Keyword.get(opts, :"current-color"))
         ]
         |> Enum.reject(fn {_, v} -> is_nil(v) end)
 

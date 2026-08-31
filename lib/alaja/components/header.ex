@@ -29,10 +29,14 @@ defmodule Alaja.Components.Header do
   @type size :: :small | :medium | :large
   @type color :: {0..255, 0..255, 0..255} | nil
 
-  alias Alaja.{Buffer, Cell}
+  alias Alaja.{Buffer, Cell, Terminal}
 
   @default_color :primary
   @default_subtitle_color :debug
+
+  # Fractions of the terminal width used when `:size` is a named value.
+  # `:tiny`  = 1/8, `:small` = 1/4, `:medium` = 1/2, `:large` = 100%.
+  @size_fractions %{tiny: 0.125, small: 0.25, medium: 0.5, large: 1.0}
 
   @doc """
   Prints a header directly to stdout.
@@ -49,12 +53,18 @@ defmodule Alaja.Components.Header do
 
   @doc """
   Renders a header to an `Alaja.Buffer.t/0`.
+
+  `:size` accepts either a named atom (`:tiny`, `:small`, `:medium`,
+  `:large`) or a positive integer (exact column width). Named sizes are
+  fractions of the terminal width (`tiny` = 1/8, `small` = 1/4,
+  `medium` = 1/2, `large` = full width). `:width` is kept as a deprecated
+  alias for an integer width; new callers should use `:size`.
   """
   @spec render(String.t(), keyword()) :: Buffer.t()
   def render(title, opts \\ []) do
     subtitle = Keyword.get(opts, :subtitle)
-    size = Keyword.get(opts, :size, :medium)
-    width = Keyword.get(opts, :width) || Alaja.CLI.Commands.Base.term_width()
+    width = resolve_width(opts)
+    size = Keyword.get(opts, :size, :medium) || width_to_size(width)
 
     title_colors = normalize_color_list(Keyword.get(opts, :color)) || [@default_color]
 
@@ -125,10 +135,50 @@ defmodule Alaja.Components.Header do
     |> String.split(~r/[\r\n]+/, trim: true)
   end
 
+  defp default_separator_char(:tiny), do: "·"
   defp default_separator_char(:small), do: "─"
   defp default_separator_char(:medium), do: "═"
   defp default_separator_char(:large), do: "█"
   defp default_separator_char(_), do: "─"
+
+  # `:size` may be an atom (named) or a positive integer (exact width).
+  # `:width` is honoured for backward compatibility. Returns the integer
+  # width actually used.
+  defp resolve_width(opts) do
+    case Keyword.get(opts, :size) do
+      n when is_integer(n) and n > 0 ->
+        n
+
+      :tiny ->
+        round(Terminal.width() * @size_fractions.tiny)
+
+      :small ->
+        round(Terminal.width() * @size_fractions.small)
+
+      :medium ->
+        round(Terminal.width() * @size_fractions.medium)
+
+      :large ->
+        Terminal.width()
+
+      _ ->
+        Keyword.get(opts, :width) || Terminal.width()
+    end
+  end
+
+  # Map an integer width back to a named size (for separator-char
+  # selection). Falls back to `:medium` for widths that don't match a
+  # named bucket.
+  defp width_to_size(width) when is_integer(width) do
+    term_w = max(Terminal.width(), 1)
+
+    cond do
+      width <= round(term_w * 0.2) -> :tiny
+      width <= round(term_w * 0.35) -> :small
+      width <= round(term_w * 0.7) -> :medium
+      true -> :large
+    end
+  end
 
   defp longest_line_length(parts, _separator_char) do
     parts

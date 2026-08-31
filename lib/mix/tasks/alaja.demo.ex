@@ -10,11 +10,11 @@ defmodule Mix.Tasks.Alaja.Demo do
 
   Components: messages, header, separator, gradient, table, json,
   bar, breadcrumbs, animate, list, color, action, scroll, tabs,
-  log, progress, pulsar, animated-bar.
+  pulsar, animated-bar.
 
-  Stateful and interactive components (scroll, tabs, log, progress,
-  pulsar, animated-bar, ask, menu, yesno) require a TTY. In a pipe
-  they print a one-line notice instead of running.
+  Stateful and interactive components (scroll, tabs, pulsar, animated-bar,
+  ask, menu, yesno) require a TTY. In a pipe they print a one-line
+  notice instead of running.
 
   ## Example
 
@@ -42,8 +42,6 @@ defmodule Mix.Tasks.Alaja.Demo do
     "breadcrumbs" => :breadcrumbs,
     "animate" => :animate,
     "list" => :list,
-    "log" => :log,
-    "progress" => :progress,
     "pulsar" => :pulsar,
     "animated-bar" => :animated_bar,
     "color" => :color,
@@ -67,8 +65,6 @@ defmodule Mix.Tasks.Alaja.Demo do
     :list,
     :color,
     :action,
-    :log,
-    :progress,
     :pulsar,
     :animated_bar,
     :ask,
@@ -137,13 +133,13 @@ defmodule Mix.Tasks.Alaja.Demo do
   defp render_one(:table) do
     Alaja.CLI.Commands.Show.Table.run([
       "--headers",
-      "name,status,owner",
+      "name;status;owner",
       "--rows",
-      "api,ok,alice",
+      "api;ok;alice",
       "--rows",
-      "web,degraded,bob",
+      "web;degraded;bob",
       "--rows",
-      "worker,ok,alice"
+      "worker;ok;alice"
     ])
   end
 
@@ -166,30 +162,6 @@ defmodule Mix.Tasks.Alaja.Demo do
 
   defp render_one(:list) do
     Alaja.CLI.Commands.Show.List.run(["Fix deploy", "Write tests", "Update docs"])
-  end
-
-  defp render_one(:log) do
-    run_stateful("log", fn ->
-      Alaja.CLI.Commands.Show.Log.run([
-        "Build started",
-        "Compiling alaja 3.0",
-        "Running 1068 tests",
-        "All tests passed"
-      ])
-    end)
-  end
-
-  defp render_one(:progress) do
-    run_stateful("progress", fn ->
-      Alaja.CLI.Commands.Show.Progress.run([
-        "--current",
-        "75",
-        "--total",
-        "100",
-        "--label",
-        "build"
-      ])
-    end)
   end
 
   defp render_one(:pulsar) do
