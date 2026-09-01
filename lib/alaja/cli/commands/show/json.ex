@@ -1,16 +1,37 @@
 defmodule Alaja.CLI.Commands.Show.Json do
   @moduledoc "`alaja json` — Pretty-print JSON with syntax highlighting."
 
+  alias Alaja.CLI.Color
+  alias Alaja.CLI.GlobalOpts
+  alias Alaja.CLI.HelpFormatter
+  alias Alaja.Components.Json, as: JsonComp
+  alias Alaja.Printer
+
   @help_data [
     title: "Alaja JSON",
     subtitle: "Pretty-print JSON with syntax highlighting",
-    size: :small
+    usage:
+      "alaja json '<json_string>' [--indent N] [--key-color C] [--string-color C] [--number-color C] [--boolean-color C] [--null-color C] [--punctuation-color C]",
+    description:
+      "Pretty-prints JSON with per-token color highlighting. The JSON is read from argv (concatenated positional args).",
+    options: [
+      {:indent, :integer, nil, "Indent width in spaces (default depends on back)"},
+      {:key_color, :string, nil, "Color for keys"},
+      {:string_color, :string, nil, "Color for string values"},
+      {:number_color, :string, nil, "Color for numeric values"},
+      {:boolean_color, :string, nil, "Color for booleans"},
+      {:null_color, :string, nil, "Color for null"},
+      {:punctuation_color, :string, nil, "Color for punctuation (brackets, commas, colons)"}
+    ],
+    examples: [
+      {"Inline JSON", "alaja json '{\"name\":\"alaja\",\"v\":3}'"},
+      {"From stdin", "echo '{\"ok\":true,\"n\":1}' | alaja json"},
+      {"Custom indent", "alaja json '{\"a\":1}' --indent 4"},
+      {"Pipe a real file", "cat config.json | alaja json"},
+      {"API response in CI", "curl -s https://api.example.com/v1/health | alaja json"},
+      {"Monochrome (no colour)", "alaja json '{\"k\":\"v\"}' --no-color"}
+    ]
   ]
-
-  alias Alaja.CLI.GlobalOpts
-
-  alias Alaja.Components.Json, as: JsonComp
-  alias Alaja.Printer
 
   @doc "Runs the `alaja json` command from raw argv — pretty-prints a JSON string from argv or stdin."
   @spec run([String.t()]) :: :ok | no_return()
@@ -25,11 +46,12 @@ defmodule Alaja.CLI.Commands.Show.Json do
           string_color: :string,
           number_color: :string,
           boolean_color: :string,
-          null_color: :string
+          null_color: :string,
+          punctuation_color: :string
         ]
       )
 
-    if global.help or Keyword.get(opts, :help, false) do
+    if global.help do
       help()
     else
       json_str = Enum.join(positional, " ")
@@ -54,11 +76,12 @@ defmodule Alaja.CLI.Commands.Show.Json do
     json_opts =
       [
         indent: Keyword.get(opts, :indent),
-        key_color: parse_color(Keyword.get(opts, :key_color)),
-        string_color: parse_color(Keyword.get(opts, :string_color)),
-        number_color: parse_color(Keyword.get(opts, :number_color)),
-        boolean_color: parse_color(Keyword.get(opts, :boolean_color)),
-        null_color: parse_color(Keyword.get(opts, :null_color))
+        key_color: Color.parse_or_nil(Keyword.get(opts, :key_color)),
+        string_color: Color.parse_or_nil(Keyword.get(opts, :string_color)),
+        number_color: Color.parse_or_nil(Keyword.get(opts, :number_color)),
+        boolean_color: Color.parse_or_nil(Keyword.get(opts, :boolean_color)),
+        null_color: Color.parse_or_nil(Keyword.get(opts, :null_color)),
+        punctuation_color: Color.parse_or_nil(Keyword.get(opts, :punctuation_color))
       ]
       |> Enum.reject(fn {_, v} -> is_nil(v) end)
 
@@ -66,17 +89,10 @@ defmodule Alaja.CLI.Commands.Show.Json do
     Printer.print_raw(rendered, printer_opts(global))
   end
 
-  defp parse_color(nil), do: nil
-
-  defp parse_color(s) do
-    case Pote.Orchestrator.parse_color(s) do
-      {:ok, c} -> c
-      _ -> nil
-    end
-  end
+  # parse_color/1 delegates to Alaja.CLI.Color.parse_or_nil/1
 
   defp printer_opts(g), do: GlobalOpts.to_printer_opts(g)
 
-  @spec help() :: :ok
-  def help, do: @help_data
+  @spec help(Alaja.CLI.GlobalOpts.t() | nil) :: :ok
+  def help(global \\ nil), do: HelpFormatter.render(@help_data, global)
 end

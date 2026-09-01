@@ -81,7 +81,11 @@ defmodule Alaja.Printer do
       IO.puts(inspect(output))
       output
     else
-      output = apply_box(output, opts)
+      output =
+        output
+        |> apply_box(opts)
+        |> apply_bg(opts)
+
       x = Keyword.get(opts, :"pos-x", Keyword.get(opts, :pos_x, Keyword.get(opts, :x, 0)))
       y = Keyword.get(opts, :"pos-y", Keyword.get(opts, :pos_y, Keyword.get(opts, :y, 0)))
 
@@ -142,9 +146,11 @@ defmodule Alaja.Printer do
     text = IO.iodata_to_binary(data)
     verbose = Keyword.get(opts, :verbose, false)
 
-    text = apply_box(text, opts)
-    text = Formatter.apply_alignment(text, Keyword.get(opts, :align, :left))
-    text = String.trim_trailing(text, "\n")
+    text =
+      text
+      |> format_raw(opts)
+      |> String.trim_trailing("\n")
+      |> apply_bg(opts)
 
     if verbose do
       IO.puts(inspect(text))
@@ -159,6 +165,20 @@ defmodule Alaja.Printer do
         RawPrinter.print_with_lines(text, :none)
       end
     end
+  end
+
+  @doc """
+  Applies box and alignment formatting to raw text without writing it.
+
+  Shared by `print_raw/2` and the tabbed help renderer so both honour
+  the global `--box`/`--box-title`/`--box-border`/`--box-color` and
+  `--align` options.
+  """
+  @spec format_raw(String.t(), keyword()) :: String.t()
+  def format_raw(text, opts) do
+    text
+    |> apply_box(opts)
+    |> Formatter.apply_alignment(Keyword.get(opts, :align, :left))
   end
 
   defp apply_box(text, opts) do
@@ -179,6 +199,26 @@ defmodule Alaja.Printer do
 
   defp maybe_add(list, _key, nil), do: list
   defp maybe_add(list, key, value), do: Keyword.put(list, key, value)
+
+  @doc """
+  Wraps text with the global `--bg-color` background, if set.
+  """
+  @spec apply_bg(String.t(), keyword()) :: String.t()
+  def apply_bg(text, opts) do
+    case Keyword.get(opts, :bg_color) do
+      {r, g, b} when is_integer(r) and is_integer(g) and is_integer(b) ->
+        if Keyword.get(opts, :no_color, false) do
+          text
+        else
+          text
+          |> then(&[Alaja.ANSI.bg(r, g, b), &1, Alaja.ANSI.reset_attributes()])
+          |> IO.iodata_to_binary()
+        end
+
+      _ ->
+        text
+    end
+  end
 
   @doc """
   Prints a `Alaja.Buffer.t()` to the terminal, optionally positioned at

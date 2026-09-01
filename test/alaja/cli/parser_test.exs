@@ -47,11 +47,11 @@ defmodule Alaja.CLI.ParserTest do
 
   describe "parse_color/1" do
     test "parses hex colors" do
-      assert Parser.parse_color("#FF8000") == {:ok, {255, 128, 0}}
+      assert Parser.parse_color("hex:#FF8000") == {:ok, {255, 128, 0}}
     end
 
     test "parses named colors" do
-      assert Parser.parse_color("red") == {:ok, {255, 0, 0}}
+      assert Parser.parse_color("hex:ff0000") == {:ok, {255, 0, 0}}
     end
 
     test "returns nil for nil input" do
@@ -64,21 +64,21 @@ defmodule Alaja.CLI.ParserTest do
     end
 
     test "parses colors with surrounding whitespace" do
-      assert Parser.parse_color("  #FF8000  ") == {:ok, {255, 128, 0}}
+      assert Parser.parse_color("  hex:#FF8000  ") == {:ok, {255, 128, 0}}
     end
 
     test "parses colors with surrounding double quotes" do
-      assert Parser.parse_color(~s("#FF8000")) == {:ok, {255, 128, 0}}
+      assert Parser.parse_color(~s("hex:#FF8000")) == {:ok, {255, 128, 0}}
     end
 
     test "parses colors with surrounding single quotes" do
-      assert Parser.parse_color("'#FF8000'") == {:ok, {255, 128, 0}}
+      assert Parser.parse_color("'hex:#FF8000'") == {:ok, {255, 128, 0}}
     end
   end
 
   describe "parse_color_opt/1" do
     test "returns RGB tuple for valid colors" do
-      assert Parser.parse_color_opt("red") == {255, 0, 0}
+      assert Parser.parse_color_opt("hex:ff0000") == {255, 0, 0}
     end
 
     test "returns nil for nil input" do
@@ -92,7 +92,7 @@ defmodule Alaja.CLI.ParserTest do
 
   describe "parse_color_list/1" do
     test "parses semicolon-separated colors" do
-      assert Parser.parse_color_list("red;green;blue") ==
+      assert Parser.parse_color_list("hex:ff0000|hex:00ff00|hex:0000ff") ==
                {:ok, [{255, 0, 0}, {0, 255, 0}, {0, 0, 255}]}
     end
 
@@ -101,22 +101,22 @@ defmodule Alaja.CLI.ParserTest do
     end
 
     test "returns error for invalid colors" do
-      result = Parser.parse_color_list("red;invalid")
+      result = Parser.parse_color_list("hex:ff0000|basura")
       assert elem(result, 0) == :error
     end
 
     test "parses colors with extra whitespace around semicolons" do
-      assert Parser.parse_color_list("red ; green ; blue") ==
+      assert Parser.parse_color_list("hex:ff0000 | hex:00ff00 | hex:0000ff") ==
                {:ok, [{255, 0, 0}, {0, 255, 0}, {0, 0, 255}]}
     end
 
     test "handles empty segments in the list" do
-      assert Parser.parse_color_list("red;;blue") ==
+      assert Parser.parse_color_list("hex:ff0000||hex:0000ff") ==
                {:ok, [{255, 0, 0}, {0, 0, 255}]}
     end
 
     test "returns error with color-specific message" do
-      result = Parser.parse_color_list("red;invalid1;invalid2")
+      result = Parser.parse_color_list("hex:ff0000|invalid1|invalid2")
       assert elem(result, 0) == :error
       assert String.contains?(elem(result, 1), "invalid1")
       assert String.contains?(elem(result, 1), "invalid2")

@@ -60,28 +60,22 @@ defmodule Alaja.Components.Animate do
   Parses color strings into RGB tuples.
 
   Accepts two sources (for backward compatibility): `color_str` and
-  `colors_str`. Both are semicolon-separated lists of color names
-  or hex values.
+  `colors_str`. Both are pipe-separated lists of colors in
+  `<formato>:<codigo>` form (or `#hex` via autodetection).
   """
   @spec parse_colors(String.t() | nil, String.t() | nil) :: [{integer(), integer(), integer()}]
   def parse_colors(color_str, colors_str) do
-    cond do
-      colors_str ->
-        colors_str
-        |> String.split(";")
-        |> Enum.map(&String.trim/1)
-        |> Enum.map(&parse_one/1)
-        |> Enum.reject(&is_nil/1)
+    input = colors_str || color_str
 
-      color_str ->
-        color_str
-        |> String.split(";")
-        |> Enum.map(&String.trim/1)
-        |> Enum.map(&parse_one/1)
-        |> Enum.reject(&is_nil/1)
-
-      true ->
+    case input do
+      nil ->
         []
+
+      str ->
+        case Alaja.CLI.Color.parse_list(str) do
+          {:ok, colors} -> colors
+          {:error, msg} -> IO.puts(:stderr, msg)
+        end
     end
   end
 
@@ -121,7 +115,7 @@ defmodule Alaja.Components.Animate do
         {fr, fg, fb} = frame_color(fidx, colors, {cr, cg, cb})
 
         IO.puts(
-          "#{Pote.Orchestrator.to_ansi({fr, fg, fb})}#{Enum.at(frames, fidx)}#{Alaja.ANSI.reset_attributes()} #{text}"
+          "#{Alaja.ANSI.fg(fr, fg, fb)}#{Enum.at(frames, fidx)}#{Alaja.ANSI.reset_attributes()} #{text}"
         )
       end)
     else
@@ -130,7 +124,7 @@ defmodule Alaja.Components.Animate do
         {fr, fg, fb} = frame_color(fidx, colors, {cr, cg, cb})
 
         IO.write(
-          "\r\e[K  #{Pote.Orchestrator.to_ansi({fr, fg, fb})}#{Enum.at(frames, fidx)}#{Alaja.ANSI.reset_attributes()} #{text}..."
+          "\r\e[K  #{Alaja.ANSI.fg(fr, fg, fb)}#{Enum.at(frames, fidx)}#{Alaja.ANSI.reset_attributes()} #{text}..."
         )
 
         Process.sleep(speed)
@@ -164,7 +158,7 @@ defmodule Alaja.Components.Animate do
     {cr, cg, cb} = base_color || {0, 180, 216}
     {fr, fg, fb} = frame_color(fidx, colors, {cr, cg, cb})
 
-    "\r\e[K  #{Pote.Orchestrator.to_ansi({fr, fg, fb})}#{Enum.at(frames, fidx)}#{Alaja.ANSI.reset_attributes()} #{text}..."
+    "\r\e[K  #{Alaja.ANSI.fg(fr, fg, fb)}#{Enum.at(frames, fidx)}#{Alaja.ANSI.reset_attributes()} #{text}..."
   end
 
   @doc """
@@ -238,7 +232,7 @@ defmodule Alaja.Components.Animate do
             _ -> 0.5
           end
 
-        "#{Pote.Orchestrator.to_ansi({round(fr * multiplier), round(fg * multiplier), round(fb * multiplier)})}#{char}#{Alaja.ANSI.reset_attributes()}"
+        "#{Alaja.ANSI.fg(round(fr * multiplier), round(fg * multiplier), round(fb * multiplier))}#{char}#{Alaja.ANSI.reset_attributes()}"
       end)
 
     result <> " "
@@ -260,11 +254,4 @@ defmodule Alaja.Components.Animate do
   end
 
   # ── Private ──────────────────────────────────────────────────────────
-
-  defp parse_one(s) do
-    case Pote.Orchestrator.parse_color(s) do
-      {:ok, c} -> c
-      _ -> nil
-    end
-  end
 end

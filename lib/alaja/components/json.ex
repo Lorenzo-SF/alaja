@@ -20,7 +20,7 @@ defmodule Alaja.Components.Json do
   When no `:key_color` / `:string_color` / etc. are supplied, the
   defaults are `theme:quaternary`, `theme:success`, `theme:info`,
   `theme:ternary`, `theme:sad`, `theme:no_color` — they resolve
-  through `Pote.Orchestrator.parse_color/1` so the active theme
+  through `Alaja.CLI.Color.parse/1` so the active theme
   picks them up. Pass an RGB tuple, hex string, or atom to override.
   """
 
@@ -93,7 +93,7 @@ defmodule Alaja.Components.Json do
        do: rgb
 
   defp resolve_color(s) when is_binary(s) do
-    case Pote.Orchestrator.parse_color(s) do
+    case Alaja.CLI.Color.parse(s) do
       {:ok, rgb} -> rgb
       _ -> nil
     end

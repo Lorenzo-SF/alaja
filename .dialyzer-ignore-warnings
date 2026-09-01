@@ -1,1 +1,16 @@
-
+lib/alaja/app.ex:147:43:unknown_type
+lib/alaja/app.ex:425:12:pattern_match
+lib/alaja/backend/tty.ex:102:7:no_return
+lib/alaja/backend/tty.ex:121:7:callback_type_mismatch
+lib/alaja/backend/tty.ex:200:8:no_return
+lib/alaja/backend/tty.ex:202:18:call
+lib/alaja/backend/tty.ex:220:8:unused_fun
+lib/alaja/backend/tty.ex:232:guard_fail_pat
+lib/alaja/cmd.ex:109:guard_fail
+lib/alaja/frame.ex:52:62:call
+lib/alaja/frame.ex:105:15:pattern_match
+lib/alaja/frame.ex:107:11:pattern_match_cov
+lib/alaja/frame.ex:121:13:pattern_match
+lib/alaja/frame.ex:123:9:pattern_match_cov
+lib/alaja/input.ex:213:8:pattern_match_cov
+lib/alaja/layout.ex:411:13:pattern_match_cov

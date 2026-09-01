@@ -234,7 +234,7 @@ CHANGELOG `[Unreleased]` actualizado. Git history normalizado.
      - Crear `Calculator.compute_column_widths/2`, `compute_alignment/2`, etc.
      - Tests específicos para Calculator (property tests de anchos)
      - `Table.render/2` usa `Calculator` internamente
-  2. **Fase 2: Extraer Renderer** (4h)
+  2. **Paso 2: Extraer Renderer** (4h)
      - Crear `Renderer.render/3` y helpers de render
      - Mantener backwards compatibility
      - Tests con snapshots para verificar output idéntico
@@ -285,7 +285,7 @@ CHANGELOG `[Unreleased]` actualizado. Git history normalizado.
   1. **Fase 1: Extraer Writer** (3h)
      - Mover todas las funciones de write
      - Tests con property tests (write + read consistency)
-  2. **Fase 2: Extraer Range + Position** (3h)
+  2. **Paso 2: Extraer Range + Position** (3h)
      - Mover range/* y positioned/*
      - Tests
   3. **Fase 3: Extraer Renderer** (2h)
@@ -373,7 +373,7 @@ CHANGELOG `[Unreleased]` actualizado. Git history normalizado.
   1. **Fase 1: Extraer DSL macro** (3h)
      - Aislar `__using__/1` en `dsl.ex` sin dependencias del resto
      - Tests: macro genera attributes esperados; `help/0` produce output correcto
-  2. **Fase 2: Extraer FlagParser** (3h)
+  2. **Paso 2: Extraer FlagParser** (3h)
      - Mover las 5 aridades de `parse_matched_flag/4` + helpers
      - Tests específicos por aridad
      - `Definition` mantiene `parse_matched_flag/4` como `defdelegate`

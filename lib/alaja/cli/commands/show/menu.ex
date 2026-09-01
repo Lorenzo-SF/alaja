@@ -1,15 +1,31 @@
 defmodule Alaja.CLI.Commands.Show.Menu do
   @moduledoc "`alaja menu` — Display an interactive selection menu."
 
+  alias Alaja.CLI.Color
+  alias Alaja.CLI.GlobalOpts
+  alias Alaja.CLI.HelpFormatter
+  alias Alaja.Printer
+
   @help_data [
     title: "Alaja Menu",
     subtitle: "Display an interactive selection menu",
-    size: :small
+    usage:
+      "alaja menu [--header T] <item1> <item2> ... <itemN> [--color C] [--align left|center|right]",
+    description:
+      "Interactive menu: the first arg is the header (or use `--header`), the rest are the choices. The selected item is printed to stdout.",
+    options: [
+      {:header, :string, nil, "Header / prompt (defaults to first positional)"},
+      {:color, :string, nil, "Color of the menu items"},
+      {:align, :string, "left", "Alignment: left, center, right"}
+    ],
+    examples: [
+      {"Simple choice", "alaja menu build test deploy"},
+      {"With header", "alaja menu --header \"Pick environment\" dev staging prod"},
+      {"Coloured", "alaja menu \"Pick\" A B C --color cyan"},
+      {"Many options", "alaja menu --header \"Pick a port\" 80 443 3000 5432 6379 8080"},
+      {"Use in script", "env=$(alaja menu dev staging prod); echo \"deploying to $env\""}
+    ]
   ]
-
-  alias Alaja.CLI.GlobalOpts
-
-  alias Alaja.Printer
 
   @doc "Runs the `alaja menu` command from raw argv — shows an interactive menu and prints the selected item."
   @spec run([String.t()]) :: :ok | no_return()
@@ -21,15 +37,18 @@ defmodule Alaja.CLI.Commands.Show.Menu do
         switches: [header: :string, color: :string, align: :string]
       )
 
-    if global.help or Keyword.get(opts, :help, false) do
+    if global.help do
       help()
     else
       header = Keyword.get(opts, :header) || Enum.at(items, 0)
       menu_items = if Keyword.get(opts, :header), do: items, else: Enum.drop(items, 1)
-      color = parse_color(Keyword.get(opts, :color))
+      color = Color.parse_or_nil(Keyword.get(opts, :color))
       align = parse_align(Keyword.get(opts, :align))
 
       if is_nil(header) or menu_items == [] do
+        # The user did not pass enough args. Print a friendly error
+        # so it is obvious why nothing happened, then show help.
+        missing_header_error(items)
         help()
       else
         options = Enum.map(menu_items, &{&1, &1})
@@ -45,14 +64,7 @@ defmodule Alaja.CLI.Commands.Show.Menu do
     end
   end
 
-  defp parse_color(nil), do: nil
-
-  defp parse_color(s) do
-    case Pote.Orchestrator.parse_color(s) do
-      {:ok, c} -> c
-      _ -> nil
-    end
-  end
+  # parse_color/1 delegates to Alaja.CLI.Color.parse_or_nil/1
 
   defp parse_align(nil), do: :left
   defp parse_align(a) when is_atom(a), do: a
@@ -64,6 +76,16 @@ defmodule Alaja.CLI.Commands.Show.Menu do
     end
   end
 
-  @spec help() :: :ok
-  def help, do: @help_data
+  # Render a friendly error when the user gives 2 positional args
+  # without --header. With the legacy interpretation the first arg
+  # would be silently treated as the header, which is confusing.
+  defp missing_header_error(items) do
+    IO.puts(
+      :stderr,
+      "Error: alaja menu needs a header. Use --header <text> or pass at least 2 positional args (got #{length(items)})."
+    )
+  end
+
+  @spec help(Alaja.CLI.GlobalOpts.t() | nil) :: :ok
+  def help(global \\ nil), do: HelpFormatter.render(@help_data, global)
 end

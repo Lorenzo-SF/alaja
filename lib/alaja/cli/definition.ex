@@ -40,8 +40,13 @@ defmodule Alaja.CLI.Definition do
       }
   """
 
-  @type flag_type :: :string | :integer | :float | :boolean | :atom
-  @type arg_type :: :string | :integer | :float
+  @valid_flag_types [:string, :integer, :float, :boolean, :atom, :path, :url, :color_list, :keep]
+  @valid_arg_types [:string, :integer, :float, :boolean, :atom, :path, :url, :color_list, :keep]
+
+  @type flag_type ::
+          :string | :integer | :float | :boolean | :atom | :path | :url | :color_list | :keep
+  @type arg_type ::
+          :string | :integer | :float | :boolean | :atom | :path | :url | :color_list | :keep
 
   @doc false
   @spec __using__(Keyword.t()) :: Macro.t()
@@ -132,6 +137,13 @@ defmodule Alaja.CLI.Definition do
   @doc "Defines a CLI flag within a command."
   @spec flag(atom(), flag_type(), Keyword.t()) :: Macro.t()
   defmacro flag(name, type, opts \\ []) do
+    unless type in @valid_flag_types do
+      raise ArgumentError,
+            "invalid flag type: #{inspect(type)}. " <>
+              "Valid types: #{inspect(@valid_flag_types)}. " <>
+              "Flag: #{name}"
+    end
+
     quote do
       @current_command update_in(@current_command.flags, fn flags ->
                          flags ++
@@ -143,7 +155,12 @@ defmodule Alaja.CLI.Definition do
                                required: unquote(Keyword.get(opts, :required, false)),
                                values: unquote(Keyword.get(opts, :values)),
                                short: unquote(Keyword.get(opts, :short)),
-                               repeatable: unquote(Keyword.get(opts, :repeatable, false))
+                               repeatable: unquote(Keyword.get(opts, :repeatable, false)),
+                               env: unquote(Keyword.get(opts, :env)),
+                               min: unquote(Keyword.get(opts, :min)),
+                               max: unquote(Keyword.get(opts, :max)),
+                               conflicts_with: unquote(Keyword.get(opts, :conflicts_with, [])),
+                               requires: unquote(Keyword.get(opts, :requires, []))
                              }
                            ]
                        end)
@@ -153,6 +170,13 @@ defmodule Alaja.CLI.Definition do
   @doc "Defines a positional argument within a command."
   @spec argument(atom(), arg_type(), Keyword.t()) :: Macro.t()
   defmacro argument(name, type, opts \\ []) do
+    unless type in @valid_arg_types do
+      raise ArgumentError,
+            "invalid argument type: #{inspect(type)}. " <>
+              "Valid types: #{inspect(@valid_arg_types)}. " <>
+              "Argument: #{name}"
+    end
+
     quote do
       @current_command update_in(@current_command.arguments, fn args ->
                          args ++
@@ -195,15 +219,7 @@ defmodule Alaja.CLI.Definition do
   @spec __before_compile__(Macro.Env.t()) :: Macro.t()
   defmacro __before_compile__(env) do
     halt_on_error = Module.get_attribute(env.module, :halt_on_error) || false
-
-    halt_block =
-      if halt_on_error do
-        quote do
-          if match?({:error, _}, result) do
-            System.halt(1)
-          end
-        end
-      end
+    halt_block = halt_block(halt_on_error)
 
     quote do
       @doc false
@@ -248,7 +264,26 @@ defmodule Alaja.CLI.Definition do
         Application.ensure_all_started(:alaja)
         Application.ensure_all_started(__otp_app__())
 
-        result = Alaja.CLI.Definition.dispatch(@commands |> Enum.reverse(), args)
+        # Sync the CLI flag --no-color into the Application env BEFORE
+        # any command (or help renderer) asks Alaja.Config.color_enabled?/0.
+        # Without this the flag would only reach the printer level and
+        # leave Alaja.Config (and therefore Alaja.Theme.color/1) reporting
+        # colour as enabled. Priority stays: CLI flag > NO_COLOR env > IO.ANSI.
+        Alaja.CLI.NoColor.sync(args)
+
+        # Top-level commands that have been migrated to raise
+        # `Alaja.CLI.ActionError` (and any future typed exceptions) need
+        # their error rendered to stderr and the process exited with
+        # status 1. Without this, the exception would propagate as an
+        # Elixir crash dump — confusing for end users.
+        result =
+          try do
+            Alaja.CLI.Definition.run_dispatch(__commands__(), args)
+          rescue
+            e in Alaja.CLI.ActionError ->
+              IO.puts(:stderr, "Error: #{Exception.message(e)}")
+              exit({:shutdown, 1})
+          end
 
         unquote(halt_block)
 
@@ -257,10 +292,91 @@ defmodule Alaja.CLI.Definition do
     end
   end
 
+  # Builds the optional halt-on-error block for `halt_on_error: true`
+  # escripts. Extracted from `__before_compile__/1` to keep its
+  # cyclomatic complexity within the credo limit.
+  defp halt_block(true) do
+    quote do
+      if match?({:error, _}, result) do
+        System.halt(1)
+      end
+    end
+  end
+
+  defp halt_block(false), do: nil
+
   # ─── Runtime dispatch ─────────────────────────────────────────────────
 
   alias Alaja.CLI.ErrorHandler
   alias Alaja.CLI.Parser
+
+  @doc false
+  @spec run_dispatch([map()], [String.t()]) :: term()
+  def run_dispatch(commands, args) do
+    case args do
+      # Top-level help: `alaja`, `alaja --help`, `alaja -h`, and `alaja
+      # help` all render the full help instead of trying to dispatch to a
+      # command. `alaja` alone runs the startup showcase first on TTYs;
+      # the full help is only rendered afterwards if the user asks for it.
+      [] ->
+        dispatch_empty(commands)
+
+      ["--help" | _] ->
+        render_full_help(commands)
+
+      ["-h" | _] ->
+        render_full_help(commands)
+
+      ["help"] ->
+        render_full_help(commands)
+
+      ["--version" | _] ->
+        render_version()
+
+      ["-v" | _] ->
+        render_version()
+
+      _ ->
+        dispatch(commands, args)
+    end
+  end
+
+  defp dispatch_empty(commands) do
+    if Alaja.CLI.Showcase.enabled?() do
+      case Alaja.CLI.Showcase.run() do
+        :help -> render_full_help(commands)
+        _ -> :ok
+      end
+    else
+      render_full_help(commands)
+    end
+  end
+
+  defp render_full_help(commands) do
+    # Print the available commands list as well, formatted like a
+    # one-screen reference, so callers see what's available without
+    # having to dig into the formatted tables.
+    descriptions =
+      commands
+      |> Enum.map(fn %{name: name, description: desc} -> {name, desc} end)
+
+    if Alaja.CLI.HelpTabs.interactive?() do
+      # On a TTY the full help renders as tabs; the command list is
+      # embedded in the Commands tab.
+      Alaja.CLI.Help.full(descriptions)
+    else
+      Alaja.CLI.Help.full()
+      Alaja.CLI.Help.summary(descriptions)
+    end
+
+    :ok
+  end
+
+  defp render_version do
+    vsn = Application.spec(:alaja, :vsn) |> to_string()
+    IO.puts("alaja #{vsn}")
+    :ok
+  end
 
   @doc false
   @spec dispatch([map()], [String.t()]) :: {:error, atom()} | term()
@@ -465,47 +581,148 @@ defmodule Alaja.CLI.Definition do
 
   defp execute(cmd, flags, positional, parent_flags) do
     all_flags = parent_flags ++ flags
-
-    # Build a map of flag defaults + parsed values
-    # For repeatable flags, aggregate all values into a list
-    flag_values =
-      cmd.flags
-      |> Enum.map(fn f ->
-        flag_values = Keyword.get_values(all_flags, f.name)
-
-        if f.repeatable and flag_values != [] do
-          {f.name, flag_values}
-        else
-          value = Keyword.get(all_flags, f.name, f.default)
-          {f.name, value}
-        end
-      end)
-      |> Map.new()
-
-    # Parse positional arguments
-    arg_values = parse_arguments(cmd.arguments, positional)
+    flag_values = build_flag_values(cmd.flags, all_flags)
 
     # Validate required arguments
-    case validate_required_args(cmd.arguments, arg_values) do
+    case validate_required_args(cmd.arguments, parse_arguments(cmd.arguments, positional)) do
       {:error, missing} ->
         ErrorHandler.missing_args(cmd.name, missing)
 
       :ok ->
-        # Inject raw positional args so existing legacy handlers (that
-        # do their own OptionParser) can receive the unparsed list.
+        validate_and_run(cmd, flag_values, positional)
+    end
+  end
+
+  # Build a map of flag defaults + parsed values, shaded by:
+  #   * repeatable: aggregate all values into a list
+  #   * env: read from System.get_env/2 when the flag was not passed
+  #     on the CLI (CLI flag wins over env var)
+  defp build_flag_values(flags, all_flags) do
+    flags
+    |> Enum.map(fn f ->
+      flag_values = Keyword.get_values(all_flags, f.name)
+
+      cond do
+        f.repeatable and flag_values != [] ->
+          {f.name, flag_values}
+
+        is_list(flag_values) and flag_values != [] ->
+          {f.name, List.last(flag_values)}
+
+        true ->
+          {f.name, single_flag_value(f, all_flags)}
+      end
+    end)
+    |> Map.new()
+  end
+
+  # Value for a non-repeatable flag: CLI value wins, then env var,
+  # then default. Numeric ranges are validated when defined.
+  defp single_flag_value(f, all_flags) do
+    value =
+      case Keyword.fetch(all_flags, f.name) do
+        {:ok, v} -> v
+        :error -> env_default(f)
+      end
+
+    validate_range(f, value)
+  end
+
+  defp validate_and_run(cmd, flag_values, positional) do
+    # Validate mutual exclusion and requirements between flags.
+    case validate_flags(cmd, flag_values) do
+      {:error, msg} ->
+        IO.puts(:stderr, msg)
+        exit({:shutdown, 1})
+
+      :ok ->
         opts =
           flag_values
-          |> Map.merge(arg_values)
+          |> Map.merge(parse_arguments(cmd.arguments, positional))
           |> struct_to_map()
           |> Map.put(:_args, positional)
 
-        if match?({mod, fun} when is_atom(mod) and is_atom(fun), cmd.run) do
-          {mod, fun} = cmd.run
-          apply(mod, fun, [opts])
-        else
-          ErrorHandler.no_handler(cmd.name)
-        end
+        run_handler(cmd, opts)
     end
+  end
+
+  defp run_handler(%{run: {mod, fun}}, opts) when is_atom(mod) and is_atom(fun) do
+    apply(mod, fun, [opts])
+  end
+
+  defp run_handler(cmd, _opts) do
+    ErrorHandler.no_handler(cmd.name)
+  end
+
+  # Default value for a flag: explicit default > env var > nil.
+  defp env_default(%{env: nil, default: default}), do: default
+
+  defp env_default(%{env: env, default: default}) when is_binary(env) do
+    case System.get_env(env) do
+      nil -> default
+      val -> val
+    end
+  end
+
+  defp env_default(%{default: default}), do: default
+
+  defp validate_range(%{min: nil, max: nil}, value), do: value
+
+  defp validate_range(%{min: min, max: nil}, value) when is_number(value) and value < min,
+    do: raise(ArgumentError, "value #{value} is below minimum #{min}")
+
+  defp validate_range(%{min: nil, max: max}, value) when is_number(value) and value > max,
+    do: raise(ArgumentError, "value #{value} is above maximum #{max}")
+
+  defp validate_range(%{min: min, max: max}, value)
+       when is_number(value) and value >= min and value <= max,
+       do: value
+
+  defp validate_range(_, value), do: value
+
+  # Validate mutual exclusion and cross-flag requirements.
+  # Walks the command's flag definitions (not the parsed values) so
+  # that the conflicts/requires lists are accessible.
+  defp validate_flags(cmd, flag_values) do
+    case find_conflict(cmd.flags, flag_values) do
+      {a, b} ->
+        {:error, "Error: conflicting flags: --#{a} and --#{b} cannot be used together"}
+
+      nil ->
+        # Requirements: if flag :a declares requires [:b], then :b
+        # must also be present in flag_values.
+        missing = find_missing_required(cmd.flags, flag_values)
+
+        if missing == [],
+          do: :ok,
+          else:
+            {:error, "Error: missing required flags: #{Enum.map_join(missing, ", ", &"--#{&1}")}"}
+    end
+  end
+
+  # Mutual exclusion: if flag :a declares conflicts_with [:b], then
+  # both :a and :b cannot be present in flag_values.
+  defp find_conflict(flags, flag_values) do
+    Enum.find_value(flags, fn f ->
+      conflicting =
+        if Map.has_key?(flag_values, f.name) and f.conflicts_with != [] do
+          Enum.find(f.conflicts_with, &Map.has_key?(flag_values, &1))
+        end
+
+      if conflicting, do: {f.name, conflicting}
+    end)
+  end
+
+  # Requirements: if flag :a declares requires [:b], then :b
+  # must also be present in flag_values.
+  defp find_missing_required(flags, flag_values) do
+    Enum.flat_map(flags, fn f ->
+      if Map.has_key?(flag_values, f.name) and f.requires != [] do
+        Enum.filter(f.requires, &(not Map.has_key?(flag_values, &1)))
+      else
+        []
+      end
+    end)
   end
 
   defp validate_required_args(args, arg_values) do

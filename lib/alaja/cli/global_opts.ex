@@ -17,8 +17,11 @@ defmodule Alaja.CLI.GlobalOpts do
           box_title: String.t() | nil,
           box_border: atom(),
           box_color: tuple() | nil,
+          bg_color: tuple() | nil,
           quiet: boolean(),
-          stdin: boolean()
+          stdin: boolean(),
+          no_color: boolean(),
+          color: boolean()
         }
 
   defstruct help: false,
@@ -31,8 +34,11 @@ defmodule Alaja.CLI.GlobalOpts do
             box_title: nil,
             box_border: :rounded,
             box_color: nil,
+            bg_color: nil,
             quiet: false,
-            stdin: false
+            stdin: false,
+            no_color: false,
+            color: false
 
   # ---------------------------------------------------------------------------
   # Extraction
@@ -115,11 +121,28 @@ defmodule Alaja.CLI.GlobalOpts do
     extract_globals(rest, %{acc | box_color: color})
   end
 
+  defp extract_globals(["--bg-color", val | rest], acc) do
+    color = parse_color(val)
+    extract_globals(rest, %{acc | bg_color: color})
+  end
+
   defp extract_globals(["--quiet" | rest], acc), do: extract_globals(rest, %{acc | quiet: true})
   defp extract_globals(["-q" | rest], acc), do: extract_globals(rest, %{acc | quiet: true})
 
   defp extract_globals(["--stdin" | rest], acc), do: extract_globals(rest, %{acc | stdin: true})
   defp extract_globals(["-s" | rest], acc), do: extract_globals(rest, %{acc | stdin: true})
+
+  defp extract_globals(["--no-color" | rest], acc),
+    do: extract_globals(rest, %{acc | no_color: true})
+
+  # Force ANSI even when stdout is not a TTY. Renamed from the old
+  # `--color` so the many CLI commands that accept `--color <value>` for
+  # foreground color do not have their value silently swallowed here.
+  defp extract_globals(["--force-color" | rest], acc),
+    do: extract_globals(rest, %{acc | color: true})
+
+  defp extract_globals(["--force-colour" | rest], acc),
+    do: extract_globals(rest, %{acc | color: true})
 
   # Unknown flag with value: keep both
   defp extract_globals([flag, val | rest], acc) do
@@ -149,14 +172,21 @@ defmodule Alaja.CLI.GlobalOpts do
   defp parse_align(_), do: :left
 
   defp parse_color(str) do
-    case Pote.Orchestrator.parse_color(str) do
-      {:ok, rgb} -> rgb
-      _ -> nil
+    case Alaja.CLI.Color.parse(str) do
+      {:ok, rgb} ->
+        rgb
+
+      {:error, msg} ->
+        IO.puts(:stderr, msg)
+        nil
+
+      nil ->
+        nil
     end
   end
 
   @doc """
-  Converts global opts to printer keyword opts.
+    Converts global opts to printer keyword opts.
   """
   @spec to_printer_opts(t()) :: keyword()
   def to_printer_opts(global) do
@@ -169,7 +199,30 @@ defmodule Alaja.CLI.GlobalOpts do
       box_title: global.box_title,
       box_border: global.box_border,
       box_color: global.box_color,
-      align: global.align
+      bg_color: global.bg_color,
+      align: global.align,
+      no_color: global.no_color,
+      color: global.color
+    ]
+  end
+
+  @doc """
+    Converts global opts to a plain keyword list suitable for passing to
+    components that want positioning/box flags without depending on the
+    CLI struct. Only includes the keys the backend components read.
+  """
+  @spec to_keyword(t()) :: keyword()
+  def to_keyword(global) do
+    [
+      raw: global.raw,
+      pos_x: global.pos_x,
+      pos_y: global.pos_y,
+      box: global.box,
+      box_title: global.box_title,
+      box_border: global.box_border,
+      box_color: global.box_color,
+      align: global.align,
+      no_color: global.no_color
     ]
   end
 end

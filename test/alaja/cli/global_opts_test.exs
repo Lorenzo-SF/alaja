@@ -73,6 +73,29 @@ defmodule Alaja.CLI.GlobalOptsTest do
       assert opts.stdin == true
     end
 
+    test "parses --no-color flag" do
+      {opts, _rest} = GlobalOpts.parse(["--no-color"])
+      assert opts.no_color == true
+      assert opts.color == false
+    end
+
+    test "parses --force-color flag (force)" do
+      {opts, _rest} = GlobalOpts.parse(["--force-color"])
+      assert opts.color == true
+      assert opts.no_color == false
+    end
+
+    test "parses --force-colour alias (force)" do
+      {opts, _rest} = GlobalOpts.parse(["--force-colour"])
+      assert opts.color == true
+    end
+
+    test "--no-color and --force-color both set (last wins on no_color side)" do
+      {opts, _rest} = GlobalOpts.parse(["--no-color", "--force-color"])
+      assert opts.color == true
+      assert opts.no_color == true
+    end
+
     test "leaves unknown args in rest" do
       {_opts, rest} = GlobalOpts.parse(["--unknown", "value"])
       assert rest == ["--unknown", "value"]
@@ -92,6 +115,41 @@ defmodule Alaja.CLI.GlobalOptsTest do
       assert kw[:pos_x] == 5
       assert kw[:verbose] == true
       assert kw[:align] == :center
+    end
+
+    test "passes no_color/color through to printer opts" do
+      {opts, _} = GlobalOpts.parse(["--no-color"])
+      kw = GlobalOpts.to_printer_opts(opts)
+      assert kw[:no_color] == true
+      assert kw[:color] == false
+    end
+
+    test "passes bg_color through to printer opts" do
+      {opts, _} = GlobalOpts.parse(["--bg-color", "hex:333333"])
+      kw = GlobalOpts.to_printer_opts(opts)
+      assert kw[:bg_color] == {51, 51, 51}
+    end
+  end
+
+  describe "parse/1 --bg-color" do
+    test "parses explicit format" do
+      {opts, _rest} = GlobalOpts.parse(["--bg-color", "rgb:51;51;51"])
+      assert opts.bg_color == {51, 51, 51}
+    end
+
+    test "parses #hex via autodetection" do
+      {opts, _rest} = GlobalOpts.parse(["--bg-color", "#333333"])
+      assert opts.bg_color == {51, 51, 51}
+    end
+
+    test "invalid color leaves bg_color nil" do
+      {opts, _rest} = GlobalOpts.parse(["--bg-color", "gibberish"])
+      assert opts.bg_color == nil
+    end
+
+    test "defaults to nil without flag" do
+      {opts, _rest} = GlobalOpts.parse([])
+      assert opts.bg_color == nil
     end
   end
 end

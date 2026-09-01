@@ -39,6 +39,52 @@ defmodule Alaja.Theme.CustomTemplates do
     name: "catppuccin_mocha",
     description: "Catppuccin Mocha — warm pastel on deep brown-black",
     colors: %{
+      # Alaja contract (22 keys) — mapped from the catppuccin palette
+      # mauve
+      "primary" => {203, 166, 247},
+      # teal
+      "secondary" => {148, 226, 213},
+      # peach
+      "ternary" => {250, 179, 135},
+      # pink
+      "quaternary" => {245, 194, 231},
+      # text
+      "no_color" => {205, 214, 244},
+      # base
+      "background" => {30, 30, 46},
+      # green
+      "success" => {166, 227, 161},
+      # yellow
+      "warning" => {249, 226, 175},
+      # red
+      "error" => {243, 139, 168},
+      # sapphire
+      "info" => {116, 199, 236},
+      # surface1
+      "menu" => {69, 71, 90},
+      # peach
+      "alert" => {250, 179, 135},
+      # red
+      "critical" => {243, 139, 168},
+      # overlay0
+      "debug" => {108, 112, 134},
+      # pink
+      "happy" => {245, 194, 231},
+      # blue
+      "sad" => {137, 180, 250},
+      # mauve
+      "gradient_1" => {203, 166, 247},
+      # blue
+      "gradient_2" => {137, 180, 250},
+      # teal
+      "gradient_3" => {148, 226, 213},
+      # green
+      "gradient_4" => {166, 227, 161},
+      # yellow
+      "gradient_5" => {249, 226, 175},
+      # peach
+      "gradient_6" => {250, 179, 135},
+      # Catppuccin extras (kept for `theme:<key>` lookups by the user)
       "rosewater" => {245, 224, 220},
       "flamingo" => {242, 205, 205},
       "pink" => {245, 194, 231},
@@ -72,6 +118,50 @@ defmodule Alaja.Theme.CustomTemplates do
     name: "catppuccin_frappe",
     description: "Catppuccin Frappe — precision palette with balanced luminance",
     colors: %{
+      # mauve
+      "primary" => {201, 209, 238},
+      # teal (variant)
+      "secondary" => {225, 194, 103},
+      # peach
+      "ternary" => {239, 159, 118},
+      # pink
+      "quaternary" => {244, 189, 228},
+      # text
+      "no_color" => {198, 208, 245},
+      # base
+      "background" => {48, 52, 70},
+      # green
+      "success" => {166, 209, 137},
+      # yellow
+      "warning" => {229, 200, 144},
+      # red
+      "error" => {231, 130, 132},
+      # sapphire
+      "info" => {166, 229, 225},
+      # surface1
+      "menu" => {81, 87, 109},
+      # peach
+      "alert" => {239, 159, 118},
+      # red
+      "critical" => {231, 130, 132},
+      # overlay0 (variant)
+      "debug" => {115, 153, 148},
+      # pink
+      "happy" => {244, 189, 228},
+      # blue (variant)
+      "sad" => {180, 208, 226},
+      # mauve
+      "gradient_1" => {201, 209, 238},
+      # blue
+      "gradient_2" => {180, 208, 226},
+      # teal
+      "gradient_3" => {225, 194, 103},
+      # green
+      "gradient_4" => {166, 209, 137},
+      # yellow
+      "gradient_5" => {229, 200, 144},
+      # peach
+      "gradient_6" => {239, 159, 118},
       "rosewater" => {242, 213, 207},
       "flamingo" => {238, 190, 190},
       "pink" => {244, 189, 228},
@@ -103,8 +193,52 @@ defmodule Alaja.Theme.CustomTemplates do
 
   @catppuccin_latte %Pote.Theme.Theme{
     name: "catppuccin_latte",
-    description: "Catppuccin Latte — warm pastel on deep brown-black",
+    description: "Catppuccin Latte — warm pastel on light background",
     colors: %{
+      # mauve (dark for contrast on light bg)
+      "primary" => {136, 57, 239},
+      # teal (variant, darker)
+      "secondary" => {80, 250, 122},
+      # peach
+      "ternary" => {235, 142, 72},
+      # pink
+      "quaternary" => {234, 118, 203},
+      # text (dark)
+      "no_color" => {78, 90, 126},
+      # base (light)
+      "background" => {245, 245, 245},
+      # green
+      "success" => {166, 209, 137},
+      # yellow
+      "warning" => {233, 168, 102},
+      # red (dark for light bg)
+      "error" => {210, 15, 57},
+      # sapphire
+      "info" => {29, 233, 242},
+      # surface1
+      "menu" => {78, 156, 173},
+      # peach
+      "alert" => {235, 142, 72},
+      # red
+      "critical" => {210, 15, 57},
+      # subtext1 (readable on light)
+      "debug" => {124, 136, 147},
+      # pink
+      "happy" => {234, 118, 203},
+      # blue (variant)
+      "sad" => {255, 91, 0},
+      # mauve
+      "gradient_1" => {136, 57, 239},
+      # blue (variant)
+      "gradient_2" => {255, 91, 0},
+      # teal
+      "gradient_3" => {80, 250, 122},
+      # green
+      "gradient_4" => {166, 209, 137},
+      # yellow
+      "gradient_5" => {233, 168, 102},
+      # peach
+      "gradient_6" => {235, 142, 72},
       "rosewater" => {220, 138, 120},
       "flamingo" => {221, 120, 120},
       "pink" => {234, 118, 203},
@@ -138,6 +272,50 @@ defmodule Alaja.Theme.CustomTemplates do
     name: "catppuccin_macchiato",
     description: "Catppuccin Macchiato — warm pastel on deep brown-black",
     colors: %{
+      # mauve
+      "primary" => {198, 160, 246},
+      # teal
+      "secondary" => {139, 213, 202},
+      # peach
+      "ternary" => {245, 169, 127},
+      # pink
+      "quaternary" => {245, 189, 230},
+      # text
+      "no_color" => {202, 211, 245},
+      # base
+      "background" => {36, 39, 58},
+      # green
+      "success" => {166, 210, 164},
+      # yellow
+      "warning" => {238, 212, 159},
+      # red
+      "error" => {237, 135, 150},
+      # sapphire
+      "info" => {125, 196, 228},
+      # surface1
+      "menu" => {73, 77, 100},
+      # peach
+      "alert" => {245, 169, 127},
+      # red
+      "critical" => {237, 135, 150},
+      # overlay0
+      "debug" => {110, 115, 141},
+      # pink
+      "happy" => {245, 189, 230},
+      # blue
+      "sad" => {170, 173, 244},
+      # mauve
+      "gradient_1" => {198, 160, 246},
+      # blue
+      "gradient_2" => {170, 173, 244},
+      # teal
+      "gradient_3" => {139, 213, 202},
+      # green
+      "gradient_4" => {166, 210, 164},
+      # yellow
+      "gradient_5" => {238, 212, 159},
+      # peach
+      "gradient_6" => {245, 169, 127},
       "rosewater" => {244, 219, 214},
       "flamingo" => {240, 198, 198},
       "pink" => {245, 189, 230},

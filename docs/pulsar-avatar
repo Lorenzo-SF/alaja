@@ -1,0 +1,82 @@
+#!/usr/bin/env bash
+#
+# docs/pulsar-avatar — escena de ejemplo del CLI alaja.
+#
+# Lanza un pulsar centrado en la terminal que, en lugar de texto, pinta el
+# avatar de batamantaman. La imagen se escala con aspect ratio (contain)
+# para caber dentro del pulsar y se ubica cerca de la esquina del box
+# (margen de 1 celda, sin tocarla) con --content-position-y. Corre en
+# background con el PID guardado para docs/kill-pulsar.
+#
+#   ./docs/pulsar-avatar            # lanza la escena
+#   ./docs/kill-pulsar              # la detiene
+#
+# Variables útiles:
+#   ALAJA=/ruta/alaja               # binario (default: alaja del PATH)
+#   AVATAR=/ruta/imagen.png         # imagen (default: avatar de batamantaman)
+#
+set -euo pipefail
+
+ALAJ="${ALAJA:-alaja}"
+AVATAR="${AVATAR:-$HOME/cacafuti/bitacora/Imagenes/batamantaman/avatar.png}"
+PIDFILE="${TMPDIR:-/tmp}/alaja-pulsar.pid"
+GEOMFILE="${TMPDIR:-/tmp}/alaja-pulsar.geom"
+
+# ── precondiciones ──────────────────────────────────────────────────────
+if [[ -f "$PIDFILE" ]] && kill -0 "$(cat "$PIDFILE")" 2>/dev/null; then
+  echo "ya hay un pulsar activo (pid $(cat "$PIDFILE")); usa docs/kill-pulsar" >&2
+  exit 1
+fi
+if [[ ! -f "$AVATAR" ]]; then
+  echo "avatar no encontrado: $AVATAR" >&2
+  exit 1
+fi
+if ! command -v "$ALAJ" >/dev/null 2>&1; then
+  echo "alaja no encontrado en el PATH: $ALAJ" >&2
+  exit 1
+fi
+
+# aspect ratio de la imagen (para colocar el contenido; fallback 1.38 del avatar)
+aspect=$(python3 - "$AVATAR" <<'PY' 2>/dev/null || echo 1.38
+import struct, sys
+with open(sys.argv[1], 'rb') as f:
+    f.read(16)
+    w, h = struct.unpack('>II', f.read(8))
+print(f"{h / w:.3f}")
+PY
+)
+
+rows=$(tput lines 2>/dev/null || echo 24)
+cols=$(tput cols 2>/dev/null || echo 80)
+
+# ── box del pulsar: la imagen portrait ocupa el ancho y deja 2 filas
+#    sobrantes -> margen de 1 celda arriba y abajo (cerca, sin tocar) ─────
+PW=30
+PH=23
+px=$(((cols - PW) / 2))
+py=$(((rows - PH) / 2))
+[[ $px -lt 1 ]] && px=1
+[[ $py -lt 1 ]] && py=1
+
+# alto de la imagen contenida (misma fórmula que alaja) -> margen inferior
+AH=$(awk -v w="$PW" -v a="$aspect" 'BEGIN { printf "%d", (w * a) / 2 + 0.5 }')
+[[ $AH -gt $PH ]] && AH=$PH
+CY=$((PH - AH - 1))
+[[ $CY -lt 0 ]] && CY=0
+
+# ── pulsar con imagen en background (raw: repinta solo su área) ──────────
+printf '%s %s %s %s\n' "$py" "$px" "$PH" "$PW" >"$GEOMFILE"
+"$ALAJ" pulsar batamantaman \
+  --content-type image \
+  --image-path "$AVATAR" \
+  --content-position-y "$CY" \
+  --raw \
+  --pos-x "$((px - 1))" \
+  --pos-y "$((py - 1))" \
+  --align left \
+  --width "$PW" \
+  --height "$PH" \
+  --speed 120 &
+echo $! >"$PIDFILE"
+
+echo "pulsar lanzado (pid $(cat "$PIDFILE")); detenlo con docs/kill-pulsar"

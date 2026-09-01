@@ -1,4 +1,6 @@
 defmodule Alaja.Components.ColorWheel.Harmonies do
+  @moduledoc false
+
   alias Pote
   alias Pote.{Converters, Harmonies}
 

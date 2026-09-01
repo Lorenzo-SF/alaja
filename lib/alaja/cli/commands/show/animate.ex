@@ -1,14 +1,41 @@
 defmodule Alaja.CLI.Commands.Show.Animate do
   @moduledoc "`alaja animate` — Display animated spinners and indicators."
 
+  alias Alaja.CLI.GlobalOpts
+  alias Alaja.CLI.HelpFormatter
+  alias Alaja.Components.Animate
+
   @help_data [
     title: "Alaja Animate",
     subtitle: "Display animated spinners and indicators",
-    size: :small
+    usage:
+      "alaja animate [--type spinner|kitt|pulse|wave|rainbow] [--duration N] [--text T] [--color C] [--speed N] [--chars C] [--colors C|C|C]",
+    description: """
+    Renders a spinner-style animation. Use `--duration` (in seconds) to
+    bound the animation; omit for an indefinite loop. The kitt animation
+    uses a trailing-character sweep.
+    """,
+    options: [
+      {:type, :string, "spinner", "Animation type: spinner, kitt, pulse, wave, rainbow"},
+      {:duration, :integer, 3, "Total duration in seconds"},
+      {:text, :string, "Loading", "Text drawn before the spinner"},
+      {:color, :string, nil, "Single color for the animation"},
+      {:speed, :integer, 100, "Frames per second"},
+      {:chars, :string, nil, "Custom spinner characters (overrides the type defaults)"},
+      {:colors, :string, nil,
+       "List of colors separated by `|` (NOT commas; formats: rgb, argb, hex, xterm, cmyk, hsl, hsv, hwb, theme). Example: theme:primary|theme:secondary|rgb:255,0,0"}
+    ],
+    examples: [
+      {"Default spinner", "alaja animate"},
+      {"With label", "alaja animate --text \"Building...\" --duration 3"},
+      {"KITT sweep", "alaja animate --type kitt --color cyan --duration 2"},
+      {"Pulse", "alaja animate --type pulse --text \"thinking\" --duration 2"},
+      {"Rainbow", "alaja animate --type rainbow --colors red|green|blue|yellow --duration 3"},
+      {"Custom chars", "alaja animate --chars \"|/-\\\\\" --text \"working\" --duration 2"},
+      {"Long task indicator",
+       "alaja animate --type spinner --text \"Running tests\" --duration 30"}
+    ]
   ]
-
-  alias Alaja.CLI.GlobalOpts
-  alias Alaja.Components.Animate
 
   @doc "Runs the `alaja animate` command from raw argv; prints help on `--help`."
   @spec run([String.t()]) :: :ok | no_return()
@@ -28,7 +55,7 @@ defmodule Alaja.CLI.Commands.Show.Animate do
         ]
       )
 
-    if global.help or Keyword.get(opts, :help, false) do
+    if global.help do
       help()
     else
       type = Keyword.get(opts, :type, "spinner")
@@ -54,6 +81,6 @@ defmodule Alaja.CLI.Commands.Show.Animate do
     end
   end
 
-  @spec help() :: :ok
-  def help, do: @help_data
+  @spec help(Alaja.CLI.GlobalOpts.t() | nil) :: :ok
+  def help(global \\ nil), do: HelpFormatter.render(@help_data, global)
 end
