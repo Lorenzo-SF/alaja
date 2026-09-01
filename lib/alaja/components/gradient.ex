@@ -22,7 +22,7 @@ defmodule Alaja.Components.Gradient do
   """
 
   alias Alaja.CLI.Parser
-  alias Pote.{Gradients, Orchestrator}
+  alias Pote.Gradients
 
   @doc """
   Renders text with a gradient applied, returning an ANSI string.
@@ -34,14 +34,14 @@ defmodule Alaja.Components.Gradient do
 
     * `:from` — start color string (default: "#FF0000")
     * `:to` — end color string (default: "#0000FF")
-    * `:colors` — semicolon-separated multi-color gradient
+    * `:colors` — pipe-separated multi-color gradient
     * `:direction` — `:left_to_right`, `:right_to_left`, `:up_to_down`, `:down_to_up`
     * `:bg` — apply to background instead of foreground
     * `:text_color` — text color when using `:bg` mode
   """
   @spec render(String.t(), keyword()) :: String.t() | {:error, String.t()}
   def render(text, opts \\ []) do
-    direction = Keyword.get(opts, :direction, :left_to_right)
+    direction = Keyword.get(opts, :direction, :right_to_left)
     bg = Keyword.get(opts, :bg, false)
     text_color = Keyword.get(opts, :text_color)
     colors_str = Keyword.get(opts, :colors)
@@ -50,7 +50,7 @@ defmodule Alaja.Components.Gradient do
     if direction in [:up_to_down, :down_to_up] do
       render_vertical_gradient(lines, opts, colors_str, direction, bg, text_color)
     else
-      render_horizontal_gradient(lines, opts, colors_str, bg, text_color)
+      render_horizontal_gradient(lines, opts, colors_str, bg, text_color, direction)
     end
   end
 
@@ -104,9 +104,9 @@ defmodule Alaja.Components.Gradient do
   Parses two color strings into RGB tuples.
   """
   @spec parse_from_to_colors(String.t(), String.t()) :: [{integer(), integer(), integer()}]
-  def parse_from_to_colors(from_str \\ "#FF0000", to_str \\ "#0000FF") do
-    with {:ok, from} <- Orchestrator.parse_color(from_str),
-         {:ok, to} <- Orchestrator.parse_color(to_str) do
+  def parse_from_to_colors(from_str \\ "hex:ff0000", to_str \\ "hex:0000ff") do
+    with {:ok, from} <- Alaja.CLI.Color.parse(from_str),
+         {:ok, to} <- Alaja.CLI.Color.parse(to_str) do
       [from, to]
     else
       _ -> [{255, 0, 0}, {0, 0, 255}]
@@ -146,7 +146,14 @@ defmodule Alaja.Components.Gradient do
   end
 
   @doc false
-  def render_horizontal_gradient(lines, opts, colors_str, bg, text_color) do
+  def render_horizontal_gradient(lines, opts, colors_str, bg, text_color, direction) do
+    horiz_direction =
+      case direction do
+        :right_to_left -> :left_to_right
+        :left_to_right -> :right_to_left
+        _ -> :left_to_right
+      end
+
     case colors_str do
       nil ->
         [from, to] =
@@ -156,7 +163,7 @@ defmodule Alaja.Components.Gradient do
           )
 
         apply_gradient_text(Enum.join(lines, "\n"), from, to,
-          direction: :left_to_right,
+          direction: horiz_direction,
           bg: bg,
           text_color: text_color
         )
@@ -164,7 +171,11 @@ defmodule Alaja.Components.Gradient do
       str ->
         case Parser.parse_color_list(str) do
           {:ok, colors_list} when length(colors_list) >= 2 ->
-            Enum.map_join(lines, "\n", &render_horizontal_line(&1, colors_list, bg, text_color)) <>
+            Enum.map_join(
+              lines,
+              "\n",
+              &render_horizontal_line(&1, colors_list, bg, text_color, direction)
+            ) <>
               Alaja.ANSI.reset_attributes()
 
           _ ->
@@ -175,7 +186,7 @@ defmodule Alaja.Components.Gradient do
               )
 
             apply_gradient_text(Enum.join(lines, "\n"), from, to,
-              direction: :left_to_right,
+              direction: horiz_direction,
               bg: bg,
               text_color: text_color
             )
@@ -184,35 +195,58 @@ defmodule Alaja.Components.Gradient do
   end
 
   @doc false
-  def render_horizontal_line(line, colors_list, bg, text_color) do
+  def render_horizontal_line(line, colors_list, bg, text_color, direction) do
     steps = String.length(line)
     color_steps = Gradients.multicolor(colors_list, steps)
+    color_steps = color_steps
     apply_multicolor_text(line, color_steps, bg: bg, text_color: text_color)
   end
 
   @doc false
   def apply_vertical_gradient(lines, color_list, direction, bg, text_color) do
-    line_count = max(length(lines), 1)
-    color_steps = Gradients.multicolor(color_list, line_count)
+    line_count = length(lines)
 
-    color_steps =
-      if direction == :down_to_up, do: Enum.reverse(color_steps), else: color_steps
-
-    body =
-      lines
-      |> Enum.with_index()
-      |> Enum.map_join("\n", fn {line, idx} ->
-        color = Enum.at(color_steps, min(idx, length(color_steps) - 1))
-
-        if bg do
-          tc = text_color || {255, 255, 255}
-          "#{bg_code(color)}#{fg_code(tc)}#{line}"
-        else
-          "#{fg_code(color)}#{line}"
+    # Si solo hay 1 línea (o ninguna), usar el path horizontal equivalente
+    if line_count <= 1 do
+      # Traducir dirección vertical a horizontal:
+      # :up_to_down (top→bottom) cuando hay 1 línea ≡ left_to_right
+      # :down_to_up (bottom→top) cuando hay 1 línea ≡ right_to_left
+      horiz_direction =
+        case direction do
+          :up_to_down -> :left_to_right
+          :down_to_up -> :right_to_left
+          d -> d
         end
-      end)
 
-    body <> Alaja.ANSI.reset_attributes()
+      text = if line_count == 1, do: Enum.at(lines, 0), else: ""
+
+      apply_gradient_text(text, Enum.at(color_list, 0), Enum.at(color_list, -1),
+        direction: horiz_direction,
+        bg: bg,
+        text_color: text_color
+      )
+    else
+      color_steps = Gradients.multicolor(color_list, line_count)
+
+      color_steps =
+        if direction == :down_to_up, do: Enum.reverse(color_steps), else: color_steps
+
+      body =
+        lines
+        |> Enum.with_index()
+        |> Enum.map_join("\n", fn {line, idx} ->
+          color = Enum.at(color_steps, min(idx, length(color_steps) - 1))
+
+          if bg do
+            tc = text_color || {255, 255, 255}
+            "#{bg_code(color)}#{fg_code(tc)}#{line}"
+          else
+            "#{fg_code(color)}#{line}"
+          end
+        end)
+
+      body <> Alaja.ANSI.reset_attributes()
+    end
   end
 
   @doc false
@@ -223,8 +257,8 @@ defmodule Alaja.Components.Gradient do
   end
 
   @doc false
-  def fg_code({r, g, b}), do: Pote.Orchestrator.to_ansi({r, g, b})
+  def fg_code({r, g, b}), do: Alaja.ANSI.fg(r, g, b)
 
   @doc false
-  def bg_code({r, g, b}), do: Pote.Orchestrator.to_ansi_bg({r, g, b})
+  def bg_code({r, g, b}), do: Alaja.ANSI.bg(r, g, b)
 end

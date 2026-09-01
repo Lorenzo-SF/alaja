@@ -46,7 +46,7 @@ defmodule Alaja.Components.Table.Calculator do
   @spec visible_length(String.t()) :: integer()
   def visible_length(text) do
     stripped = text |> String.replace(@ansi_regex, "")
-    String.length(stripped)
+    Alaja.Text.width(stripped)
   end
 
   @spec pad_visible(String.t(), integer()) :: String.t()

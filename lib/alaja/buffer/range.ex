@@ -2,8 +2,8 @@ defmodule Alaja.Buffer.Range do
   @moduledoc false
 
   alias Alaja.Buffer
-  alias Alaja.Cell
   alias Alaja.Buffer.Writer
+  alias Alaja.Cell
 
   @doc false
   @spec range(Buffer.t()) :: [{non_neg_integer(), non_neg_integer()}]

@@ -2,9 +2,9 @@ defmodule Alaja.Buffer.Renderer do
   @moduledoc false
 
   alias Alaja.Buffer
-  alias Alaja.Cell
-  alias Alaja.Buffer.Writer
   alias Alaja.Buffer.Position
+  alias Alaja.Buffer.Writer
+  alias Alaja.Cell
 
   @doc false
   @spec to_iodata(Buffer.t()) :: iodata()

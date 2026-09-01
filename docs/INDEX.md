@@ -11,6 +11,8 @@
 | [`CHANGELOG.md`](../CHANGELOG.md) | Version history and release notes |
 | [`LICENSE.md`](../LICENSE.md) | MIT License |
 | [`plan_alaja.md`](../docs/plan_alaja.md) | Historical refactoring plan (Show→Base consolidation) |
+| [`guides/migrate_from_option_parser.md`](./guides/migrate_from_option_parser.md) | Side-by-side OptionParser → `Alaja.CLI.Definition` |
+| [`guides/migrate_from_owl.md`](./guides/migrate_from_owl.md) | Side-by-side Owl → Alaja components |
 
 ### Ecosystem context
 

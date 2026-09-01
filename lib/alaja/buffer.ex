@@ -19,8 +19,8 @@ defmodule Alaja.Buffer do
       iex> Alaja.Buffer.get(buffer, 10, 5)
   """
 
+  alias Alaja.Buffer.{Position, Range, Renderer, Writer}
   alias Alaja.Cell
-  alias Alaja.Buffer.{Writer, Position, Range, Renderer}
 
   @type cell :: Cell.t()
   @type coordinates :: {non_neg_integer(), non_neg_integer()}

@@ -1,5 +1,7 @@
 defmodule Alaja.Components.AnimatedBar do
+  alias Alaja.ANSI
   alias Alaja.Buffer
+  alias Alaja.Components.Box
 
   @moduledoc """
   Animated bar component with embedded animation in the filled portion.
@@ -138,7 +140,7 @@ defmodule Alaja.Components.AnimatedBar do
       if verbose do
         IO.puts(frame)
       else
-        IO.write("\r#{frame}")
+        IO.write("\r\e[K#{frame}")
       end
 
       Process.sleep(speed)
@@ -157,8 +159,11 @@ defmodule Alaja.Components.AnimatedBar do
 
   defp animate_filled(count, position, :spinner, _char, opts) do
     filled_color = Keyword.get(opts, :filled_color)
+    # The animated frame uses animation_color when set, falling
+    # back to the static filled_color so a colour always shows up.
+    frame_color = resolve_color(opts[:animation_color]) || filled_color
     frame = Enum.at(@spinner_frames, rem(position, length(@spinner_frames)))
-    List.duplicate({frame, filled_color}, count)
+    List.duplicate({frame, frame_color}, count)
   end
 
   defp animate_filled(count, position, :kitt, char, opts) do
@@ -187,14 +192,20 @@ defmodule Alaja.Components.AnimatedBar do
 
   defp animate_filled(count, position, :pulse, _char, opts) do
     filled_color = Keyword.get(opts, :filled_color)
+    # The animated pulse uses animation_color so the user can make
+    # the pulse stand out from the static filled colour.
+    frame_color = resolve_color(opts[:animation_color]) || filled_color
     frame_idx = rem(position, length(@pulse_frames))
     pulse_char = Enum.at(@pulse_frames, frame_idx)
 
-    List.duplicate({pulse_char, filled_color}, count)
+    List.duplicate({pulse_char, frame_color}, count)
   end
 
   defp animate_filled(count, position, :wave, _char, opts) do
     filled_color = Keyword.get(opts, :filled_color)
+    # Same pattern as :spinner / :pulse — animation_color overrides
+    # filled_color for the moving wave cells.
+    frame_color = resolve_color(opts[:animation_color]) || filled_color
     wave_len = length(@wave_frames)
 
     if count == 0 do
@@ -203,7 +214,7 @@ defmodule Alaja.Components.AnimatedBar do
       for i <- 0..(count - 1) do
         wave_idx = rem(i + position, wave_len)
         wave_char = Enum.at(@wave_frames, wave_idx)
-        {wave_char, filled_color}
+        {wave_char, frame_color}
       end
     end
   end
@@ -253,4 +264,141 @@ defmodule Alaja.Components.AnimatedBar do
     pos = rem(frame, cycle)
     if pos < range, do: pos, else: range * 2 - pos
   end
+
+  # ---------------------------------------------------------------------------
+  # Animation runtime — drives the loop that calls render_frame/4 each
+  # tick. Replaces the old CLI-side loop with proper coordinate tracking
+  # so boxed / multiline frames don't drift laterally on redraw.
+  #
+  # `opts` is the same keyword list passed to render_frame/4 plus:
+  #   `:max_iterations`, `:duration` (ms), `:speed` (ms per frame).
+  # `global` is a keyword list with positioning flags from the CLI:
+  #   `raw`, `pos_x`, `pos_y`, `box`, `box_title`, `box_border`,
+  #   `box_color`. Unknown keys are ignored.
+  # ---------------------------------------------------------------------------
+
+  @doc """
+  Runs the animated bar in the terminal until `--duration` elapses (or
+  `--max-iterations` is hit). Returns `:ok` when done.
+
+  Coordinates are tracked per frame so multi-line boxed bars redraw in
+  place instead of walking the cursor off-screen or drifting sideways.
+  """
+  @spec run(number(), number(), keyword(), keyword()) :: :ok
+  def run(value, max, opts, global) do
+    duration = Keyword.get(opts, :duration)
+    speed = Keyword.get(opts, :speed, 100)
+    max_iterations = compute_max_iterations(duration, speed, Keyword.get(opts, :max_iterations))
+    use_abs = global[:raw] || (global[:pos_x] || 0) > 0 || (global[:pos_y] || 0) > 0
+    start_x = (global[:pos_x] || 0) + 1
+    start_y = (global[:pos_y] || 0) + 1
+
+    # Compute the worst-case frame height up front so the vertical-space
+    # guard catches "boxed bar bigger than terminal" before we start the
+    # loop (otherwise the cursor-up escape would walk past row 1 and
+    # destroy content above).
+    worst_height = estimate_frame_height(global, opts)
+
+    term_h =
+      case :io.rows() do
+        {:ok, h} -> h
+        _ -> 24
+      end
+
+    if start_y + worst_height - 1 > term_h do
+      IO.write(
+        :stderr,
+        "alaja animated-bar: not enough vertical space (#{start_y + worst_height - 1} > #{term_h}); aborting\n"
+      )
+
+      :ok
+    else
+      if use_abs, do: IO.write(ANSI.hide_cursor())
+
+      try do
+        0..(max_iterations - 1)
+        |> Enum.reduce_while(:ok, fn frame, _ ->
+          if duration && duration > 0 && frame * speed >= duration do
+            {:halt, :ok}
+          else
+            ctx = %{use_abs: use_abs, start_x: start_x, start_y: start_y, frame: frame}
+            render_one(value, max, frame, opts, global, ctx)
+            Process.sleep(speed)
+            {:cont, :ok}
+          end
+        end)
+      after
+        if use_abs, do: IO.write(ANSI.show_cursor())
+      end
+
+      :ok
+    end
+  end
+
+  defp compute_max_iterations(nil, _speed, nil), do: 100_000
+
+  defp compute_max_iterations(duration_ms, speed, nil)
+       when is_integer(duration_ms) and duration_ms > 0 do
+    max(1, div(duration_ms + speed - 1, speed))
+  end
+
+  defp compute_max_iterations(_duration, _speed, max_iter)
+       when is_integer(max_iter) and max_iter > 0 do
+    max_iter
+  end
+
+  defp compute_max_iterations(_, _, _), do: 100_000
+
+  defp estimate_frame_height(global, _opts) do
+    if global[:box], do: 3, else: 1
+  end
+
+  defp render_one(value, max, frame, opts, global, ctx) do
+    raw_frame =
+      render_frame(value, max, frame, opts)
+      |> Buffer.to_iodata()
+      |> IO.iodata_to_binary()
+
+    wrapped = wrap_if_boxed(raw_frame, global)
+    write_frame(wrapped, ctx)
+  end
+
+  defp wrap_if_boxed(frame, global) do
+    if global[:box] do
+      box_opts =
+        []
+        |> maybe_add(:title, global[:box_title])
+        |> maybe_add(:border, global[:box_border])
+        |> maybe_add(:border_color, global[:box_color])
+
+      frame
+      |> Box.render(box_opts)
+      |> Buffer.to_iodata()
+      |> IO.iodata_to_binary()
+    else
+      frame
+    end
+  end
+
+  defp write_frame(wrapped, %{use_abs: true} = ctx) do
+    IO.write([
+      ANSI.move_to(ctx.start_x, ctx.start_y),
+      ANSI.clear_line_down(),
+      wrapped
+    ])
+  end
+
+  # Relative mode: save the cursor on the first frame so subsequent frames
+  # can restore to the same anchor, then clear-line-down and reprint.
+  # This avoids the cursor-walk drift that the old "count lines and emit
+  # CSI NA" approach produced when the bar was boxed.
+  defp write_frame(wrapped, %{use_abs: false} = ctx) do
+    case ctx.frame do
+      0 -> IO.write([ANSI.save_cursor(), wrapped])
+      _ -> IO.write([ANSI.restore_cursor(), ANSI.clear_line_down(), wrapped])
+    end
+  end
+
+  defp maybe_add(list, _key, nil), do: list
+  defp maybe_add(list, key, value), do: Keyword.put(list, key, value)
 end

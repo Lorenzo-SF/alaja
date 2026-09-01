@@ -9,7 +9,7 @@ defmodule BaseTest do
     end
 
     test "parses a known color string" do
-      assert Base.parse_color("red") == {255, 0, 0}
+      assert Base.parse_color("hex:ff0000") == {255, 0, 0}
     end
 
     test "returns nil for unknown color" do
@@ -22,9 +22,9 @@ defmodule BaseTest do
       assert Base.parse_color_list(nil) == nil
     end
 
-    test "parses a semicolon separated list of colors" do
-      # red => {255,0,0}, #00FF00 => {0,255,0}
-      assert Base.parse_color_list("red;#00FF00") == {:ok, [{255, 0, 0}, {0, 255, 0}]}
+    test "parses a pipe separated list of colors" do
+      # hex:ff0000 => {255,0,0}, hex:00ff00 => {0,255,0}
+      assert Base.parse_color_list("hex:ff0000|hex:00ff00") == [{255, 0, 0}, {0, 255, 0}]
     end
   end
 

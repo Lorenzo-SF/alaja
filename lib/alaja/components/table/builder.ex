@@ -1,7 +1,9 @@
 defmodule Alaja.Components.Table.Builder do
   @moduledoc false
 
-  alias Alaja.Components.Table.{Borders, Calculator, Renderer, Theme}
+  alias Alaja.CLI.Pagination
+  alias Alaja.Components.Table
+  alias Alaja.Components.Table.{Borders, Calculator, Page, Renderer, Theme}
 
   @default_border_style :normal
   @default_padding 1
@@ -143,15 +145,35 @@ defmodule Alaja.Components.Table.Builder do
   @spec print_with_headers(list() | nil, list(), keyword()) :: :ok
   def print_with_headers(headers, rows, opts) do
     page_size = Keyword.get(opts, :page_size)
+    data_fun = Keyword.get(opts, :data_fun)
 
-    if page_size && is_integer(page_size) && page_size > 0 && length(rows) > page_size do
-      print_paginated(headers, rows, page_size, opts)
-    else
-      {headers, rows} = normalize_data(headers, rows)
-      column_widths = Calculator.calculate_column_widths([headers | rows])
-      config = build_config(opts, column_widths)
-      do_print_table(headers, rows, column_widths, config, opts)
+    if data_fun != nil and not valid_data_fun?(data_fun, page_size) do
+      raise ArgumentError,
+            "Table with :data_fun requires a positive :page_size. " <>
+              "Contract: fn(%{page_size: pos_integer(), page: non_neg_integer(), " <>
+              "search: String.t()}) :: Alaja.Components.Table.Page.t()"
     end
+
+    if page_size && is_integer(page_size) && page_size > 0 do
+      if data_fun || length(rows) > page_size do
+        print_paginated(headers, rows, page_size, opts)
+      else
+        print_static(headers, rows, opts)
+      end
+    else
+      print_static(headers, rows, opts)
+    end
+  end
+
+  defp valid_data_fun?(data_fun, page_size) do
+    is_function(data_fun, 1) and is_integer(page_size) and page_size > 0
+  end
+
+  defp print_static(headers, rows, opts) do
+    {headers, rows} = normalize_data(headers, rows)
+    column_widths = Calculator.calculate_column_widths([headers | rows])
+    config = build_config(opts, column_widths)
+    do_print_table(headers, rows, column_widths, config, opts)
   end
 
   @spec do_print_table(
@@ -178,82 +200,196 @@ defmodule Alaja.Components.Table.Builder do
     :ok
   end
 
-  @spec print_paginated(list(), list(), integer(), keyword()) :: :ok
+  @spec print_paginated(list(), list(), pos_integer(), keyword()) :: :ok
   defp print_paginated(headers, rows, page_size, opts) do
-    total_rows = length(rows)
-    total_pages = div(total_rows + page_size - 1, page_size)
+    data_fun = Keyword.get(opts, :data_fun)
 
     IO.write(Alaja.ANSI.hide_cursor())
 
     try do
-      paginated_loop(headers, rows, 0, page_size, total_pages, opts)
+      if Pagination.tty?() do
+        IO.write(Alaja.ANSI.save_cursor())
+        paginated_loop(headers, rows, page_size, opts, data_fun, %{page: 0, search: ""})
+      else
+        # No TTY: no interaction possible. Print everything when the
+        # source is a plain list, otherwise the first page only.
+        page = fetch_page(headers, rows, page_size, opts, data_fun, 0, "")
+        render_page(page, opts)
+      end
     after
       IO.write(Alaja.ANSI.show_cursor())
     end
   end
 
-  defp paginated_loop(headers, rows, page, page_size, total_pages, opts) do
-    start = page * page_size
-    page_rows = Enum.slice(rows, start, page_size)
-    {headers, page_rows} = normalize_data(headers, page_rows)
-    column_widths = Calculator.calculate_column_widths([headers | page_rows])
-    config = build_config(opts, column_widths)
+  @spec paginated_loop(list(), list(), pos_integer(), keyword(), function() | nil, map()) :: :ok
+  defp paginated_loop(headers, rows, page_size, opts, data_fun, state) do
+    page = fetch_page(headers, rows, page_size, opts, data_fun, state.page, state.search)
+    state = %{state | page: page.page}
 
-    clear_screen_area()
-    do_print_table(headers, page_rows, column_widths, config, opts)
+    repaint_page(page, opts, state.search)
 
-    nav =
-      "Page #{page + 1}/#{total_pages} | n=next  p=prev  f=first  l=last  g=goto  q=quit"
+    case Pagination.read_key() do
+      :quit ->
+        :ok
 
-    IO.puts(String.duplicate(" ", max(config.offset_spaces - 2, 0)) <> "\e[2m" <> nav <> "\e[0m")
-    IO.puts("")
+      key ->
+        case apply_key(key, state) do
+          :quit ->
+            :ok
 
-    key = read_key()
-    new_page = handle_navigation(key, page, total_pages)
+          new_state ->
+            paginated_loop(headers, rows, page_size, opts, data_fun, new_state)
+        end
+    end
+  end
 
-    if new_page == :quit do
-      :ok
+  @doc """
+  Applies a key press to the paginator state.
+
+  Pure function (no I/O). Keys:
+
+    * `:right` — next page
+    * `:left` — previous page
+    * `:backspace` — remove the last search character
+    * `:esc`, `"q"` — quit
+    * alphanumeric characters — appended to the search text (and the
+      page resets to the first one)
+
+  Returns `:quit` or the new state map (`%{page: int, search: string}`).
+  """
+  @spec apply_key(term(), map()) :: :quit | map()
+  def apply_key(:esc, _state), do: :quit
+  def apply_key("q", _state), do: :quit
+  def apply_key(:right, state), do: %{state | page: state.page + 1}
+  def apply_key(:left, state), do: %{state | page: max(state.page - 1, 0)}
+
+  def apply_key(:backspace, state) do
+    %{state | search: String.slice(state.search, 0..-2//1) || ""}
+  end
+
+  def apply_key(:enter, state), do: state
+
+  def apply_key(char, state) when is_binary(char) do
+    if String.match?(char, ~r/^[[:alnum:]]$/),
+      do: %{state | search: state.search <> char, page: 0},
+      else: state
+  end
+
+  def apply_key(_key, state), do: state
+
+  @doc """
+  Builds the page of rows for the given page number and search text.
+
+  Pure function. With `:data_fun` the function is called with the
+  request contract and its result trusted (after an impossible-result
+  safety retry); otherwise rows are filtered with a case-insensitive
+  "like" match over every cell and sliced locally.
+  """
+  @spec build_page(list(), list(), pos_integer(), function() | nil, non_neg_integer(), String.t()) ::
+          Page.t()
+  def build_page(headers, rows, page_size, data_fun, page, search) do
+    if is_function(data_fun, 1) do
+      fetch_from_fun(data_fun, page_size, page, search)
     else
-      paginated_loop(headers, rows, new_page, page_size, total_pages, opts)
+      slice_page(headers, rows, page_size, page, search)
     end
   end
 
-  @spec handle_navigation(String.t(), integer(), integer()) :: integer() | :quit
-  def handle_navigation("n", page, total_pages), do: min(page + 1, total_pages - 1)
-  def handle_navigation("p", page, _total_pages), do: max(page - 1, 0)
-  def handle_navigation("f", _page, _total_pages), do: 0
-  def handle_navigation("l", _page, total_pages), do: total_pages - 1
-  def handle_navigation("g", _page, total_pages), do: goto_page(total_pages)
-  def handle_navigation("q", _page, _total_pages), do: :quit
-  def handle_navigation("\e", _page, _total_pages), do: :quit
-  def handle_navigation(_key, page, _total_pages), do: page
+  @doc """
+  Case-insensitive "like" search over every cell of a row.
+  """
+  @spec row_matches?(list(), String.t()) :: boolean()
+  def row_matches?(row, search) do
+    needle = String.downcase(search)
 
-  defp goto_page(total_pages) do
-    IO.write(Alaja.ANSI.show_cursor())
-    IO.write("Go to page (1-#{total_pages}): ")
-    input = IO.gets("") |> String.trim()
+    Enum.any?(row, fn cell ->
+      is_binary(cell) and String.contains?(String.downcase(cell), needle)
+    end)
+  end
 
-    case Integer.parse(input) do
-      {n, _} when n >= 1 and n <= total_pages ->
-        IO.write(Alaja.ANSI.hide_cursor())
-        n - 1
+  @spec fetch_page(
+          list(),
+          list(),
+          pos_integer(),
+          keyword(),
+          function() | nil,
+          non_neg_integer(),
+          String.t()
+        ) ::
+          Page.t()
+  defp fetch_page(headers, rows, page_size, _opts, data_fun, page, search) do
+    build_page(headers, rows, page_size, data_fun, page, search)
+  end
 
-      _ ->
-        IO.write(Alaja.ANSI.hide_cursor())
-        :stay
+  @spec fetch_from_fun(function(), pos_integer(), non_neg_integer(), String.t()) :: Page.t()
+  defp fetch_from_fun(data_fun, page_size, page, search) do
+    case data_fun.(%{page_size: page_size, page: page, search: search}) do
+      %Page{} = result ->
+        # Impossible result (requested page beyond the reported total):
+        # fall back to the first page with the same page size.
+        if result.total_rows > 0 and result.page * page_size >= result.total_rows and
+             result.page != 0 do
+          data_fun.(%{page_size: page_size, page: 0, search: search})
+        else
+          result
+        end
+
+      other ->
+        raise ArgumentError,
+              "Table :data_fun must return an Alaja.Components.Table.Page.t(), got: " <>
+                inspect(other)
     end
   end
 
-  defp read_key do
-    case IO.gets("Press key: ") do
-      :eof -> " "
-      "" -> " "
-      input -> String.first(String.trim(input)) || " "
-    end
+  @spec slice_page(list(), list(), pos_integer(), non_neg_integer(), String.t()) :: Page.t()
+  defp slice_page(headers, rows, page_size, page, search) do
+    {headers, rows} = normalize_data(headers, rows)
+
+    filtered =
+      if search == "", do: rows, else: Enum.filter(rows, &row_matches?(&1, search))
+
+    total = length(filtered)
+    page = Pagination.clamp_page(page, page_size, total)
+
+    %Page{
+      headers: headers,
+      rows: Enum.slice(filtered, page * page_size, page_size),
+      page: page,
+      total_pages: Pagination.total_pages(total, page_size),
+      total_rows: total
+    }
   end
 
-  defp clear_screen_area do
-    IO.write(Alaja.ANSI.clear_screen())
-    IO.write(Alaja.ANSI.cursor_home())
+  @spec render_page(Page.t(), keyword()) :: :ok
+  defp render_page(%Page{} = page, opts) do
+    {headers, rows} = normalize_data(page.headers, page.rows)
+    column_widths = Calculator.calculate_column_widths([headers | rows])
+    config = build_config(opts, column_widths)
+    do_print_table(headers, rows, column_widths, config, opts)
+    :ok
+  end
+
+  defp repaint_page(page, opts, search) do
+    IO.write([Alaja.ANSI.restore_cursor(), Alaja.ANSI.clear_line_down()])
+
+    page_text =
+      Table.render_iodata(
+        [headers: page.headers, rows: page.rows],
+        opts
+      )
+
+    search_part = if search == "", do: "", else: "  search: '#{search}'"
+    nav = "Page #{page.page + 1}/#{page.total_pages} | rows: #{page.total_rows}#{search_part}"
+    hint = " | ←→ navigate   type to search   backspace delete   q/esc quit"
+
+    # Raw-mode-safe write: `\n` alone would not return the carriage on a
+    # terminal in raw mode (ONLCR is off), so every newline becomes `\r\n`.
+    content =
+      [page_text, "\r\n", "\e[2m", nav, hint, "\e[0m", "\r\n"]
+      |> IO.iodata_to_binary()
+      |> String.replace("\n", "\r\n")
+
+    IO.write(content)
+    :ok
   end
 end

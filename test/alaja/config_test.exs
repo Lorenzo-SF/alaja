@@ -188,6 +188,59 @@ defmodule Alaja.ConfigTest do
     end
   end
 
+  describe "NO_COLOR convention (https://no-color.org/)" do
+    setup do
+      wipe_load_state!()
+
+      on_exit(fn ->
+        System.delete_env("NO_COLOR")
+        Application.delete_env(:alaja, :no_color)
+        Application.delete_env(:alaja, :__conf_loaded__)
+      end)
+
+      :ok
+    end
+
+    test "unset NO_COLOR keeps :no_color at default (nil/false)" do
+      System.delete_env("NO_COLOR")
+      Config.load!("/nonexistent.json")
+      refute Config.get(:no_color, false) == true
+    end
+
+    test "NO_COLOR=\"\" is ignored (empty value)" do
+      System.put_env("NO_COLOR", "")
+      Config.load!("/nonexistent.json")
+      refute Config.get(:no_color, false) == true
+    end
+
+    test "any non-empty NO_COLOR value disables ANSI (sets :no_color)" do
+      for value <- ["1", "0", "true", "yes", "anything"] do
+        System.put_env("NO_COLOR", value)
+        Application.delete_env(:alaja, :no_color)
+        Application.delete_env(:alaja, :__conf_loaded__)
+        Config.load!("/nonexistent.json")
+
+        assert Config.get(:no_color, false) == true,
+               "NO_COLOR=#{inspect(value)} should set :no_color"
+      end
+    end
+
+    test "color_enabled?/0 returns false when NO_COLOR is set (regardless of IO.ANSI)" do
+      System.put_env("NO_COLOR", "1")
+      Application.delete_env(:alaja, :no_color)
+      Application.delete_env(:alaja, :__conf_loaded__)
+      Config.load!("/nonexistent.json")
+      assert Config.color_enabled?() == false
+    end
+
+    test "color_enabled?/0 returns false when :no_color is set even with NO_COLOR unset" do
+      System.delete_env("NO_COLOR")
+      Application.put_env(:alaja, :no_color, true)
+      Application.delete_env(:alaja, :__conf_loaded__)
+      assert Config.color_enabled?() == false
+    end
+  end
+
   # Wipe the global state load!/1 and ensure_loaded/0 touch so concurrent
   # tests cannot observe leaks.
   defp wipe_load_state! do

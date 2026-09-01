@@ -1,0 +1,39 @@
+#!/usr/bin/env bash
+#
+# docs/kill-pulsar — detiene la escena lanzada por docs/pulsar-avatar.
+#
+# Mata el proceso del pulsar (TERM, luego KILL), restaura el cursor
+# (el pulsar raw lo escondió) y limpia el área que ocupaba.
+#
+set -euo pipefail
+
+PIDFILE="${TMPDIR:-/tmp}/alaja-pulsar.pid"
+GEOMFILE="${TMPDIR:-/tmp}/alaja-pulsar.geom"
+
+if [[ ! -f "$PIDFILE" ]] || ! kill -0 "$(cat "$PIDFILE")" 2>/dev/null; then
+  echo "no hay pulsar activo" >&2
+  rm -f "$PIDFILE" "$GEOMFILE"
+  exit 0
+fi
+
+pid=$(cat "$PIDFILE")
+kill -TERM "$pid" 2>/dev/null || true
+
+# espera hasta 1s a que termine; fuerza KILL si se resiste
+for _ in $(seq 1 20); do
+  kill -0 "$pid" 2>/dev/null || break
+  sleep 0.05
+done
+kill -0 "$pid" 2>/dev/null && kill -9 "$pid" 2>/dev/null || true
+
+rm -f "$PIDFILE"
+
+# restaurar cursor y limpiar el área del pulsar
+printf '\033[?25h'
+if [[ -f "$GEOMFILE" ]]; then
+  read -r gpy gpx gph gpw <"$GEOMFILE"
+  printf '\033[%d;%dH\033[J' "$gpy" "$gpx"
+  rm -f "$GEOMFILE"
+fi
+
+echo "pulsar detenido (pid $pid)"

@@ -15,6 +15,15 @@ defmodule Alaja.Components.Separator do
   As of v0.3.0, `render/2` returns an `Alaja.Buffer.t/0`. Use
   `Alaja.Buffer.to_iodata/1` or `Alaja.Printer.print_buffer/2` to
   emit it; `print/2` does that for you.
+
+  ## Customisation
+
+  - `:separator_color` (or legacy `:color`) — colour for the decorative
+    characters.
+  - `:text_color` — optional, overrides the colour of the centred label
+    (defaults to `separator_color`).
+  - `:char` — character used for the decorative parts.
+  - `:width` — total width; defaults to the current terminal width.
   """
 
   alias Alaja.{Buffer, Cell}
@@ -29,8 +38,10 @@ defmodule Alaja.Components.Separator do
 
   - `:char` - Character to use (default: `"─"`)
   - `:text` - Optional centered label
-  - `:color` - RGB tuple (default: dark gray)
-  - `:width` - Total width (default: 80)
+  - `:separator_color` (or legacy `:color`) - colour for the decorative parts
+  - `:text_color` - colour for the centred label (defaults to the
+    separator colour)
+  - `:width` - total width (default: terminal width)
   """
   @spec print(String.t() | nil, keyword()) :: :ok
   def print(text \\ nil, opts \\ []) do
@@ -47,13 +58,18 @@ defmodule Alaja.Components.Separator do
 
   The buffer has height 1 and width matching `:width`. The optional
   centered text breaks the line into three segments (left fill, label,
-  right fill), all rendered with the same foreground color.
+  right fill). Each segment may have its own colour (`separator_color`
+  for the fills, `text_color` for the label).
   """
   @spec render(String.t() | nil, keyword()) :: Buffer.t()
   def render(text \\ nil, opts \\ []) do
     char = Keyword.get(opts, :char, @default_char)
-    fg = Keyword.get(opts, :color) || @default_color
-    width = Keyword.get(opts, :width, 80)
+
+    separator_color =
+      Keyword.get(opts, :separator_color) || Keyword.get(opts, :color) || @default_color
+
+    text_color = Keyword.get(opts, :text_color) || separator_color
+    width = Keyword.get(opts, :width) || Alaja.CLI.Commands.Base.term_width()
 
     buffer = Buffer.new(width, 1)
 
@@ -65,11 +81,11 @@ defmodule Alaja.Components.Separator do
       right = remaining - left
 
       buffer
-      |> fill_cells(0, 0, left, char, fg)
-      |> write_cells(left, 0, label, fg)
-      |> fill_cells(left + label_len, 0, right, char, fg)
+      |> fill_cells(0, 0, left, char, separator_color)
+      |> write_cells(left, 0, label, text_color)
+      |> fill_cells(left + label_len, 0, right, char, separator_color)
     else
-      fill_cells(buffer, 0, 0, width, char, fg)
+      fill_cells(buffer, 0, 0, width, char, separator_color)
     end
   end
 

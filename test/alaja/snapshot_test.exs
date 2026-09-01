@@ -6,9 +6,14 @@ defmodule Alaja.SnapshotTest do
   Each test loads `<snapshot_name>.snap` from `test/snapshots/` and
   asserts that the corresponding component's `render/N` produces the
   same bytes (after `IO.iodata_to_binary`).
+
+  Snapshots are deterministic only if the active theme is fixed —
+  otherwise the colours used by each component render would vary with
+  whichever theme the user has selected. We pin `:catppuccin` here
+  because that's the theme that produced the original snapshots.
   """
 
-  use ExUnit.Case, async: true
+  use ExUnit.Case, async: false
 
   alias Alaja.Components.{
     Bar,
@@ -21,6 +26,18 @@ defmodule Alaja.SnapshotTest do
   }
 
   @snapshot_dir "test/snapshots"
+  @pinned_theme "catppuccin"
+
+  setup do
+    # Force a deterministic theme for the duration of every snapshot test.
+    # Without this the user's active theme (e.g. dracula) changes the
+    # 24-bit RGB sequences in the rendered output and every snapshot
+    # mismatch fails.
+    original = Alaja.Config.get(:theme_active)
+    Alaja.Config.set(:theme_active, @pinned_theme)
+    on_exit(fn -> Alaja.Config.set(:theme_active, original) end)
+    :ok
+  end
 
   defp load_snapshot(name) do
     path = Path.join(@snapshot_dir, "#{name}.snap")

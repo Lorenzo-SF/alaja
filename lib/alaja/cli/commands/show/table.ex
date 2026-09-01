@@ -14,16 +14,63 @@ defmodule Alaja.CLI.Commands.Show.Table do
   defdelegate parse_border_opt(s), to: Base, as: :parse_border_opt, arity: 1
   @moduledoc "`alaja table` — Display formatted tables."
 
+  alias Alaja.CLI.GlobalOpts
+  alias Alaja.CLI.HelpFormatter
+  alias Alaja.Components.Table, as: TableComp
+  alias Alaja.Printer
+
   @help_data [
     title: "Alaja Table",
     subtitle: "Display formatted tables with borders and styling",
-    size: :small
+    usage:
+      "alaja table --headers 'col1;col2;col3' --rows 'a;b;c\\;d' [--border S] [--padding N] [--border-color C] [--border-effects E,E] [--headers-color C] [--headers-align left|center|right] [--headers-effects E,E] [--rows-color C] [--rows-align left|center|right] [--rows-effects E,E] [--table-align left|center|right] [--row-N-color C] [--row-N-align A] [--row-N-effects E,E]",
+    description: """
+    Renders a multi-column table.
+
+    Within `--headers`, columns are separated by `;`. Within `--rows`,
+    cells are also separated by `;` and rows are either separated by
+    `;;` (a double `;`) or by repeating `--rows` once per row.
+
+    To include a literal `;` inside a cell, escape it as `\\;`. To
+    include a literal `\\` use `\\\\`.
+
+    Per-row styling uses `--row-N-{color,align,effects}` where N is
+    1-indexed. Both `effect` (legacy) and `effects` (canonical) are
+    accepted.
+    """,
+    options: [
+      {:headers, :string, nil, "Semicolon-separated header titles"},
+      {:rows, :keep, nil,
+       "Rows: `;` between cells, `;;` between rows within one arg, or repeat --rows per row. Escape `;` as `\\;`."},
+      {:border, :string, "rounded", "Border style (normal, rounded, double, single, bold, none)"},
+      {:padding, :integer, 1, "Cell padding"},
+      {:border_color, :string, nil, "Border color"},
+      {:border_effects, :string, nil, "Comma-separated border effects (bold, dim, etc.)"},
+      {:headers_color, :string, nil, "Header cell color"},
+      {:headers_align, :string, nil, "Header cell alignment"},
+      {:headers_effects, :string, nil, "Header cell effects"},
+      {:rows_color, :string, nil, "Body row color"},
+      {:rows_align, :string, nil, "Body row alignment"},
+      {:rows_effects, :string, nil, "Body row effects"},
+      {:table_align, :string, nil, "Default alignment for all cells"}
+    ],
+    examples: [
+      {"Simple grid", "alaja table --headers 'name;status' --rows 'api;OK;;db;WARN'"},
+      {"Cell with literal semicolon",
+       "alaja table --headers 'name;note' --rows 'api;ok\\;on-call'"},
+      {"Custom border", "alaja table --headers 'a;b;c' --rows '1;2;3;;4;5;6' --border double"},
+      {"No border",
+       "alaja table --headers 'key;value' --rows 'host;db.local;;port;5432' --border none"},
+      {"Coloured headers",
+       "alaja table --headers 'name;status;env' --rows 'api;OK;prod;;web,WARN,stg' --headers-color cyan --headers-effects bold"},
+      {"Right-aligned numbers",
+       "alaja table --headers 'q1;q2;q3;q4' --rows 'sales;100;150;200;90' --table-align right"},
+      {"Per-row styling",
+       "alaja table --headers 'service;status' --rows 'api;OK;;db;WARN' --row-1-color green --row-2-color yellow"},
+      {"Health dashboard",
+       "alaja table --headers 'service;status;uptime' --rows 'api;OK;12d;;db;WARN;2h;;cache;OK;30d' --border rounded --padding 2"}
+    ]
   ]
-
-  alias Alaja.CLI.GlobalOpts
-  alias Alaja.Components.Table, as: TableComp
-
-  alias Alaja.Printer
 
   @doc """
   Runs the table command.
@@ -57,7 +104,7 @@ defmodule Alaja.CLI.Commands.Show.Table do
     per_row_opts = parse_per_row_args(rest)
     opts = Keyword.merge(opts, per_row_opts)
 
-    if global.help or Keyword.get(opts, :help, false) do
+    if global.help do
       help()
     else
       headers_str = Keyword.get(opts, :headers, "")
@@ -84,18 +131,58 @@ defmodule Alaja.CLI.Commands.Show.Table do
   defp build_headers(""), do: []
 
   defp build_headers(headers_str) do
-    String.split(headers_str, ";")
+    headers_str
+    |> String.split(";")
+    |> Enum.map(&String.trim/1)
+    |> Enum.reject(&(&1 == ""))
   end
 
   @spec build_rows([String.t()]) :: [[String.t()]]
   defp build_rows([]), do: []
 
+  # Rows use `;` to separate cells and `;;` to separate rows within a
+  # single `--rows` argument, OR repeated `--rows` once per row.
+  # Literal `;` inside a cell is escaped as `\;` and unescaped here.
+  #
+  # To make the split escape-aware we replace `\;` with a placeholder
+  # *before* splitting, then restore the literal `;` after the split.
+  # Same trick for `\\` so a backslash can be part of a cell content.
   defp build_rows(rows_opts) do
     rows_opts
     |> Enum.map(&String.trim/1)
-    |> Enum.flat_map(fn r -> String.split(r, "|") end)
-    |> Enum.map(fn r -> String.split(r, ";") end)
+    |> Enum.reject(&(&1 == ""))
+    |> Enum.flat_map(fn arg ->
+      arg
+      |> escape_for_split(";")
+      |> String.split(";;")
+    end)
+    |> Enum.map(fn r ->
+      r
+      |> escape_for_split(";")
+      |> String.split(";")
+      |> Enum.map(&unescape_after_split/1)
+      |> Enum.map(&String.trim/1)
+      |> Enum.reject(&(&1 == ""))
+    end)
+    |> Enum.reject(&(&1 == []))
   end
+
+  # `sep` (one char) inside a cell is escaped as `\\<sep>` in user
+  # input. Replace the escaped form with a placeholder before splitting.
+  defp escape_for_split(text, sep) do
+    String.replace(text, "\\" <> sep, "\x00")
+  end
+
+  defp unescape_after_split(cell) do
+    cell
+    |> String.replace("\\\\", "\x01")
+    |> String.replace("\x00", sep_for_restore())
+    |> String.replace("\x01", "\\")
+  end
+
+  # `;` is the cell separator; `;;` is the row separator. After we split
+  # cells, only `;` should reappear inside a cell value.
+  defp sep_for_restore, do: ";"
 
   @spec build_table_opts(keyword(), GlobalOpts.t()) :: keyword()
   defp build_table_opts(opts, global) do
@@ -164,9 +251,12 @@ defmodule Alaja.CLI.Commands.Show.Table do
     rest = String.trim_leading(flag, "--row-")
     parts = String.split(rest, "-", parts: 2)
 
-    with [row_str, suffix] when suffix in ~w(color align effect) <- parts,
+    with [row_str, suffix] when suffix in ~w(color align effects effect) <- parts,
          {row_num, ""} when row_num > 0 <- Integer.parse(row_str) do
-      build_per_row_key(row_num - 1, suffix, val)
+      # Normalise singular `effect` to plural `effects` so the
+      # backend's `_effects` matcher picks it up.
+      normalised = if suffix == "effect", do: "effects", else: suffix
+      build_per_row_key(row_num - 1, normalised, val)
     else
       _ -> nil
     end
@@ -226,6 +316,6 @@ defmodule Alaja.CLI.Commands.Show.Table do
   @doc """
   Prints help for the table command.
   """
-  @spec help() :: :ok
-  def help, do: @help_data
+  @spec help(Alaja.CLI.GlobalOpts.t() | nil) :: :ok
+  def help(global \\ nil), do: HelpFormatter.render(@help_data, global)
 end

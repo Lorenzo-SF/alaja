@@ -12,7 +12,37 @@ defmodule Alaja.CLI.Commands.Color do
   @help_data [
     title: "Alaja Color",
     subtitle: "Color analysis, harmonies, conversions, and tone manipulation",
-    size: :small
+    usage:
+      "alaja color <color> [--harmony TYPE] [--darken N] [--lighten N] [--lab] [--xyz] [--kelvin] [--pantone] [--contrast C]",
+    description: """
+    Parses a colour in any supported format and displays its values across
+    multiple colour spaces (HEX, RGB, HSL, HSV, CMYK, XTerm256, CIELAB,
+    CIE XYZ), generates colour harmonies, computes WCAG contrast ratios,
+    and renders a visual colour wheel when possible.
+
+    Accepted colour formats: hex:#RRGGBB, rgb:R;G;B, hsl:H;S;L, hsv:H;S;V,
+    cmyk:C;M;Y;K, xterm:N, theme:<key>.
+    """,
+    options: [
+      {:harmony, :string, nil,
+       "Generate colour harmonies: triad, complementary, analogous, square, monochromatic, compound, split-complementary"},
+      {:darken, :integer, nil, "Darken by N steps before displaying"},
+      {:lighten, :integer, nil, "Lighten by N steps before displaying"},
+      {:lab, :boolean, false, "Include CIELAB values"},
+      {:xyz, :boolean, false, "Include CIE XYZ values"},
+      {:kelvin, :boolean, false, "Include colour temperature in Kelvin"},
+      {:pantone, :boolean, false, "Include Pantone approximation"},
+      {:contrast, :string, nil, "Compute WCAG contrast ratio against this colour"}
+    ],
+    examples: [
+      {"Plain colour info", "alaja color hex:ff6b6b"},
+      {"Triad harmonies", "alaja color hex:ff6b6b --harmony triad"},
+      {"Darken a brand colour", "alaja color hex:4ecdc4 --darken 3"},
+      {"CIELAB values", "alaja color hex:1e1e2e --lab"},
+      {"Contrast check (WCAG)", "alaja color hex:1e1e2e --contrast hex:cdd6f4"},
+      {"From theme key", "alaja color theme:primary"},
+      {"Full report", "alaja color rgb:255;87;51 --lab --xyz --kelvin --pantone"}
+    ]
   ]
 
   alias Alaja.Buffer
@@ -23,7 +53,6 @@ defmodule Alaja.CLI.Commands.Color do
   alias Pote.Converters.Advanced
   alias Pote.Converters.RGB, as: RGBConverter
   alias Pote.Harmonies
-  alias Pote.Orchestrator
 
   @harmony_types %{
     "triad" => :triad,
@@ -56,7 +85,7 @@ defmodule Alaja.CLI.Commands.Color do
         ]
       )
 
-    if global.help or Keyword.get(opts, :help, false) do
+    if global.help do
       help()
     else
       analyze_or_help(positional, opts, global)
@@ -74,7 +103,7 @@ defmodule Alaja.CLI.Commands.Color do
   # ─── Analyze mode ─────────────────────────────────────────────────────────
 
   defp analyze(color_str, opts, global) do
-    case Orchestrator.parse_color(color_str) do
+    case Alaja.CLI.Color.parse(color_str) do
       {:ok, rgb} ->
         rgb = apply_tone(rgb, opts)
 
@@ -131,7 +160,7 @@ defmodule Alaja.CLI.Commands.Color do
     title_label = if harmony_type, do: "🎨 #{harmony_name}", else: "🎨 #{base_hex}"
 
     title =
-      "#{Pote.Orchestrator.to_ansi({r, g, b})}#{Alaja.ANSI.bold_on()}#{title_label}#{Alaja.ANSI.reset_attributes()}\n\n"
+      "#{Alaja.ANSI.fg(r, g, b)}#{Alaja.ANSI.bold_on()}#{title_label}#{Alaja.ANSI.reset_attributes()}\n\n"
 
     wheel = render_color_wheel_output(all_colors)
 
@@ -235,7 +264,7 @@ defmodule Alaja.CLI.Commands.Color do
       build_row("Luminance", colors, &format_luminance/1),
       build_row("Pantone", colors, &format_pantone/1),
       build_row("Swatch", colors, fn {r, g, b} ->
-        "#{Pote.Orchestrator.to_ansi_bg({r, g, b})}        #{Alaja.ANSI.reset_attributes()}"
+        "#{Alaja.ANSI.bg(r, g, b)}        #{Alaja.ANSI.reset_attributes()}"
       end)
     ]
   end
@@ -283,7 +312,7 @@ defmodule Alaja.CLI.Commands.Color do
         acc
 
       other_str ->
-        case Orchestrator.parse_color(other_str) do
+        case Alaja.CLI.Color.parse(other_str) do
           {:ok, other_rgb} ->
             ratio = Advanced.contrast_ratio(rgb, other_rgb)
             de = Advanced.delta_e(rgb, other_rgb)
@@ -312,7 +341,7 @@ defmodule Alaja.CLI.Commands.Color do
 
     line =
       Enum.map_join(variants, "  ", fn {label, {vr, vg, vb}} ->
-        "#{Pote.Orchestrator.to_ansi({vr, vg, vb})}████#{Alaja.ANSI.reset_attributes()} #{label}"
+        "#{Alaja.ANSI.fg(vr, vg, vb)}████#{Alaja.ANSI.reset_attributes()} #{label}"
       end)
 
     ["\n  ", line, "\n"]
@@ -380,6 +409,6 @@ defmodule Alaja.CLI.Commands.Color do
   @doc """
   Prints help for the `alaja color` command.
   """
-  @spec help() :: :ok
-  def help, do: @help_data
+  @spec help(Alaja.CLI.GlobalOpts.t() | nil) :: :ok
+  def help(global \\ nil), do: Alaja.CLI.HelpFormatter.render(@help_data, global)
 end

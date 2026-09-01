@@ -220,6 +220,7 @@ defmodule Alaja.Config do
   # Overlay `ALAJAX_*` env vars on top of the loaded Application env.
   # Walk the env_var_map and, for each entry whose env var is set and
   # non-empty, write the cast value into Application env.
+  # Also respects the `NO_COLOR` convention (https://no-color.org/).
   defp overlay_env_vars do
     Enum.each(@env_var_map, fn {env_name, key} ->
       case System.get_env(env_name) do
@@ -228,6 +229,14 @@ defmodule Alaja.Config do
         raw -> Application.put_env(:alaja, key, cast_value(key, raw))
       end
     end)
+
+    # NO_COLOR: any non-empty value disables ANSI output (per the
+    # https://no-color.org/ spec). Sets :no_color to true.
+    case System.get_env("NO_COLOR") do
+      nil -> :ok
+      "" -> :ok
+      _ -> Application.put_env(:alaja, :no_color, true)
+    end
   end
 
   defp store_key_value({k, v}) do

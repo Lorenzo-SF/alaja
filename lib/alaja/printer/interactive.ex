@@ -50,23 +50,22 @@ defmodule Alaja.Printer.Interactive do
   end
 
   @doc """
-  Question with predefined options.
+  Question with predefined options. Supports both text answers (type
+  the label or its prefix, or a 1-based index) and arrow-key navigation
+  when the terminal is interactive.
 
-  The options list can take three shapes:
+  Behaviour:
 
-    1. `[{label, value}, ...]` with string labels — the user types
-       the label (or a prefix of it, case-insensitive).
-    2. `[{label, value}, ...]` where value is an atom — the user can
-       type the atom name (e.g. `:llm` → `llm`).
-    3. A 1-based index (`1`, `2`, `3`) typed by the user.
-
-  Before reading the answer, the function lists the options under the
-  prompt so the user always knows what they can type. The `:default`
-  option chooses a pre-selected index that gets used if the user
-  just presses Enter.
-
-  Returns the `value` for the selected option, or `:error` if the
-  input does not match anything.
+    * On a TTY with the Pagination raw-mode reader available, the
+      function renders the prompt with a highlighted cursor on the
+      first option, accepts `:up`/`:down` (and `k`/`j`) to move the
+      cursor, `:enter` to confirm, and `q`/`:esc` to cancel (returns
+      `:error`).
+    * Outside a TTY (pipes, redirected stdin) the function falls back
+      to a single line read, same as before — so scripts keep working.
+    * The text-answer path (typing `1`, `y`, `yes`, `llm`, ...) still
+      works inside the raw-mode loop: when a printable character is
+      pressed, the loop matches it against the options immediately.
 
   ## Examples
 
@@ -79,24 +78,124 @@ defmodule Alaja.Printer.Interactive do
   """
   @spec question_with_options(String.t(), list(), keyword()) :: any() | :error
   def question_with_options(text, options, opts \\ []) do
-    default_index = Keyword.get(opts, :default)
     numbered = options_with_indexes(options)
+    default_index = Keyword.get(opts, :default)
+    color = Keyword.get(opts, :color, :white)
+    align = Keyword.get(opts, :align, :left)
 
-    prompt =
-      [
-        text,
-        "",
-        "  " <> Enum.map_join(numbered, "\n  ", fn {idx, lbl, _} -> "#{idx}. #{lbl}" end)
-      ]
-      |> Enum.join("\n")
+    if Alaja.CLI.Pagination.tty?() do
+      run_arrow_loop(text, numbered, default_index, color, align)
+    else
+      prompt =
+        [
+          text,
+          "",
+          "  " <>
+            Enum.map_join(numbered, "\n  ", fn {idx, lbl, _} -> "#{idx}. #{lbl}" end)
+        ]
+        |> Enum.join("\n")
 
-    answer =
-      question(
-        prompt,
-        Keyword.put_new(opts, :color, Keyword.get(opts, :color, :white))
-      )
+      answer =
+        question(
+          prompt,
+          Keyword.put_new(opts, :color, color)
+        )
 
-    pick_answer(answer, numbered, default_index)
+      pick_answer(answer, numbered, default_index)
+    end
+  end
+
+  # Interactive loop: render the menu, draw a cursor on the active
+  # row, accept arrow keys / vim keys / printable shortcuts / Enter.
+  defp run_arrow_loop(text, numbered, default_index, color, align) do
+    initial = initial_index(default_index, numbered)
+    render_menu(text, numbered, initial, color, align)
+
+    Alaja.CLI.Pagination.raw_mode(fn ->
+      arrow_loop(text, numbered, initial, color, align)
+    end)
+  end
+
+  defp arrow_loop(text, numbered, active, color, align) do
+    case Alaja.CLI.Pagination.read_key() do
+      :up ->
+        move_to(text, numbered, wrap(active - 1, numbered), color, align)
+
+      :down ->
+        move_to(text, numbered, wrap(active + 1, numbered), color, align)
+
+      "k" ->
+        move_to(text, numbered, wrap(active - 1, numbered), color, align)
+
+      "j" ->
+        move_to(text, numbered, wrap(active + 1, numbered), color, align)
+
+      :enter ->
+        commit(active, numbered)
+
+      "q" ->
+        :error
+
+      :esc ->
+        :error
+
+      char when is_binary(char) ->
+        case pick_answer(char, numbered, nil) do
+          :error -> arrow_loop(text, numbered, active, color, align)
+          val -> val
+        end
+    end
+  end
+
+  defp move_to(text, numbered, new_active, color, align) do
+    erase_menu(text, numbered, color, align)
+    render_menu(text, numbered, new_active, color, align)
+    arrow_loop(text, numbered, new_active, color, align)
+  end
+
+  defp initial_index(nil, _numbered), do: 0
+  defp initial_index(idx, _numbered) when idx >= 1, do: idx - 1
+  defp initial_index(_, _), do: 0
+
+  defp wrap(i, numbered) do
+    n = length(numbered)
+
+    if n == 0 do
+      0
+    else
+      rem(rem(i, n) + n, n)
+    end
+  end
+
+  defp commit(active, numbered) do
+    case Enum.at(numbered, active) do
+      {_, _, val} -> val
+      nil -> :error
+    end
+  end
+
+  defp render_menu(text, numbered, active, _color, align) do
+    lines =
+      ([text, ""] ++
+         numbered)
+      |> Enum.with_index()
+      |> Enum.map(fn {{_idx, label, _val}, i} ->
+        prefix = if i == active, do: "> ", else: "  "
+        "#{prefix}#{label}"
+      end)
+
+    body = Enum.join(lines, "\n")
+    chunks = [Alaja.Structures.ChunkText.new(body, color: :white)]
+    info = Alaja.Structures.MessageInfo.new(chunks, align: align)
+    Alaja.Printer.print(info)
+    IO.write("\r\n")
+    :ok
+  end
+
+  defp erase_menu(_text, numbered, _color, _align) do
+    line_count = 2 + length(numbered)
+    IO.write([Alaja.ANSI.cursor_up(line_count), Alaja.ANSI.clear_line_down()])
+    :ok
   end
 
   # Split [{label, value}] into a list of {1-based-index, label, value}.

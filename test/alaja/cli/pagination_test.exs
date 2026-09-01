@@ -1,6 +1,8 @@
 defmodule Alaja.CLI.PaginationTest do
   use ExUnit.Case, async: true
 
+  import ExUnit.CaptureIO
+
   alias Alaja.CLI.Pagination
 
   describe "total_pages/2" do
@@ -13,11 +15,63 @@ defmodule Alaja.CLI.PaginationTest do
     end
 
     test "handles zero items" do
-      assert Pagination.total_pages(0, 10) == 0
+      assert Pagination.total_pages(0, 10) == 1
     end
 
     test "handles items less than page size" do
       assert Pagination.total_pages(5, 10) == 1
+    end
+  end
+
+  describe "clamp_page/3" do
+    test "clamps a page beyond the data range to the first page" do
+      assert Pagination.clamp_page(3, 45, 40) == 0
+    end
+
+    test "keeps a valid page" do
+      assert Pagination.clamp_page(1, 10, 40) == 1
+    end
+
+    test "clamps negative pages to zero" do
+      assert Pagination.clamp_page(-2, 10, 40) == 0
+    end
+
+    test "empty dataset always shows the first page" do
+      assert Pagination.clamp_page(5, 10, 0) == 0
+    end
+  end
+
+  describe "parse_escape/1" do
+    test "parses arrow sequences" do
+      assert Pagination.parse_escape("\e[C") == :right
+      assert Pagination.parse_escape("\e[D") == :left
+      assert Pagination.parse_escape("\e[A") == :up
+      assert Pagination.parse_escape("\e[B") == :down
+    end
+
+    test "falls back to :esc" do
+      assert Pagination.parse_escape("\e") == :esc
+      assert Pagination.parse_escape("\e[Z") == :esc
+    end
+  end
+
+  describe "goto_page/2" do
+    test "returns the 0-based page for valid input" do
+      assert capture_io("3\n", fn ->
+               assert Pagination.goto_page(10, 2) == 2
+             end) =~ "Go to page"
+    end
+
+    test "keeps the current page on invalid input (no crash)" do
+      assert capture_io("abc\n", fn ->
+               assert Pagination.goto_page(10, 2) == 2
+             end) =~ "Go to page"
+    end
+
+    test "keeps the current page on out-of-range input" do
+      assert capture_io("99\n", fn ->
+               assert Pagination.goto_page(10, 2) == 2
+             end) =~ "Go to page"
     end
   end
 
@@ -72,6 +126,13 @@ defmodule Alaja.CLI.PaginationTest do
       assert Pagination.handle_nav("l", 5, 10) == 9
     end
 
+    test "arrow keys navigate" do
+      assert Pagination.handle_nav(:right, 5, 10) == 6
+      assert Pagination.handle_nav(:right, 9, 10) == 9
+      assert Pagination.handle_nav(:left, 5, 10) == 4
+      assert Pagination.handle_nav(:left, 0, 10) == 0
+    end
+
     test "g returns :goto" do
       assert Pagination.handle_nav("g", 5, 10) == :goto
     end
@@ -82,6 +143,7 @@ defmodule Alaja.CLI.PaginationTest do
 
     test "escape returns :quit" do
       assert Pagination.handle_nav("\e", 5, 10) == :quit
+      assert Pagination.handle_nav(:esc, 5, 10) == :quit
     end
 
     test "unknown key stays on same page" do

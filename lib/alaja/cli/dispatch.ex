@@ -27,7 +27,6 @@ defmodule Alaja.CLI.Dispatch do
     Json,
     List,
     Menu,
-    Multibar,
     Pulsar,
     Separator,
     Table,
@@ -72,8 +71,6 @@ defmodule Alaja.CLI.Dispatch do
   def bar(opts), do: Bar.run(opts._args)
   @doc "Dispatches the `alaja animated-bar` command."
   def animated_bar(opts), do: AnimatedBar.run(opts._args)
-  @doc "Dispatches the `alaja multibar` command."
-  def multibar(opts), do: Multibar.run(opts._args)
   @doc "Dispatches the `alaja breadcrumbs` command."
   def breadcrumbs(opts), do: Breadcrumbs.run(opts._args)
   @doc "Dispatches the `alaja animate` command."
@@ -96,7 +93,4 @@ defmodule Alaja.CLI.Dispatch do
   def action(opts), do: Action.run(opts._args)
   @doc "Dispatches the `alaja theme` command."
   def theme(opts), do: Theme.run(opts._args)
-
-  @doc "Dispatches the deprecated `alaja config` command (prints deprecation notice and returns `:error`)."
-  def config(opts), do: Alaja.CLI.Commands.Config.run(opts._args)
 end

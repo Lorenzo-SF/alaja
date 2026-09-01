@@ -26,18 +26,18 @@ defmodule Alaja.CLI.Smoke.MessageBoxTest do
       run_cli([
         "message",
         "--chunk",
-        "[|color:gray",
+        "[|color:hex:808080",
         "--chunk",
-        "OK|color:green|bold:true",
+        "OK|color:hex:00ff00|bold:true",
         "--chunk",
-        "] Deployed|color:cyan",
+        "] Deployed|color:hex:00ffff",
         "--align",
         "center",
         "--box",
         "--box-border",
         "rounded",
         "--box-color",
-        "#00B4D8"
+        "hex:#00B4D8"
       ])
 
     assert exit_code == 0, "CLI should not crash. Output:\n#{output}"
