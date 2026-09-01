@@ -135,12 +135,12 @@ defmodule Alaja.MixProject do
 
   defp deps do
     [
-      {:pote, path: "../pote", override: true},
+      {:pote, git: "https://github.com/Lorenzo-SF/pote.git", override: true},
       {:jason, "~> 1.4"},
       {:credo, "~> 1.7", only: [:dev, :test], runtime: false},
       {:dialyxir, "~> 1.4", only: [:dev, :test], runtime: false},
       {:ex_doc, "~> 0.34", only: :dev, runtime: false},
-      {:batamanta, path: "../batamanta", optional: true, runtime: false},
+      {:batamanta, "~> 2.0.0", optional: true, runtime: false},
       {:excoveralls, "~> 0.18", only: :test, runtime: false},
       {:benchee, "~> 1.3", only: :dev}
     ]
