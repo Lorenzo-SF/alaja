@@ -87,7 +87,8 @@ defmodule Alaja.CLI.Showcase do
   defp loop_picker(cols, row, opts, state) do
     case read_key() do
       {:char, ?\r} ->
-        elem(opts |> Enum.at(state.selected) |> elem(0))
+        {_tag, value} = Enum.at(opts, state.selected)
+        value
 
       {:char, ?y} ->
         :help
