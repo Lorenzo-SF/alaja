@@ -247,6 +247,44 @@ defmodule Alaja.Components.Pulsar do
   end
 
   @doc """
+  Renders a single frame of the pulsar as iodata (binary-joined chunks).
+
+  Returns `iodata()` suitable for `IO.write/2` without intermediate
+  string allocations.
+
+  ## Parameters
+
+    * `text` — central text
+    * `frame` — animation frame number
+    * `opts` — same as `render_frame/3`
+
+  ## Examples
+
+      iex> Alaja.Components.Pulsar.render_iodata("hi", 0, width: 10, height: 3)
+      [[[[[[[[[[34, ...]]]]]]]]], ...] |> IO.iodata_to_binary()
+  """
+  @spec render_iodata(String.t(), non_neg_integer(), keyword()) :: iodata()
+  def render_iodata(text, frame, opts \\ []) do
+    text
+    |> render_frame(frame, opts)
+    |> render_buffer_iodata_safe()
+  end
+
+  # Private: like render_buffer_iodata/1 but returns iodata (not joined string)
+  defp render_buffer_iodata_safe(buffer) do
+    [
+      Enum.map(0..(buffer.height - 1), fn y ->
+        [
+          Enum.map(0..(buffer.width - 1), fn x ->
+            Cell.to_ansi(Buffer.get(buffer, x, y))
+          end),
+          ?\n
+        ]
+      end)
+    ]
+  end
+
+  @doc """
   Renders a single frame of the pulsar animation as pixel data.
 
   Returns pixel data as a list of rows, each row a list of {r, g, b} tuples.
@@ -649,4 +687,61 @@ defmodule Alaja.Components.Pulsar do
 
   defp maybe_add(list, _key, nil), do: list
   defp maybe_add(list, key, value), do: Keyword.put(list, key, value)
+
+  # ── Public parsing helpers (iter-046: moved from CLI) ────────────────
+  #
+  # These were previously inlined in Alaja.CLI.Commands.Show.Pulsar.
+  # Now exposed publicly so any consumer (CLI, library, scripts) can
+  # normalize CLI string inputs into pulsar-native atoms.
+
+  @doc """
+  Parses a string of comma-separated pulse characters into a list.
+
+  Defaults to `["░", "▒", "▓", "█"]` when input is nil or empty.
+
+  ## Examples
+
+      iex> Alaja.Components.Pulsar.parse_pulse_chars(".,|,|X")
+      [".", ",", "X"]
+  """
+  @spec parse_pulse_chars(String.t() | nil) :: [String.t()]
+  def parse_pulse_chars(nil), do: @default_pulse_chars
+  def parse_pulse_chars(""), do: @default_pulse_chars
+
+  def parse_pulse_chars(chars_str) when is_binary(chars_str) do
+    chars_str
+    |> String.split(",")
+    |> Enum.map(&String.trim/1)
+    |> Enum.reject(&(&1 == ""))
+  end
+
+  @doc """
+  Parses a direction string into the pulsar atom (`:out` or `:in`).
+
+  Returns `{:ok, atom()} | {:error, message}`.
+
+  ## Examples
+
+      iex> Alaja.Components.Pulsar.parse_direction("out")
+      {:ok, :in}
+
+      iex> Alaja.Components.Pulsar.parse_direction("invalid")
+      {:error, "..."}
+  """
+  @spec parse_direction(String.t()) :: {:ok, :out | :in} | {:error, String.t()}
+  def parse_direction("out"), do: {:ok, :in}
+  def parse_direction("in"), do: {:ok, :out}
+  def parse_direction(other), do: {:error, "--direction must be 'in' or 'out', got '#{other}'"}
+
+  @doc """
+  Parses a content type string into the pulsar atom (`:text` or `:image`).
+
+  Returns `{:ok, atom()} | {:error, message}`.
+  """
+  @spec parse_content_type(String.t()) :: {:ok, :text | :image} | {:error, String.t()}
+  def parse_content_type("text"), do: {:ok, :text}
+  def parse_content_type("image"), do: {:ok, :image}
+
+  def parse_content_type(other),
+    do: {:error, "--content-type must be 'text' or 'image', got '#{other}'"}
 end
