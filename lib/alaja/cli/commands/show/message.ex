@@ -50,6 +50,15 @@ defmodule Alaja.CLI.Commands.Show.Message do
     end
   end
 
+  @doc """
+  Dispatches a typed message by string name (`"success"`, `"error"`, etc.).
+  Used by `Alaja.CLI.Dispatch` to route the typed subcommands.
+  """
+  @spec run_typed(String.t(), [String.t()]) :: :ok | no_return()
+  def run_typed(type, args) when is_binary(type) and is_list(args) do
+    run(["--type", type | args])
+  end
+
   defp do_run(opts, positional, _global) do
     type = parse_type(opts[:type] || List.first(positional))
 
