@@ -171,7 +171,7 @@ defmodule Alaja.CLI.Picker do
   # ── raw key reading ─────────────────────────────────────────────
 
   defp read_key do
-    case :io.getopts(:standard_io, [::binary, :echo]) do
+    case :io.getopts(:standard_io, [:binary, :echo]) do
       {:ok, opts} ->
         saved = opts
         new_opts = [{:echo, false}, {:binary, true}] |> Keyword.merge(opts)
