@@ -43,6 +43,85 @@ defmodule Alaja.Components.Message do
   @spec render(MessageInfo.t()) :: Buffer.t()
   def render(%MessageInfo{chunks: []}), do: Buffer.new(0, 1)
 
+  @doc """
+  Convenience renderer for the CLI command. Takes a text string, a
+  type (`:success | :error | :warning | :info | ...`), and a style
+  keyword list. Returns an `Alaja.Buffer.t/0` ready to be converted
+  to iolist or written to the terminal.
+
+  Recognised style opts (all optional):
+
+    * `:color` / `:bg_color` — atom, RGB tuple, or hex string
+    * `:bold` / `:italic` / `:underline` / `:dim` / `:blink` /
+      `:reverse` / `:hidden` / `:strikethrough` — boolean
+    * `:padding` — non-negative integer
+    * `:addline` — extra text printed below the message
+  """
+  @spec render(String.t(), atom(), keyword()) :: Buffer.t()
+  def render(text, type, opts \\ []) when is_binary(text) and is_atom(type) and is_list(opts) do
+    fg = resolve_color(Keyword.get(opts, :color)) || type_fg(type)
+    bg = resolve_color(Keyword.get(opts, :bg_color))
+
+    chunks = [
+      %ChunkText{
+        text: text,
+        color: fg,
+        bold: Keyword.get(opts, :bold, false),
+        italic: Keyword.get(opts, :italic, false),
+        underline: Keyword.get(opts, :underline, false),
+        strikethrough: Keyword.get(opts, :strikethrough, false),
+        dim: Keyword.get(opts, :dim, false),
+        blink: Keyword.get(opts, :blink, false),
+        reverse: Keyword.get(opts, :reverse, false),
+        hidden: Keyword.get(opts, :hidden, false)
+      }
+    ]
+
+    info = %MessageInfo{
+      chunks: chunks,
+      align: :left,
+      padding: Keyword.get(opts, :padding, 0),
+      add_line:
+        case Keyword.get(opts, :addline) do
+          nil -> :none
+          extra -> %ChunkText{text: extra, color: fg}
+        end,
+      bg_color: bg
+    }
+
+    render(info)
+  end
+
+  defp type_fg(:success), do: {0xA6, 0xE3, 0xA1}
+  defp type_fg(:error), do: {0xF3, 0x8B, 0xA8}
+  defp type_fg(:warning), do: {0xF9, 0xE2, 0xAF}
+  defp type_fg(:info), do: {0x89, 0xB4, 0xFA}
+  defp type_fg(:debug), do: {0xCB, 0xA6, 0xF7}
+  defp type_fg(:notice), do: {0x94, 0xE2, 0xD5}
+  defp type_fg(:critical), do: {0xF3, 0x8B, 0xA8}
+  defp type_fg(:alert), do: {0xF3, 0x8B, 0xA8}
+  defp type_fg(:emergency), do: {0xF3, 0x8B, 0xA8}
+  defp type_fg(:happy), do: {0xF5, 0xC2, 0xE7}
+  defp type_fg(:sad), do: {0x94, 0xE2, 0xD5}
+  defp type_fg(_), do: nil
+
+  defp resolve_color(nil), do: nil
+  defp resolve_color({_r, _g, _b} = rgb), do: %Pote.ColorInfo{rgb: rgb}
+
+  defp resolve_color(name) when is_atom(name) do
+    case Pote.Orchestrator.to_rgb(name) do
+      {:ok, rgb} -> %Pote.ColorInfo{rgb: rgb}
+      _ -> nil
+    end
+  end
+
+  defp resolve_color(hex) when is_binary(hex) do
+    case Pote.parse(hex) do
+      {:ok, {r, g, b}} -> %Pote.ColorInfo{rgb: {r, g, b}}
+      _ -> nil
+    end
+  end
+
   def render(%MessageInfo{} = msg) do
     align = Map.get(msg, :align, :left)
     padding = Map.get(msg, :padding, 0)

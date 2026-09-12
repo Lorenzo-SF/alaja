@@ -59,6 +59,12 @@ defmodule Alaja.CLI.Commands.Show.Message do
     run(["--type", type | args])
   end
 
+  @doc "Prints help text for the message command. Public for `Alaja.CLI.HelpCoverage` tests."
+  @spec help() :: :ok
+  def help do
+    run(["--help"])
+  end
+
   defp do_run(opts, positional, _global) do
     type = parse_type(opts[:type] || List.first(positional))
 
