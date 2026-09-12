@@ -149,7 +149,7 @@ defmodule Alaja.CLI.Showcase do
   # Reads a single key from stdin in raw mode.
   # Returns `{:char, codepoint}`, `{:arrow, :left | :right | :up | :down}`, or `:eof`.
   defp read_key do
-    :io.getopts(:standard_io, [::binary, :echo])
+    :io.getopts(:standard_io, [:binary, :echo])
     |> case do
       {:ok, opts} ->
         saved = opts
