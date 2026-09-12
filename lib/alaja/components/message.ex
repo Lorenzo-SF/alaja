@@ -62,18 +62,23 @@ defmodule Alaja.Components.Message do
     fg = resolve_color(Keyword.get(opts, :color)) || type_fg(type)
     bg = resolve_color(Keyword.get(opts, :bg_color))
 
+    effects =
+      []
+      |> maybe_effect(:bold, Keyword.get(opts, :bold, false))
+      |> maybe_effect(:italic, Keyword.get(opts, :italic, false))
+      |> maybe_effect(:underline, Keyword.get(opts, :underline, false))
+      |> maybe_effect(:strikethrough, Keyword.get(opts, :strikethrough, false))
+      |> maybe_effect(:dim, Keyword.get(opts, :dim, false))
+      |> maybe_effect(:blink, Keyword.get(opts, :blink, false))
+      |> maybe_effect(:reverse, Keyword.get(opts, :reverse, false))
+      |> maybe_effect(:hidden, Keyword.get(opts, :hidden, false))
+
     chunks = [
       %ChunkText{
         text: text,
         color: fg,
-        bold: Keyword.get(opts, :bold, false),
-        italic: Keyword.get(opts, :italic, false),
-        underline: Keyword.get(opts, :underline, false),
-        strikethrough: Keyword.get(opts, :strikethrough, false),
-        dim: Keyword.get(opts, :dim, false),
-        blink: Keyword.get(opts, :blink, false),
-        reverse: Keyword.get(opts, :reverse, false),
-        hidden: Keyword.get(opts, :hidden, false)
+        bg_color: bg,
+        effects: effects
       }
     ]
 
@@ -121,6 +126,9 @@ defmodule Alaja.Components.Message do
       _ -> nil
     end
   end
+
+  defp maybe_effect(list, _effect, false), do: list
+  defp maybe_effect(list, effect, true), do: [effect | list]
 
   def render(%MessageInfo{} = msg) do
     align = Map.get(msg, :align, :left)
