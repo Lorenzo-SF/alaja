@@ -1,19 +1,67 @@
 defmodule Alaja.CLI.Commands.Show.Ask do
-  @moduledoc """
-  `alaja ask` — Ask an interactive question.
+  @moduledoc "`alaja ask` — Ask an interactive question."
 
-  iter-046: rewritten with `Alaja.CLI.Definition` DSL.
-  """
+  alias Alaja.CLI.Color
+  alias Alaja.CLI.GlobalOpts
+  alias Alaja.CLI.HelpFormatter
+  alias Alaja.Printer
 
-  use Alaja.CLI.Definition, otp_app: :alaja
+  @help_data [
+    title: "Alaja Ask",
+    subtitle: "Ask an interactive text question",
+    usage: "alaja ask <question> [--color C] [--align left|center|right]",
+    description:
+      "Reads a line of text from stdin and prints it to stdout. Suitable for shell scripts.",
+    options: [
+      {:color, :string, nil, "Prompt color"},
+      {:align, :string, "left", "Alignment: left, center, right"}
+    ],
+    examples: [
+      {"Simple prompt", "alaja ask \"What's your name?\""},
+      {"Coloured prompt", "alaja ask \"Project name?\" --color cyan"},
+      {"Centered", "alaja ask \"Continue?\" --align center"},
+      {"Shell-scriptable", "name=$(alaja ask \"Username?\"); echo \"hi $name\""},
+      {"With default in script", "read -p \"$(alaja ask 'Press enter to continue')\""}
+    ]
+  ]
 
-  command "ask", "Ask an interactive text question" do
-    argument :question, :string, required: false
-    flag :color, :string, default: nil
-    flag :align, :string, default: "left"
+  @doc "Runs the `alaja ask` command — interactively prompts a question read from stdin."
+  @spec run([String.t()]) :: :ok | no_return()
+  def run(args) do
+    {global, rest} = GlobalOpts.parse(args)
 
-    run fn opts ->
-      Alaja.Components.Ask.render(opts)
+    {opts, positional, _} =
+      OptionParser.parse(rest,
+        switches: [color: :string, align: :string]
+      )
+
+    if global.help do
+      help()
+    else
+      question = Enum.join(positional, " ")
+      if question == "", do: help(global), else: ask(question, opts, global)
     end
   end
+
+  defp ask(question, opts, _global) do
+    color = Color.parse_or_nil(Keyword.get(opts, :color))
+    align = parse_align(Keyword.get(opts, :align))
+    answer = Printer.Interactive.question(question, color: color, align: align)
+    IO.write(answer)
+  end
+
+  defp parse_align(nil), do: :left
+  defp parse_align(a) when is_atom(a), do: a
+
+  defp parse_align(s) when is_binary(s) do
+    case Alaja.Helpers.safe_string_to_atom(s) do
+      {:ok, atom} -> atom
+      {:error, _} -> :left
+    end
+  end
+
+  # parse_color/1 delegates to Alaja.CLI.Color.parse_or_nil/1
+
+  @spec help(Alaja.CLI.GlobalOpts.t() | nil) :: :ok
+  def help(global \\ nil), do: HelpFormatter.render(@help_data, global)
 end
