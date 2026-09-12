@@ -44,6 +44,8 @@ defmodule Alaja.CLI.Commands.Theme do
   alias Alaja.Components.Table, as: TableComp
   alias Alaja.Buffer
 
+  @default_theme "catppuccin"
+
   @doc "Runs the `alaja theme` command."
   @spec run([String.t()]) :: :ok | no_return()
   def run(args) do
@@ -65,7 +67,7 @@ defmodule Alaja.CLI.Commands.Theme do
   defp dispatch(["list" | _], global), do: run_list(global)
   defp dispatch(["show" | names], global), do: run_show(names, global)
   defp dispatch(["compare" | names], global), do: run_compare(names, global)
-  defp dispatch(["all" | _], global), do: run_all(global)
+  defp dispatch(["all" | _], global), do: run_compare([], global)
   defp dispatch([action | _], global), do: unknown_action(action, global)
 
   # ── init ────────────────────────────────────────────────────────
@@ -81,8 +83,6 @@ defmodule Alaja.CLI.Commands.Theme do
 
     IO.puts("✓ Initialized themes. Active: #{@default_theme}")
   end
-
-  @default_theme "catppuccin"
 
   # ── set (interactive picker) ───────────────────────────────────
 
@@ -321,11 +321,6 @@ defmodule Alaja.CLI.Commands.Theme do
   defp unknown_action(action, _global) do
     IO.puts(:stderr, "✗ Unknown action: #{action}")
     IO.puts(:stderr, "  Actions: init, set, list, show, compare, all")
-    :error
-  end
-
-  defp usage_error(hint) do
-    IO.puts(:stderr, "✗ Usage: alaja theme #{hint}")
     :error
   end
 
