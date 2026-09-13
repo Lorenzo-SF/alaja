@@ -210,7 +210,7 @@ defmodule Alaja.ThemeSwitchingTest do
   end
 
   describe "Application.start/2 loads alaja.conf before registering resolver" do
-    # Regression test for the bug where every escript started with
+    # Regression test for the bug where every release started with
     # `:theme_active` unset in Application env, so `theme:<key>` lookups
     # always fell back to the default theme (ignoring whatever the user
     # had persisted via `alaja theme set`).
@@ -225,7 +225,7 @@ defmodule Alaja.ThemeSwitchingTest do
       Alaja.Config.set(:theme_active, "dracula")
 
       # Simulate the "process restart" effect: wipe Application env
-      # (just like a new escript process would start with a fresh env)
+      # (just like a new release process would start with a fresh env)
       # and re-run Config.ensure_loaded/0 to simulate what
       # Application.start/2 now does.
       Application.delete_env(:alaja, :theme_active)

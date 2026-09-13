@@ -258,7 +258,7 @@ defmodule Alaja.CLI.Definition do
         # Ensure both :alaja (for the rendering stack) and the host
         # OTP application (the one declared with `use Alaja.CLI.Definition,
         # otp_app: :my_app`) are up before any command runs. Without
-        # this, escript releases that ship with `include_erts: false`
+        # this, releases that ship with `include_erts: false`
         # report "could not lookup Ecto repo" or similar because their
         # supervisor tree never started.
         Application.ensure_all_started(:alaja)
@@ -293,7 +293,7 @@ defmodule Alaja.CLI.Definition do
   end
 
   # Builds the optional halt-on-error block for `halt_on_error: true`
-  # escripts. Extracted from `__before_compile__/1` to keep its
+  # releases. Extracted from `__before_compile__/1` to keep its
   # cyclomatic complexity within the credo limit.
   defp halt_block(true) do
     quote do

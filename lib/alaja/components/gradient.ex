@@ -195,7 +195,7 @@ defmodule Alaja.Components.Gradient do
   end
 
   @doc false
-  def render_horizontal_line(line, colors_list, bg, text_color, direction) do
+  def render_horizontal_line(line, colors_list, bg, text_color, _direction) do
     steps = String.length(line)
     color_steps = Gradients.multicolor(colors_list, steps)
     color_steps = color_steps
