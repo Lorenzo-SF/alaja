@@ -24,8 +24,7 @@ defmodule Alaja.MixProject do
       batamanta: batamanta(),
       aliases: aliases(),
       dialyzer: dialyzer(),
-      test_coverage: [tool: ExCoveralls],
-      escript: [main_module: Alaja.CLI]
+      test_coverage: [tool: ExCoveralls]
     ]
   end
 
@@ -125,7 +124,7 @@ defmodule Alaja.MixProject do
 
   defp batamanta do
     [
-      format: :escript,
+      format: :release,
       execution_mode: :cli,
       compression: 19,
       binary_name: "alaja",

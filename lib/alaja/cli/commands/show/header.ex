@@ -62,14 +62,12 @@ defmodule Alaja.CLI.Commands.Show.Header do
       [
         subtitle: :string,
         size: :string,
-        color: :string
-      ] ++
-        [
-          {String.to_atom("subtitle-color"), :string},
-          {String.to_atom("separator-char"), :string},
-          {String.to_atom("separator-color"), :string},
-          {String.to_atom("separator-length"), :integer}
-        ]
+        color: :string,
+        subtitle_color: :string,
+        separator_char: :string,
+        separator_color: :string,
+        separator_length: :integer
+      ]
 
     {opts, positional, _} = OptionParser.parse(rest, switches: switches)
 

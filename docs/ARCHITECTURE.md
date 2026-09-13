@@ -13,7 +13,7 @@ sparklines, gradients, images), syntax highlighting for 80+ languages,
 interactive prompts, and a comprehensive ANSI rendering engine built on a
 2D buffer/cell architecture.
 
-Alaja is **self-hosted** — its own escript binary uses its own DSL and
+Alaja is **self-hosted** — its own release binary uses its own DSL and
 components.
 
 ---
@@ -130,7 +130,7 @@ All components produce `Buffer.t()` via a `render_X(...)` function:
   - `command/3`, `subcommand/3`, `flag/3`, `argument/3` macros
   - Compile-time command map, runtime dispatch
   - Auto-generated `main/1` entry point
-  - `halt_on_error` option for escript vs library mode
+  - `halt_on_error` option for release vs library mode
 - **Dispatch**: Maps command strings to handler modules
 - **Help**: Full CLI reference using Alaja's own components (self-documenting)
 - **Options Parser**: Type casting for string/integer/float/boolean/atom/path/url/color_list
@@ -175,7 +175,7 @@ Trebejo is optional (for Sixel/ASCII image rendering).
 |---------|--------------|
 | **Arrea** | `Alaja.CLI.Definition` DSL, `Alaja.Components.*`, `Alaja.Printer`, `Alaja.ANSI` |
 | **Delfos** | `Alaja.CLI.Definition` DSL, all 13 components, syntax highlighting, Printer, interactive prompts |
-| **Alaja itself** | (self-hosted — escript uses its own DSL and components) |
+| **Alaja itself** | (self-hosted — release uses its own DSL and components) |
 | Any Lorenzo-SF app | CLI framework via `use Alaja.CLI.Definition` |
 
 ---
@@ -186,7 +186,7 @@ Trebejo is optional (for Sixel/ASCII image rendering).
 |----------|-----------|
 | **Buffer/Cell architecture** | Terminal as a 2D grid. Composition via `hstack`/`vstack`/`merge`. Pure data, no side effects until `to_iodata`. |
 | **All components return Buffer.t()** | Components are composable: nest a Table inside a Box inside a Header. No rendering happens until `Alaja.Buffer.to_iodata/1`. |
-| **Self-hosted CLI** | `alaja` escript uses its own DSL. Dogfooding ensures the API is usable. |
+| **Self-hosted CLI** | `alaja` release uses its own DSL. Dogfooding ensures the API is usable. |
 | **Pote theme bridge** | Theme resolution via Pote's resolver stack. Host apps get `use Pote.Theme` for free. |
 | **Syntax via :persistent_term** | Languages registered once at app boot, zero-cost lookups at render time. |
 | **Image rendering fallback chain** | Kitty → iTerm2 → Sixel → ASCII — highest quality available for the terminal. |

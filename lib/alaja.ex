@@ -103,9 +103,9 @@ defmodule Alaja do
 
   The default `cli_module` is `Alaja.CLI` (the self-hosted demo CLI shipped
   with the framework). Pass any module built with
-  `use Alaja.CLI.Definition, otp_app: :my_app, halt_on_error: true` to run your own (escript-style aborts the BEAM on error). Set `halt_on_error: false` if you want main/1 to return `{:error, reason}` instead.
+  `use Alaja.CLI.Definition, otp_app: :my_app, halt_on_error: true` to run your own (release-style aborts the BEAM on error). Set `halt_on_error: false` if you want main/1 to return `{:error, reason}` instead.
 
-  Both escript entry points and library callers should go through this
+  Both release entry points and library callers should go through this
   function rather than calling `cli_module.main/1` directly so the
   public facade has a single documented entry point.
 
@@ -117,7 +117,7 @@ defmodule Alaja do
       # Custom CLI
       Alaja.run(System.argv(), MyApp.CLI)
 
-      # escript main_module
+      # release main_module
       defmodule MyApp.CLIEntry do
         def main(argv), do: Alaja.run(argv, MyApp.CLI)
       end
