@@ -91,7 +91,7 @@ defmodule Alaja.Components.Header do
       fill_row(buffer, 0, separator_char, Enum.at(separator_colors, 0, @default_color), width)
 
     # --- title lines (may be several) -----------------------------------
-    {buffer, idx} =
+    {buffer, _row} =
       Enum.reduce(Enum.with_index(title_lines), {buffer, 1}, fn {line, i}, {buf, row} ->
         fg = Enum.at(title_colors, i, List.last(title_colors) || @default_color)
         buf = write_centered(buf, row + i, line, fg, width)
