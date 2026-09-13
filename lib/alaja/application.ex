@@ -9,7 +9,7 @@ defmodule Alaja.Application do
   def start(_type, _args) do
     # Load the on-disk alaja.conf into Application env BEFORE registering
     # the theme resolver. The resolver reads `:theme_active` from app env
-    # at lookup time — if we don't load the conf first, every escript
+    # at lookup time — if we don't load the conf first, every release
     # starts with `:theme_active` set to the default atom `:default`,
     # ignoring whatever the user persisted via `alaja theme set`.
     :ok = Config.ensure_loaded()
