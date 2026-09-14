@@ -328,7 +328,7 @@ defmodule Alaja.CLI.HelpRuntimeTest do
 
   test "subcommand groups print their help on --help" do
     for {args, expected} <- [
-          {["theme", "--help"], "alaja theme <action>"},
+          {["theme", "--help"], "alaja theme [get | set <name> | list | show <theme> | show all]"},
           {["action", "--help"], "Alaja Action"},
           {["color", "--help"], "Alaja Color"}
         ] do
@@ -340,7 +340,7 @@ defmodule Alaja.CLI.HelpRuntimeTest do
 
   test "subcommand groups print their help with no args" do
     capture = capture_io(fn -> Alaja.CLI.main(["theme"]) end)
-    assert capture =~ "alaja theme <action>"
+    assert capture =~ "alaja theme [get | set <name> | list | show <theme> | show all]"
     assert capture =~ "USAGE"
   end
 
