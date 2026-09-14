@@ -57,26 +57,25 @@ defmodule Alaja.CLI.Commands.Show.Pulsar do
   def run(args) do
     {global, rest} = GlobalOpts.parse(args)
 
-      {opts, positional, _} =
-        OptionParser.parse(rest,
-          switches:
-            [
-              text: :string,
-              width: :integer,
-              height: :integer,
-              colors: :string,
-              color: :string,
-              speed: :integer,
-              align: :string,
-              chars: :string,
-              direction: :string,
-              content_type: :string,
-              image_path: :string,
-              duration: :integer,
-              content_position_x: :integer,
-              content_position_y: :integer
-            ]
-        )
+    {opts, positional, _} =
+      OptionParser.parse(rest,
+        switches: [
+          text: :string,
+          width: :integer,
+          height: :integer,
+          colors: :string,
+          color: :string,
+          speed: :integer,
+          align: :string,
+          chars: :string,
+          direction: :string,
+          content_type: :string,
+          image_path: :string,
+          duration: :integer,
+          content_position_x: :integer,
+          content_position_y: :integer
+        ]
+      )
 
     if global.help do
       help()
