@@ -64,8 +64,14 @@ defmodule Alaja.CLI.ColorTest do
       assert {:ok, {_, _, _}} = Color.parse("theme:primary")
     end
 
-    test "theme con key inexistente → blanco por defecto" do
-      assert {:ok, {255, 255, 255}} = Color.parse("theme:no_existe_esta_key")
+    test "theme con key inexistente devuelve error explícito (no blanco silencioso)" do
+      # Regression for the silent-white-fallback bug: `theme:<key>` for
+      # a key not present in the active theme or Pote's defaults
+      # used to fall through to `{255, 255, 255}` masking the typo.
+      # Now it raises a clear error so the user spots the problem.
+      assert {:error, msg} = Color.parse("theme:no_existe_esta_key")
+      assert msg =~ "no_existe_esta_key"
+      assert msg =~ "not found"
     end
 
     test "color suelto sin formato → error claro" do
@@ -96,9 +102,13 @@ defmodule Alaja.CLI.ColorTest do
                Color.parse_list("rgb:255;0;0|rgb:0;255;0")
     end
 
-    test "lista mixta con theme" do
-      assert {:ok, [_, {255, 255, 255}]} =
-               Color.parse_list("theme:primary|theme:key_inexistente")
+    test "lista mixta con theme (parse_list falla en el primer theme: key inexistente)" do
+      # The new contract is "fail loudly on unknown theme keys" instead
+      # of silently swallowing them as white. parse_list still returns
+      # an error for the whole list — the call-site can decide whether
+      # to abort or fall back to a default.
+      assert {:error, msg} = Color.parse_list("theme:primary|theme:key_inexistente")
+      assert msg =~ "key_inexistente"
     end
 
     test "error indica el color que falló" do
