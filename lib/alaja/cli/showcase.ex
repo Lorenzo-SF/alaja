@@ -32,7 +32,6 @@ defmodule Alaja.CLI.Showcase do
   alias Alaja.ANSI
   alias Alaja.CLI.Pagination
 
-  @default_theme "catppuccin"
   @help_question "¿Quieres ver el help?"
   # 8 s is a comfortable upper bound: the showcase waits for a key, but if
   # the user walks away the pulsar dies on its own before the prompt
@@ -74,7 +73,7 @@ defmodule Alaja.CLI.Showcase do
   """
   @spec run() :: :help | :done
   def run do
-    ensure_first_run!()
+    :ok = Alaja.Theme.Bootstrap.ensure_installed()
     {cols, rows} = terminal_size()
     {x, y, width, height} = pulsar_geometry(cols, rows)
 
@@ -237,20 +236,6 @@ defmodule Alaja.CLI.Showcase do
   defp wrap(i) do
     n = length(@options)
     if n == 0, do: 0, else: rem(rem(i, n) + n, n)
-  end
-
-  defp ensure_first_run! do
-    conf = Path.expand("~/.config/alaja/alaja.conf")
-
-    if not File.exists?(conf) or Alaja.Theme.list() == [] do
-      File.mkdir_p!(Path.expand("~/.config/alaja/themes"))
-
-      Enum.each(Alaja.Theme.templates(), &Alaja.Theme.install_template/1)
-      Enum.each(Alaja.Theme.CustomTemplates.all(), &Alaja.Theme.install!/1)
-
-      Alaja.Theme.activate(@default_theme)
-      Alaja.Config.set(:theme_active, @default_theme)
-    end
   end
 
   defp pulsar_geometry(cols, rows) do

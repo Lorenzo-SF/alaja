@@ -231,21 +231,31 @@ defmodule Alaja.Components.Gradient do
       color_steps =
         if direction == :down_to_up, do: Enum.reverse(color_steps), else: color_steps
 
-      body =
-        lines
-        |> Enum.with_index()
-        |> Enum.map_join("\n", fn {line, idx} ->
-          color = Enum.at(color_steps, min(idx, length(color_steps) - 1))
-
-          if bg do
-            tc = text_color || {255, 255, 255}
-            "#{bg_code(color)}#{fg_code(tc)}#{line}"
-          else
-            "#{fg_code(color)}#{line}"
-          end
-        end)
+      body = render_vertical_lines(lines, color_steps, bg, text_color)
 
       body <> Alaja.ANSI.reset_attributes()
+    end
+  end
+
+  # Per-line renderer for the vertical gradient. Extracted from
+  # `apply_vertical_gradient/5` to keep its cyclomatic complexity and
+  # nesting depth within credo's `--strict` limits.
+  defp render_vertical_lines(lines, color_steps, bg, text_color) do
+    lines
+    |> Enum.with_index()
+    |> Enum.map_join("\n", fn {line, idx} ->
+      color_line(line, idx, color_steps, bg, text_color)
+    end)
+  end
+
+  defp color_line(line, idx, color_steps, bg, text_color) do
+    color = Enum.at(color_steps, min(idx, length(color_steps) - 1))
+
+    if bg do
+      tc = text_color || {255, 255, 255}
+      "#{bg_code(color)}#{fg_code(tc)}#{line}"
+    else
+      "#{fg_code(color)}#{line}"
     end
   end
 

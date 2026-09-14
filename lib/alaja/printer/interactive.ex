@@ -116,27 +116,22 @@ defmodule Alaja.Printer.Interactive do
     end)
   end
 
+  # Keys that move the cursor through the option list: `:up`/`:down`
+# (arrow keys) plus vim-style `k`/`j`. Mapping them as a single class
+# keeps the dispatch `case` below within credo's `--strict` complexity
+# limit (≤ 9 branches).
+  @nav_keys [:up, :down, "k", "j"]
+
   defp arrow_loop(text, numbered, active, color, align) do
     case Alaja.CLI.Pagination.read_key() do
-      :up ->
-        move_to(text, numbered, wrap(active - 1, numbered), color, align)
-
-      :down ->
-        move_to(text, numbered, wrap(active + 1, numbered), color, align)
-
-      "k" ->
-        move_to(text, numbered, wrap(active - 1, numbered), color, align)
-
-      "j" ->
-        move_to(text, numbered, wrap(active + 1, numbered), color, align)
+      key when key in @nav_keys ->
+        delta = if key in [:up, "k"], do: -1, else: 1
+        move_to(text, numbered, wrap(active + delta, numbered), color, align)
 
       :enter ->
         commit(active, numbered)
 
-      "q" ->
-        :error
-
-      :esc ->
+      key when key in [:esc, "q"] ->
         :error
 
       char when is_binary(char) ->

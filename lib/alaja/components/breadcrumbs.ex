@@ -62,50 +62,76 @@ defmodule Alaja.Components.Breadcrumbs do
     item_colors = expand_color_list(items, item_color, @default_item_color)
     last_idx = length(items) - 1
 
-    current_colors =
-      if is_list(current_color) do
-        current_color
-      else
-        List.duplicate(current_color || @default_current_color, max(last_idx + 1, 1))
-      end
+    current_colors = expand_current_colors(current_color, last_idx)
 
     sep_str = " #{separator} "
-
-    total_w =
-      items
-      |> Enum.with_index()
-      |> Enum.reduce(0, fn {item, idx}, acc ->
-        acc + String.length(item) + if(idx < last_idx, do: String.length(sep_str), else: 0)
-      end)
+    total_w = total_width(items, sep_str, last_idx)
 
     buffer = Buffer.new(total_w, 1)
     x = 0
 
+    ctx = %{
+      last_idx: last_idx,
+      current_colors: current_colors,
+      item_colors: item_colors,
+      item_color: item_color,
+      sep_str: sep_str,
+      sep_color: sep_color
+    }
+
     items
     |> Enum.with_index()
-    |> Enum.reduce({buffer, x}, fn {item, idx}, {buf, cx} ->
-      color =
-        if idx == last_idx do
-          Enum.at(current_colors, idx, Enum.at(current_colors, 0))
-        else
-          # Use item_color directly if not a list of colors
-          if is_nil(item_colors) do
-            item_color
-          else
-            Enum.at(item_colors, idx, Enum.at(item_colors, 0))
-          end
-        end
-
-      buf = write_string(buf, cx, 0, item, color)
-
-      if idx < last_idx do
-        {write_string(buf, cx + String.length(item), 0, sep_str, sep_color),
-         cx + String.length(item) + String.length(sep_str)}
-      else
-        {buf, cx + String.length(item)}
-      end
-    end)
+    |> Enum.reduce({buffer, x}, fn {item, idx}, {buf, cx} -> step({buf, cx}, item, idx, ctx) end)
     |> elem(0)
+  end
+
+  # Number of cells each item occupies, plus the separator width when
+  # the next item follows.
+  defp total_width(items, sep_str, last_idx) do
+    items
+    |> Enum.with_index()
+    |> Enum.reduce(0, fn {item, idx}, acc ->
+      acc + String.length(item) + if(idx < last_idx, do: String.length(sep_str), else: 0)
+    end)
+  end
+
+  # Normalise `:current_color` into a list indexed by item position.
+  # When the caller passes a single value it is repeated across the
+  # whole breadcrumb so the renderer can always index by position.
+  defp expand_current_colors(current_color, last_idx) do
+    if is_list(current_color) do
+      current_color
+    else
+      List.duplicate(current_color || @default_current_color, max(last_idx + 1, 1))
+    end
+  end
+
+  # One iteration of the breadcrumb rendering loop. Extracted from
+  # `render/2` to keep its cyclomatic complexity, nesting depth, and
+  # parameter count within credo's `--strict` limits.
+  defp step({buf, cx}, item, idx, ctx) do
+    color = color_for(idx, ctx.last_idx, ctx)
+    item_w = String.length(item)
+    buf = write_string(buf, cx, 0, item, color)
+
+    if idx < ctx.last_idx do
+      {write_string(buf, cx + item_w, 0, ctx.sep_str, ctx.sep_color),
+       cx + item_w + String.length(ctx.sep_str)}
+    else
+      {buf, cx + item_w}
+    end
+  end
+
+defp color_for(idx, last_idx, ctx) do
+    if idx == last_idx do
+      Enum.at(ctx.current_colors, idx, Enum.at(ctx.current_colors, 0))
+    else
+      if is_nil(ctx.item_colors) do
+        ctx.item_color
+      else
+        Enum.at(ctx.item_colors, idx, Enum.at(ctx.item_colors, 0))
+      end
+    end
   end
 
   defp expand_color_list(items, colors, default) when is_list(colors),
