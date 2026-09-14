@@ -156,10 +156,7 @@ defmodule Alaja.CLI.Commands.Theme do
         print_suggestion(name)
 
       colors ->
-        # First row gets `theme:<name>` so the output identifies the
-        # theme even when piped to a file; the remaining rows are the
-        # 19 required keys (always, even when missing in the theme).
-        print_color_table(colors, [name | @required_keys])
+        print_color_table(colors, show_keys(name, colors))
     end
   end
 
@@ -174,17 +171,28 @@ defmodule Alaja.CLI.Commands.Theme do
         IO.puts(:stderr, "  Active theme has no colour data. Run `alaja theme init` then re-activate.")
 
       colors ->
-        # Required keys first (in canonical order), then any custom
-        # keys defined by the active theme that aren't already in the
-        # required set, sorted alphabetically for stable output.
-        extra =
-          colors
-          |> Map.keys()
-          |> Enum.reject(&(&1 in @required_keys))
-          |> Enum.sort()
-
-        print_color_table(colors, @required_keys ++ extra)
+        print_color_table(colors, show_keys(nil, colors))
     end
+  end
+
+  # The list of keys a `show` run should render, in the order
+  # the rows appear in the table. The leading name slot is only
+  # relevant for `show <theme>` (it's the "what theme is this?"
+  # row at the top) — `show all` passes `nil` and just shows the
+  # required + custom keys.
+  #
+  # Required keys come first in their canonical order, then any
+  # extra keys the theme defines that aren't part of the required
+  # set, sorted alphabetically for stable output across runs.
+  defp show_keys(name, colors) do
+    extra =
+      colors
+      |> Map.keys()
+      |> Enum.reject(&(&1 in @required_keys))
+      |> Enum.sort()
+
+    required = if(name, do: [name | @required_keys], else: @required_keys)
+    required ++ extra
   end
 
   # ── Helpers ──────────────────────────────────────────────────────────────
@@ -206,15 +214,33 @@ defmodule Alaja.CLI.Commands.Theme do
 
   defp load_theme(nil), do: :missing
 
-  # Pote's on-disk JSON files store colour maps as
-  # `%{"key" => [r, g, b]}` with each channel wrapped in a list. We
-  # tighten this into proper RGB tuples for the table renderer.
+  # Pote's bundled templates and `install!/1` store colours as
+  # `[r, g, b]` arrays, but a theme JSON can hold any colour format
+  # `Alaja.CLI.Color.parse/1` understands (`rgb:R,G,B`, `#hex`,
+  # `hex:...`, named colours like `"red"`, `hsl:H,S,L`, etc).
+  # Route everything through the parser so the on-disk format is
+  # decoupled from the in-memory representation. Returns `nil` when
+  # the value can't be parsed, which the renderer turns into the dim
+  # `-` placeholder so the row stays informative rather than
+  # silently dropped.
   defp normalise_colors(%{} = colors) do
-    Map.new(colors, fn {k, v} -> {k, to_rgb(v)} end)
+    Map.new(colors, fn {k, v} -> {k, normalise_color(v)} end)
   end
 
-  defp to_rgb([r, g, b]) when is_integer(r) and is_integer(g) and is_integer(b), do: {r, g, b}
-  defp to_rgb(_), do: nil
+  defp normalise_color([r, g, b]) when is_integer(r) and is_integer(g) and is_integer(b) do
+    from_color("rgb:#{r},#{g},#{b}")
+  end
+
+  defp normalise_color(value) when is_binary(value), do: from_color(value)
+
+  defp normalise_color(_), do: nil
+
+  defp from_color(input) do
+    case Color.parse(input) do
+      {:ok, rgb} -> rgb
+      _ -> nil
+    end
+  end
 
   # Pulls the current theme name from the application env. Pote always
   # stores it as a string in `:theme_active`; we fall back to the

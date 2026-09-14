@@ -183,6 +183,86 @@ defmodule Alaja.CLI.Commands.ThemeTest do
       end)
     end
 
+    test "renders custom keys present in the theme (not only the required 19)" do
+      # `catppuccin_macchiato`-style theme: it has the 19 required
+      # keys plus the catppuccin flavour colours (`surface0/1/2`,
+      # `overlay0/1/2`, etc). Both classes should appear in the
+      # table — required first, customs after, alphabetically.
+      with_themes_dir(fn ->
+        base = dracula_palette()
+        extra = %{"surface0" => {54, 58, 79}, "surface1" => {73, 77, 100}, "surface2" => {91, 96, 120}}
+
+        write_theme_json("catppuccin_macchiato", Map.merge(base, extra))
+
+        output = capture_stdout(fn -> ThemeCmd.run(["show", "catppuccin_macchiato"]) end)
+
+        # The required keys still appear.
+        assert output =~ "theme:primary"
+        assert output =~ "theme:background"
+
+        # The three custom keys appear with their full RGB + table row.
+        assert output =~ "theme:surface0"
+        assert output =~ "theme:surface1"
+        assert output =~ "theme:surface2"
+
+        # And the wire code for each is rendered (lossless formats only).
+        assert output =~ "rgb:54,58,79"
+        assert output =~ "rgb:73,77,100"
+        assert output =~ "rgb:91,96,120"
+      end)
+    end
+
+    test "renders rows for arbitrary keys with mixed colour formats in the JSON" do
+      # The whole point of the redesign was "any theme with any keys,
+      # while the colour is parseable". So we exercise two things at
+      # once:
+      #   1. arbitrary key names that don't appear in `@required_keys`
+      #      (`maroon`, `crust`, `mauve`, … — catppuccin flavour names).
+      #   2. colour values stored in every format `Color.parse/1`
+      #      understands, plus one invalid value that must render as
+      #      N/A (so the renderer must not silently drop the row).
+      with_themes_dir(fn ->
+        write_raw_theme_json(
+          "mixed_flavour",
+          Map.merge(dracula_palette(), %{
+            "maroon" => [224, 187, 228],
+            "crust" => "#16131d",
+            "mauve" => "b4befe",
+            "red" => "red",
+            "teal" => "rgb:30,194,178"
+          })
+          |> Map.put("broken_key", "not-a-real-colour")
+        )
+
+        output = capture_stdout(fn -> ThemeCmd.run(["show", "mixed_flavour"]) end)
+
+        # All six custom keys appear, regardless of their colour format.
+        for key <- ["maroon", "crust", "mauve", "red", "teal", "broken_key"] do
+          assert output =~ "theme:#{key}",
+                 "key #{key} missing from the rendered table"
+        end
+
+        # Lossless wire codes are emitted for the parseable ones.
+        assert output =~ "rgb:224,187,228"  # maroon
+        assert output =~ "rgb:30,194,178"   # teal
+
+        # The invalid value's row is still drawn (and its cells are
+        # the dim `-` placeholder) rather than crashing or being
+        # silently omitted.
+        broken_line =
+          output
+          |> String.split("\n", trim: true)
+          |> Enum.find(&(&1 =~ "theme:broken_key"))
+
+        assert broken_line, "row for broken_key not rendered"
+        # Every code-format column in that row must be the dim
+        # placeholder, not garbage.
+        broken_placeholders = Regex.scan(~r/\e\[2m-\e\[0m/, broken_line)
+        assert length(broken_placeholders) >= 8,
+               "expected dim '-' placeholders for broken_key, got #{inspect(broken_line)}"
+      end)
+    end
+
     test "renders N/A placeholders for missing keys" do
       # Theme that only exposes `primary` — the 18 other required keys
       # should render their code cells as a dim `-`.
@@ -318,4 +398,25 @@ defmodule Alaja.CLI.Commands.ThemeTest do
     :ok =
       Theme.install!(theme)
   end
+
+  # Writes a theme JSON directly to disk under `ALAJA_THEMES_PATH`,
+  # bypassing `Theme.install!/1` so we can round-trip colour values
+  # in formats other than `[r,g,b]` (Pote's `save_theme/2` only
+  # serialises arrays). This is what makes the `mixed colour
+  # formats` test possible.
+  defp write_raw_theme_json(name, colors) do
+    # Jason can't encode tuples, so flatten the RGB values to
+    # `[r, g, b]` lists before serialising. That's also what
+    # `Config.load_theme/1` expects to receive back from the JSON.
+    json_colours = Map.new(colors, fn {k, v} -> {k, rgb_tuple_to_list(v)} end)
+
+    json =
+      Jason.encode!(%{"name" => name, "description" => "test", "colors" => json_colours})
+
+    path = Path.join([System.get_env("ALAJA_THEMES_PATH"), "#{name}.json"])
+    File.write!(path, json)
+  end
+
+  defp rgb_tuple_to_list({r, g, b}), do: [r, g, b]
+  defp rgb_tuple_to_list(other), do: other
 end
