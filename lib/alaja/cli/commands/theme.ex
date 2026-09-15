@@ -72,13 +72,15 @@ defmodule Alaja.CLI.Commands.Theme do
   # and under credo's cyclomatic-complexity cap.
 
   defp dispatch([], global), do: help(global)
+  defp dispatch(["init" | _], global), do: run_init(global)
   defp dispatch(["get" | _], global), do: run_get(global)
+  defp dispatch(["set"], _global), do: run_set_picker()
   defp dispatch(["set", name | _], global), do: run_set(name, global)
-  defp dispatch(["set" | _], _global), do: usage_error("set <name>")
   defp dispatch(["list" | _], global), do: run_list(global)
   defp dispatch(["show", "all" | _], global), do: run_show_all(global)
   defp dispatch(["show", name | _], global), do: run_show(name, global)
   defp dispatch(["show" | _], _global), do: usage_error("show <theme> | show all")
+  defp dispatch(["compare" | names], global), do: run_compare(names, global)
   defp dispatch([action | _], _global), do: unknown_action(action)
 
   defp usage_error(hint) do
@@ -324,6 +326,156 @@ defmodule Alaja.CLI.Commands.Theme do
   end
 
   defp dim(text), do: "\e[2m#{text}\e[0m"
+
+  # ── iter-059 additions ──────────────────────────────────────────────────
+  # `init`  — install templates + activate default. Alias of
+  #           `Alaja.Theme.Bootstrap.ensure_installed/0` for users who
+  #           prefer the explicit `theme init` verb over the implicit
+  #           bootstrap-on-first-use path.
+  # `set`   — when called with no args, opens an interactive picker
+  #           (Alaja.CLI.Picker) with arrow-key navigation.
+  # `compare` — side-by-side render of multiple themes; paginates > 3.
+  # `color_swatch_for` — small inline swatch used in the list/compare
+  #           tables. Reads from the theme JSON on disk; falls back to
+  #           two spaces when the theme isn't loadable.
+
+  defp run_init(_global) do
+    Alaja.Theme.Bootstrap.ensure_installed()
+
+    active =
+      case Alaja.Config.get(:theme_active) do
+        nil -> "default"
+        name -> to_string(name)
+      end
+
+    IO.puts("✓ Initialized themes. Active: #{active}")
+  end
+
+  defp run_set_picker do
+    case Theme.list() do
+      [] ->
+        IO.puts(:stderr, "✗ No themes found. Run `alaja theme init` first.")
+        :error
+
+      themes ->
+        active = to_string(Config.get(:theme_active))
+        index = Enum.find_index(themes, &(&1 == active)) || 0
+
+        case Alaja.CLI.Picker.run(themes, "Select a theme:",
+               initial_index: index,
+               formatter: &format_theme_option(&1, &2 == active)
+             ) do
+          {:ok, name} ->
+            do_activate(name)
+
+          :cancelled ->
+            IO.puts("(cancelled)")
+            :ok
+        end
+    end
+  end
+
+  defp format_theme_option(name, is_active) do
+    suffix = if is_active, do: " (active)", else: ""
+    "#{name}#{suffix}"
+  end
+
+  defp do_activate(name) do
+    Theme.activate(name)
+    Config.set(:theme_active, name)
+    IO.puts("✓ Activated theme: #{name}")
+  end
+
+  defp run_compare(names, global) when is_list(names) do
+    names =
+      case names do
+        [] -> Theme.list()
+        list -> list
+      end
+
+    themes = Enum.filter(names, &(&1 in Theme.list()))
+
+    if themes == [] do
+      IO.puts("  No themes found. Run `alaja theme init` first.")
+    else
+      paginate_compare(themes, global)
+    end
+  end
+
+  # Side-by-side compare. For > 3 themes we chunk in groups of 2 so
+  # each table stays readable; between groups we wait for a key so
+  # the user has time to inspect each chunk.
+  defp paginate_compare(themes, global) do
+    chunks = Enum.chunk_every(themes, 2)
+    last_chunk = List.last(chunks)
+
+    Enum.each(chunks, fn chunk ->
+      show_compare(chunk, global)
+      if chunk != last_chunk, do: wait_for_key()
+    end)
+  end
+
+  defp wait_for_key do
+    IO.write("\n  --- press any key for next group ---")
+    _ = IO.read(:stdio, 1)
+    IO.puts("")
+  end
+
+  defp show_compare([], _), do: :ok
+
+  defp show_compare(themes, _global) do
+    theme_data =
+      Enum.reduce(themes, %{}, fn name, acc ->
+        case Config.load_theme(name) do
+          {:ok, data} -> Map.put(acc, name, Map.get(data, "colors", %{}))
+          _ -> acc
+        end
+      end)
+
+    if theme_data == %{} do
+      IO.puts("  No theme data to display.")
+    else
+      all_keys =
+        theme_data
+        |> Enum.flat_map(fn {_, colors} -> Map.keys(colors) end)
+        |> Enum.uniq()
+        |> Enum.sort()
+
+      headers = ["Key" | themes]
+
+      rows =
+        Enum.map(all_keys, fn key ->
+          [key | Enum.map(themes, fn theme -> format_compare_cell(theme, theme_data, key) end)]
+        end)
+
+      table_opts = [
+        border: :rounded,
+        padding: 1,
+        color: {255, 255, 255},
+        headers_color: [{255, 255, 255}],
+        headers_effects: [:bold]
+      ]
+
+      IO.puts("")
+
+      [headers | rows]
+      |> Alaja.Components.Table.render(table_opts)
+      |> Alaja.Buffer.to_iodata()
+      |> IO.iodata_to_binary()
+      |> IO.write()
+    end
+  end
+
+  defp format_compare_cell(theme, theme_data, key) do
+    case Map.get(theme_data[theme] || %{}, key) do
+      [r, g, b] -> "#{color_swatch({r, g, b})} ##{String.upcase(Base.encode16(<<r, g, b>>))}"
+      _ -> "-"
+    end
+  end
+
+  defp color_swatch({r, g, b}) do
+    "\e[48;2;#{r};#{g};#{b}m    \e[0m"
+  end
 
   # ── Help ────────────────────────────────────────────────────────────────
 
