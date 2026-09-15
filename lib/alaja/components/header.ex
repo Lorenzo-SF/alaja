@@ -66,56 +66,85 @@ defmodule Alaja.Components.Header do
     width = resolve_width(opts)
     size = Keyword.get(opts, :size, :medium) || width_to_size(width)
 
-    title_colors = normalize_color_list(Keyword.get(opts, :color)) || [@default_color]
-
-    subtitle_colors =
-      normalize_color_list(Keyword.get(opts, :subtitle_color)) || [@default_subtitle_color]
+    title_colors = colors_or_default(Keyword.get(opts, :color), @default_color)
+    subtitle_colors = colors_or_default(Keyword.get(opts, :subtitle_color), @default_subtitle_color)
 
     separator_char = Keyword.get(opts, :separator_char) || default_separator_char(size)
-    separator_colors = normalize_color_list(Keyword.get(opts, :separator_color)) || title_colors
+    separator_colors = colors_or_default_raw(Keyword.get(opts, :separator_color), title_colors)
 
-    # Determine separator characters for top and bottom lines
     bottom_separator_char =
       if size == :large, do: default_separator_char(:medium), else: default_separator_char(:small)
 
     width = max(width, longest_line_length([title, subtitle], separator_char))
 
     title_lines = split_lines(title)
-    subtitle_lines = if subtitle, do: split_lines(subtitle), else: []
-    subtitle_line_count = length(subtitle_lines)
-    total_lines = max(length(title_lines) + subtitle_line_count + 2, 3)
+    subtitle_lines = split_lines_if_present(subtitle)
+    total_lines = total_height(title_lines, subtitle_lines)
+
     buffer = Buffer.new(width, total_lines)
 
-    # --- top decorative line ---------------------------------------------
-    buffer =
-      fill_row(buffer, 0, separator_char, Enum.at(separator_colors, 0, @default_color), width)
+    buffer
+    |> paint_top_line(separator_char, separator_colors, width)
+    |> paint_title_lines(title_lines, title_colors, width)
+    |> paint_bottom_line(length(title_lines), bottom_separator_char, separator_colors, width)
+    |> paint_subtitle_lines(subtitle, subtitle_lines, title_lines, subtitle_colors, width)
+  end
 
-    # --- title lines (may be several) -----------------------------------
-    {buffer, idx} =
-      Enum.reduce(Enum.with_index(title_lines), {buffer, 1}, fn {line, i}, {buf, row} ->
-        fg = Enum.at(title_colors, i, List.last(title_colors) || @default_color)
-        buf = write_centered(buf, row + i, line, fg, width)
-        {buf, row}
-      end)
+  # `normalize_color_list/1` returns `nil` when the user passed `nil`.
+  # Resolve that to a single-element list seeded with `default`, so the
+  # downstream colour-cycling logic always has a value to index.
+  defp colors_or_default(nil, default), do: [default]
 
-    title_end_row = length(title_lines)
+  defp colors_or_default(value, _default),
+    do: normalize_color_list(value) || [@default_color]
 
-    # --- bottom decorative line -----------------------------------------
-    separator_fg =
-      Enum.at(separator_colors, 1, List.first(separator_colors) || @default_color)
+  # Same as `colors_or_default/2` but accepts an arbitrary fallback list
+  # (the `:separator_color` falls back to `title_colors`, not a single
+  # colour).
+  defp colors_or_default_raw(nil, fallback), do: fallback
 
-    buffer =
-      fill_row(buffer, title_end_row + 1, bottom_separator_char, separator_fg, width)
+  defp colors_or_default_raw(value, _fallback),
+    do: normalize_color_list(value) || [@default_color]
 
-    # --- subtitle lines (single row, but colour cycles if list) ---------
-    if subtitle do
-      Enum.reduce(Enum.with_index(subtitle_lines), buffer, fn {line, i}, buf ->
-        fg = Enum.at(subtitle_colors, i, List.last(subtitle_colors) || @default_subtitle_color)
-        write_centered(buf, title_end_row + 2 + i, line, fg, width)
-      end)
-    else
-      buffer
-    end
+  defp split_lines_if_present(nil), do: []
+  defp split_lines_if_present(text), do: split_lines(text)
+
+  defp total_height(title_lines, subtitle_lines) do
+    max(length(title_lines) + length(subtitle_lines) + 2, 3)
+  end
+
+  defp paint_top_line(buffer, char, colors, width) do
+    fill_row(buffer, 0, char, Enum.at(colors, 0, @default_color), width)
+  end
+
+  defp paint_title_lines(buffer, title_lines, colors, width) do
+    Enum.reduce(Enum.with_index(title_lines), {buffer, 1}, fn {line, i}, {buf, row} ->
+      fg = Enum.at(colors, i, List.last(colors) || @default_color)
+      {write_centered(buf, row + i, line, fg, width), row}
+    end)
+    |> elem(0)
+  end
+
+  defp paint_bottom_line(buffer, title_end_row, char, colors, width) do
+    fg = Enum.at(colors, 1, List.first(colors) || @default_color)
+    fill_row(buffer, title_end_row + 1, char, fg, width)
+  end
+
+  defp paint_subtitle_lines(buffer, nil, _subtitle_lines, _title_lines, _colors, _width),
+    do: buffer
+
+  defp paint_subtitle_lines(
+         buffer,
+         _subtitle,
+         subtitle_lines,
+         title_lines,
+         colors,
+         width
+       ) do
+    Enum.reduce(Enum.with_index(subtitle_lines), buffer, fn {line, i}, buf ->
+      fg = Enum.at(colors, i, List.last(colors) || @default_subtitle_color)
+      write_centered(buf, length(title_lines) + 2 + i, line, fg, width)
+    end)
   end
 
   # Normalises a single colour, a list of colours, or nil into a list.

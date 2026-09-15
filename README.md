@@ -40,7 +40,7 @@ dispatch errors (unknown command, missing arg, invalid flag). This
 makes the DSL safe to use as a library — calling `main/1` from a
 test or from another module won't kill the BEAM.
 
-For escript-style behaviour (exit code 1 on error), opt in explicitly:
+For release-style behaviour (exit code 1 on error), opt in explicitly:
 
 ```elixir
 use Alaja.CLI.Definition, otp_app: :my_app, halt_on_error: true

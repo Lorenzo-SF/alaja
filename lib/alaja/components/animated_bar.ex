@@ -289,21 +289,19 @@ defmodule Alaja.Components.AnimatedBar do
     duration = Keyword.get(opts, :duration)
     speed = Keyword.get(opts, :speed, 100)
     max_iterations = compute_max_iterations(duration, speed, Keyword.get(opts, :max_iterations))
-    use_abs = global[:raw] || (global[:pos_x] || 0) > 0 || (global[:pos_y] || 0) > 0
-    start_x = (global[:pos_x] || 0) + 1
-    start_y = (global[:pos_y] || 0) + 1
+
+    x = global[:pos_x] || 0
+    y = global[:pos_y] || 0
+    use_abs = global[:raw] || x > 0 || y > 0
+    start_x = x + 1
+    start_y = y + 1
 
     # Compute the worst-case frame height up front so the vertical-space
     # guard catches "boxed bar bigger than terminal" before we start the
     # loop (otherwise the cursor-up escape would walk past row 1 and
     # destroy content above).
     worst_height = estimate_frame_height(global, opts)
-
-    term_h =
-      case :io.rows() do
-        {:ok, h} -> h
-        _ -> 24
-      end
+    term_h = terminal_rows()
 
     if start_y + worst_height - 1 > term_h do
       IO.write(
@@ -313,26 +311,51 @@ defmodule Alaja.Components.AnimatedBar do
 
       :ok
     else
-      if use_abs, do: IO.write(ANSI.hide_cursor())
-
-      try do
-        0..(max_iterations - 1)
-        |> Enum.reduce_while(:ok, fn frame, _ ->
-          if duration && duration > 0 && frame * speed >= duration do
-            {:halt, :ok}
-          else
-            ctx = %{use_abs: use_abs, start_x: start_x, start_y: start_y, frame: frame}
-            render_one(value, max, frame, opts, global, ctx)
-            Process.sleep(speed)
-            {:cont, :ok}
-          end
-        end)
-      after
-        if use_abs, do: IO.write(ANSI.show_cursor())
-      end
-
-      :ok
+      drive_animation(value, max, opts, global, duration, speed, max_iterations, %{
+        use_abs: use_abs,
+        start_x: start_x,
+        start_y: start_y
+      })
     end
+  end
+
+  defp terminal_rows do
+    case :io.rows() do
+      {:ok, h} -> h
+      _ -> 24
+    end
+  end
+
+  # Drive the animation in raw mode (when the caller pinned the cursor
+  # to absolute coordinates) and back to the cooked-mode cursor once
+  # the loop exits. Extracted from `run/5` to keep its cyclomatic
+  # complexity within credo's `--strict` limits.
+  defp drive_animation(value, max, opts, global, duration, speed, max_iterations, coords) do
+    if coords.use_abs, do: IO.write(ANSI.hide_cursor())
+
+    try do
+      _ = run_frames(value, max, opts, global, duration, speed, max_iterations, coords)
+    after
+      if coords.use_abs, do: IO.write(ANSI.show_cursor())
+    end
+
+    :ok
+  end
+
+  defp run_frames(value, max, opts, global, duration, speed, max_iterations, coords) do
+    Enum.reduce_while(0..(max_iterations - 1), :ok, fn frame, _ ->
+      if duration && duration > 0 && frame * speed >= duration do
+        {:halt, :ok}
+      else
+        tick(value, max, opts, global, coords, frame)
+      end
+    end)
+  end
+
+  defp tick(value, max, opts, global, coords, frame) do
+    ctx = Map.put(coords, :frame, frame)
+    render_one(value, max, frame, opts, global, ctx)
+    {:cont, :ok}
   end
 
   defp compute_max_iterations(nil, _speed, nil), do: 100_000

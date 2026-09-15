@@ -187,7 +187,7 @@ defmodule Alaja.Config do
   the BEAM-wide env state.
 
   Missing files, malformed JSON, and parse errors are all swallowed
-  silently — Config must never crash an escript at startup. Returns
+  silently — Config must never crash a release at startup. Returns
   `:ok` once the overlay has been applied.
 
   ## Example

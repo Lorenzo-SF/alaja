@@ -6,44 +6,74 @@ defmodule Alaja.CLI.Showcase do
   it silently does what `alaja theme init` would do and activates the
   default theme.
 
-  Renders a dynamic pulsar while prompting the user to view full help.
-  The prompt is a proper interactive picker:
-    * `← →` (or `Tab`) move between options.
-    * `Enter` selects.
-    * `y`/`n` shortcut still works.
-    * First option is selected by default (Enter immediately = yes).
+  It then draws a dynamic pulsar: 60% of the terminal width wide, 40% of
+  the terminal height tall, 3 blank lines from the top, centered
+  horizontally, pulsing with the theme's `gradient_1`..`gradient_6`
+  colors and a multiline message with every line centered:
 
-  Skipped when stdout is not a TTY or `ALAJ_NO_SHOWCASE` is set.
+          alaja
+      Terminal UI & Process Orchestration Framework
+      tema activo: <name>
+
+  The pulsar keeps pulsing while a centered yes/no prompt (a blank line
+  below the pulsar) asks whether to show the full help. The prompt
+  accepts arrow keys (←/→/↑/↓), vim-style `j`/`k`, numeric shortcuts
+  (`1`/`2`), letter shortcuts (`y`/`n`), Enter to confirm, and `q`/Esc
+  to fall back to the default (`no`).
+
+  `yes` clears the screen and returns `:help` (the caller renders the
+  full help); `no` clears the screen and returns `:done`, leaving the
+  terminal free.
+
+  Skipped when stdout is not a TTY and when `ALAJ: NO_SHOWCASE` is set
+  to `1`, `true` or `yes`.
   """
 
   alias Alaja.ANSI
-  alias Alaja.Printer
+  alias Alaja.CLI.Pagination
 
-  @default_theme "catppuccin"
   @help_question "¿Quieres ver el help?"
-  @options [{:yes, "Yes — show full help"}, {:no, "No — exit"}]
-  @pulsar_duration_ms 70_000
+  # 8 s is a comfortable upper bound: the showcase waits for a key, but if
+  # the user walks away the pulsar dies on its own before the prompt
+  # becomes the only thing on screen.
+  @pulsar_duration_ms 8_000
   @pulsar_speed 60
 
   @description "Terminal UI & Process Orchestration Framework"
 
+  # ─── Options shown beneath the pulsar ──────────────────────────────────
+  # `active` is the 0-based index of the highlighted option:
+  #   0 → "1. Y"  (default index)
+  #   1 → "2. N"
+  @options [{"1. Y", :yes}, {"2. N", :no}]
+  @default_active 1
+
+  # ANSI dim-on / dim-off for the question line. We keep options at
+  # default weight so the cursor `>` stays the visual anchor.
+  @dim_open "\e[2m"
+  @dim_close "\e[0m"
+  # Cyan for the question (matches the original colour).
+  @question_color {0, 180, 216}
+
   @doc """
   Whether the showcase should run: interactive TTY and not disabled
-  through `ALAJ_NO_SHOWCASE`.
+  through `ALAJ: NO_SHOWCASE`.
   """
   @spec enabled?() :: boolean()
   def enabled? do
     IO.ANSI.enabled?() and
-      System.get_env("ALAJ_NO_SHOWCASE") not in ["1", "true", "yes"]
+      System.get_env("ALAJ: NO_SHOWCASE") not in ["1", "true", "yes"]
   end
 
   @doc """
-  Runs the showcase (blocking until the user selects an option).
-  Returns `:help` or `:done`.
+  Runs the showcase (blocking until the yes/no prompt is answered).
+
+  Returns `:help` when the user wants to see the full help and `:done`
+  otherwise.
   """
   @spec run() :: :help | :done
   def run do
-    ensure_first_run!()
+    :ok = Alaja.Theme.Bootstrap.ensure_installed()
     {cols, rows} = terminal_size()
     {x, y, width, height} = pulsar_geometry(cols, rows)
 
@@ -51,19 +81,30 @@ defmodule Alaja.CLI.Showcase do
 
     pulsar_task = start_pulsar(x, y, width, height)
 
-    answer = ask_interactive(cols, y + height + 1)
+    answer = ask_help(cols, y + height + 1)
 
+    # The pulsar writes directly to stdout from a Task. `Task.shutdown`
+    # kills the BEAM process, but bytes already queued in the kernel's
+    # tty buffer will still arrive on the terminal after the kill.
+    # A tiny sleep lets the kernel drain those frames; then our clear
+    # wipes whatever the pulsar left behind. 30 ms is invisible to the
+    # user and well below one frame of the pulsar (~60 ms).
     Task.shutdown(pulsar_task, :brutal_kill)
+    Process.sleep(30)
 
     IO.write([ANSI.clear(), ANSI.cursor_home(), ANSI.show_cursor()])
 
-    answer
+    case answer do
+      :yes -> :help
+      _ -> :done
+    end
   end
 
   @doc """
   Builds the multiline pulsar content.
 
-  Every line is centered over the widest line (the description).
+  Every line is centered over the widest line (the description), so all
+  three lines are centered within the pulsar.
   """
   @spec pulsar_text() :: String.t()
   def pulsar_text do
@@ -72,129 +113,6 @@ defmodule Alaja.CLI.Showcase do
     ["alaja", @description, "tema activo: #{theme}"]
     |> Enum.map_join("\n", &center_line(&1, String.length(@description)))
   end
-
-  # ── Interactive picker ──────────────────────────────────────────
-
-  defp ask_interactive(cols, row) do
-    opts = @options
-    state = %{selected: 0}
-
-    draw_picker(cols, row, opts, state)
-
-    loop_picker(cols, row, opts, state)
-  end
-
-  defp loop_picker(cols, row, opts, state) do
-    case read_key() do
-      {:char, ?\r} ->
-        {_tag, value} = Enum.at(opts, state.selected)
-        value
-
-      {:char, ?y} ->
-        :help
-
-      {:char, ?n} ->
-        :done
-
-      {:char, ?\t} ->
-        next = rem(state.selected + 1, length(opts))
-        redraw(cols, row, opts, %{state | selected: next})
-        loop_picker(cols, row, opts, %{state | selected: next})
-
-      {:arrow, :right} ->
-        next = rem(state.selected + 1, length(opts))
-        redraw(cols, row, opts, %{state | selected: next})
-        loop_picker(cols, row, opts, %{state | selected: next})
-
-      {:arrow, :left} ->
-        prev = rem(state.selected - 1 + length(opts), length(opts))
-        redraw(cols, row, opts, %{state | selected: prev})
-        loop_picker(cols, row, opts, %{state | selected: prev})
-
-      _ ->
-        loop_picker(cols, row, opts, state)
-    end
-  end
-
-  defp draw_picker(cols, row, opts, state) do
-    pad = max(div(cols, 2) - 12, 0)
-
-    IO.write([ANSI.move_to(pad, row)])
-    Printer.print(@help_question, raw: true, pos_x: pad, pos_y: row, color: {0, 180, 216})
-
-    IO.write([ANSI.move_to(0, row + 2)])
-    render_options(opts, state.selected, pad, row + 2)
-  end
-
-  defp redraw(cols, row, opts, state) do
-    pad = max(div(cols, 2) - 12, 0)
-    IO.write([ANSI.move_to(0, row + 2), ANSI.clear_line()])
-    render_options(opts, state.selected, pad, row + 2)
-    IO.write([ANSI.show_cursor(), ANSI.move_to(0, row + 4)])
-  end
-
-  defp render_options(opts, selected, pad, y) do
-    opts
-    |> Enum.with_index()
-    |> Enum.each(fn {{_atom, label}, idx} ->
-      IO.write([ANSI.move_to(pad, y + idx)])
-      icon = if idx == selected, do: "▶", else: " "
-      color = if idx == selected, do: {0, 220, 180}, else: {120, 120, 140}
-
-      label_padded = String.pad_trailing(label, 22)
-
-      Printer.print("#{icon} #{label_padded}", raw: true, pos_x: pad, pos_y: y + idx, color: color)
-    end)
-  end
-
-  # Reads a single key from stdin in raw mode.
-  # Returns `{:char, codepoint}`, `{:arrow, :left | :right | :up | :down}`, or `:eof`.
-  defp read_key do
-    :io.getopts(:standard_io, [:binary, :echo])
-    |> case do
-      {:ok, opts} ->
-        saved = opts
-        new_opts = [{:echo, false}, {:binary, true}] |> Keyword.merge(opts)
-        :io.setopts(:standard_io, new_opts)
-        result = read_one_key()
-        :io.setopts(:standard_io, saved)
-        result
-
-      _ ->
-        # Fallback for non-tty: read line.
-        case IO.gets("> ") do
-          :eof -> :eof
-          line -> {:char, hd(String.to_charlist(line))}
-        end
-    end
-  rescue
-    _ -> :eof
-  end
-
-  defp read_one_key do
-    case IO.read(:stdio, 1) do
-      :eof -> :eof
-      <<27>> -> read_escape()
-      <<c::utf8>> -> {:char, c}
-    end
-  end
-
-  defp read_escape do
-    case IO.read(:stdio, 1) do
-      {:error, _} -> :eof
-      <<"[">> ->
-        case IO.read(:stdio, 1) do
-          <<"A">> -> {:arrow, :up}
-          <<"B">> -> {:arrow, :down}
-          <<"C">> -> {:arrow, :right}
-          <<"D">> -> {:arrow, :left}
-          _ -> :eof
-        end
-      _ -> :eof
-    end
-  end
-
-  # ── Helpers ──────────────────────────────────────────────────────
 
   defp start_pulsar(x, y, width, height) do
     Task.async(fn ->
@@ -219,18 +137,105 @@ defmodule Alaja.CLI.Showcase do
     end)
   end
 
-  defp ensure_first_run! do
-    conf = Path.expand("~/.config/alaja/alaja.conf")
+  # ─── Interactive prompt (raw mode + arrow keys) ───────────────────────
 
-    if not File.exists?(conf) or Alaja.Theme.list() == [] do
-      File.mkdir_p!(Path.expand("~/.config/alaja/themes"))
+  # The prompt is a 4-line block:
+  #
+  #     <question>           ← row 0 (relative to `row`)
+  #                          ← row 1 (blank)
+  #       1. Y               ← row 2 (option index 0)
+  #    >  2. N               ← row 3 (option index 1, default active)
+  #
+  # We redraw only this block on every cursor move — the pulsar keeps
+  # writing inside its own rectangle above and isn't touched.
+  #
+  # We use raw `IO.write` with explicit `\r\n` line terminators instead
+  # of `Printer.print(raw: true, ...)`. `Printer.print` translates
+  # `pos_y: row` to a 1-indexed cursor move (`row + 1`) and emits bare
+  # `\n`, which doesn't return the carriage under raw mode (ONLCR off)
+  # and produces ghost characters when re-rendering overlapping text.
+  # Plain `IO.write` keeps the positioning and line endings predictable.
+  defp ask_help(cols, row) do
+    pad = max(div(cols - String.length(@help_question), 2), 0)
+    draw_prompt(pad, row, @default_active)
 
-      Enum.each(Alaja.Theme.templates(), &Alaja.Theme.install_template/1)
-      Enum.each(Alaja.Theme.CustomTemplates.all(), &Alaja.Theme.install!/1)
+    Pagination.raw_mode(fn -> loop_prompt(pad, row, @default_active) end)
+  end
 
-      Alaja.Theme.activate(@default_theme)
-      Alaja.Config.set(:theme_active, @default_theme)
+  # Keys that move the cursor: `:up`/`:down` (arrow keys), `k`/`j` (vim).
+  # We treat them as a single class with a signed delta, so the case below
+  # stays under credo's cyclomatic-complexity limit (≤ 9).
+  @nav_keys [:up, :down, "k", "j"]
+
+  defp loop_prompt(pad, row, active) do
+    case Pagination.read_key() do
+      key when key in @nav_keys ->
+        delta = if key in [:up, "k"], do: -1, else: 1
+        redraw_prompt(pad, row, active, wrap(active + delta))
+
+      :enter ->
+        commit(active)
+
+      key when key in ["1", "y", "Y"] ->
+        commit(0)
+
+      key when key in ["2", "n", "N"] ->
+        commit(1)
+
+      key when key in [:esc, "q"] ->
+        commit(@default_active)
+
+      _ ->
+        loop_prompt(pad, row, active)
     end
+  end
+
+  # `commit/1` doesn't need to keep drawing — once the user confirms we
+  # let the caller redraw with `ANSI.clear()` after killing the pulsar.
+  defp commit(active), do: elem(Enum.at(@options, active), 1)
+
+  defp redraw_prompt(pad, row, _old, new_active) do
+    draw_prompt(pad, row, new_active)
+    loop_prompt(pad, row, new_active)
+  end
+
+  # Re-emit the 4-line block at absolute (col=1, row=row) with the given
+  # option highlighted. The flow is:
+  #
+  #   1. Move cursor to (1, row) — top-left of the prompt block.
+  #   2. `\e[J` erases everything from the cursor to the end of screen,
+  #      so any ghost characters left by the previous render are gone.
+  #   3. We write the block directly with explicit `\r\n` terminators.
+  #      In raw mode the terminal doesn't translate `\n` → `\r\n`, so
+  #      we MUST include the `\r` ourselves — otherwise lines wrap to
+  #      column 0 and overwrite themselves.
+  defp draw_prompt(pad, row, active) do
+    IO.write(ANSI.move_to(1, row))
+    IO.write(ANSI.clear_line_down())
+
+    {r, g, b} = @question_color
+    colour_open = "\e[38;2;#{r};#{g};#{b}m"
+
+    block =
+      [
+        colour_open <> @dim_open <> @help_question <> @dim_close <> "\e[0m",
+        "",
+        render_option(pad, active, 0, "1. Y"),
+        render_option(pad, active, 1, "2. N")
+      ]
+      |> Enum.join("\r\n")
+
+    IO.write(block <> "\r\n")
+  end
+
+  defp render_option(pad, active, idx, label) do
+    prefix = if idx == active, do: "> ", else: "  "
+    String.duplicate(" ", pad) <> prefix <> label
+  end
+
+  defp wrap(i) do
+    n = length(@options)
+    if n == 0, do: 0, else: rem(rem(i, n) + n, n)
   end
 
   defp pulsar_geometry(cols, rows) do
@@ -248,15 +253,17 @@ defmodule Alaja.CLI.Showcase do
   end
 
   defp terminal_size do
-    cols = case :io.columns() do
-      {:ok, c} -> c
-      _ -> 80
-    end
+    cols =
+      case :io.columns() do
+        {:ok, c} -> c
+        _ -> 80
+      end
 
-    rows = case :io.rows() do
-      {:ok, r} -> r
-      _ -> 24
-    end
+    rows =
+      case :io.rows() do
+        {:ok, r} -> r
+        _ -> 24
+      end
 
     {max(cols, 60), max(rows, 16)}
   end

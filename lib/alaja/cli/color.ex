@@ -37,7 +37,30 @@ defmodule Alaja.CLI.Color do
   del parser del "drawer".
   """
 
+  # The canonical list of formats this module understands. Also reachable
+  # through the public `formats/0` and `output_formats/0` functions below,
+  # so other modules (e.g. `Alaja.CLI.Commands.Theme`) can iterate it
+  # without hardcoding it themselves.
   @formats ~w(rgb argb hex xterm cmyk hsl hsv hwb theme)
+
+  @doc """
+  Returns the canonical list of supported input formats.
+
+  Used by both the parser (to validate the `format:` prefix) and
+  by the `alaja theme show` table renderer (to enumerate the columns
+  dynamically — when a new format lands here it shows up automatically).
+  """
+  @spec formats() :: [String.t()]
+  def formats, do: @formats
+
+  @doc """
+  Returns the subset of `formats/0` that make sense as **outputs** of a
+  colour (i.e. everything except `theme`, which is a lookup against the
+  active theme rather than a serialisation format). Used by `alaja theme
+  show` to build the per-format columns of its colour table.
+  """
+  @spec output_formats() :: [String.t()]
+  def output_formats, do: Enum.reject(@formats, &(&1 == "theme"))
 
   # ── API publica ────────────────────────────────────────────────────
 
@@ -145,7 +168,14 @@ defmodule Alaja.CLI.Color do
   # ── Formatos explicitos ─────────────────────────────────────────────
 
   defp parse_format("theme", key, _original) do
-    {:ok, theme_color(key) || {255, 255, 255}}
+    case theme_color(key) do
+      nil ->
+        {:error,
+         "theme color '#{key}' not found in the active theme, in any registered resolver, or in Pote's defaults"}
+
+      rgb ->
+        {:ok, rgb}
+    end
   end
 
   defp parse_format("hex", code, original) do
@@ -395,11 +425,32 @@ defmodule Alaja.CLI.Color do
 
   # ── Theme ───────────────────────────────────────────────────────────
 
+  # Resolve `theme:<key>` against the active theme. Walks the full chain
+  # via Pote's resolver stack so:
+  #
+  #   * keys defined in the *currently active* theme (built-in OR custom)
+  #     are resolved directly, with no `to_atom` round-trip;
+  #   * keys defined in any other resolver on the stack are picked up as
+  #     a side effect of `Pote.resolve_theme_color/1` walking the chain;
+  #   * `Pote`'s hardcoded `@default_colors` map is the final fallback.
+  #
+  # Previously this used `String.to_existing_atom(key) |> Cell.resolve`,
+  # which silently returned `nil` for any custom key that wasn't
+  # already a known atom (i.e. almost any theme key the user adds
+  # beyond the 22 built-in defaults). The bug fell through to the
+  # `{255, 255, 255}` white fallback at the call-site, so custom theme
+  # keys appeared as invisible white text instead of failing loudly.
   defp theme_color(key) do
-    String.to_existing_atom(key)
-    |> Alaja.Cell.resolve_theme_color()
-  rescue
-    ArgumentError -> nil
+    case Alaja.Theme.color(key) do
+      {:ok, rgb} ->
+        rgb
+
+      :not_found ->
+        case Pote.resolve_theme_color(key) do
+          {:ok, rgb} -> rgb
+          :not_found -> nil
+        end
+    end
   end
 
   # ── Conversiones locales (mismas formulas que Pote.Converters) ─────
@@ -567,5 +618,73 @@ defmodule Alaja.CLI.Color do
 
       {round(r * 255), round(g * 255), round(b_val * 255)}
     end
+  end
+
+  # ── Serialisers (RGB → "<format>:<code>") ──────────────────────────
+  #
+  # Each format gets its own public `serialize/2` clause plus a
+  # private `rgb_to_<format>/1` so the table renderer in
+  # `Alaja.CLI.Commands.Theme` can ask for any column without knowing
+  # the layout specifics of each format. Inverse of `parse_format/3`.
+
+  @doc """
+  Serialises an RGB triple into the `<format>:<code>` string the parser
+  accepts on input. Used by `alaja theme show` to build the per-format
+  columns of the colour table.
+
+  Currently supports the formats in `output_formats/0` (everything
+  except `theme`). Adding a new format requires three pieces:
+
+    1. a `parse_format/3` clause that turns the code into an RGB;
+    2. an entry in `@formats` / `formats/0`;
+    3. a `serialize/2` clause below that turns an RGB back into it.
+
+  """
+  @spec serialize({0..255, 0..255, 0..255}, String.t()) :: String.t()
+  def serialize(rgb, "rgb"), do: rgb_to_rgb(rgb)
+  def serialize(rgb, "argb"), do: rgb_to_argb(rgb)
+  def serialize(rgb, "hex"), do: rgb_to_hex(rgb)
+  def serialize(rgb, "xterm"), do: rgb_to_xterm(rgb)
+  def serialize(rgb, "cmyk"), do: rgb_to_cmyk(rgb)
+  def serialize(rgb, "hsl"), do: rgb_to_hsl(rgb)
+  def serialize(rgb, "hsv"), do: rgb_to_hsv(rgb)
+  def serialize(rgb, "hwb"), do: rgb_to_hwb(rgb)
+
+  defp rgb_to_rgb({r, g, b}), do: "rgb:#{r},#{g},#{b}"
+
+  # ARGB serialisation assumes opaque alpha (255) by convention; the
+  # parser (line 200) drops the alpha too, so round-tripping an ARGB
+  # always recovers the RGB regardless of the alpha we put in.
+  defp rgb_to_argb({r, g, b}), do: "argb:255,#{r},#{g},#{b}"
+
+  # Pote's `rgb_to_hex/1` returns `"#FF0000"`. The alaja parser strips
+  # an optional leading `#` (`normalize_hex/2`), so we emit the form
+  # *without* the `#` to keep round-trips identical when the user
+  # copies the code back into `alaja ... --color hex:...`.
+  defp rgb_to_hex({r, g, b}) do
+    hex = String.trim_leading(Pote.Converters.rgb_to_hex({r, g, b}), "#")
+    "hex:#{String.upcase(hex)}"
+  end
+
+  defp rgb_to_xterm({r, g, b}), do: "xterm:#{Pote.Converters.rgb_to_xterm256({r, g, b})}"
+
+  defp rgb_to_cmyk({r, g, b}) do
+    {c, m, y, k} = Pote.Converters.rgb_to_cmyk({r, g, b})
+    "cmyk:#{round(c)},#{round(m)},#{round(y)},#{round(k)}"
+  end
+
+  defp rgb_to_hsv({r, g, b}) do
+    {h, s, v} = Pote.Converters.rgb_to_hsv({r, g, b})
+    "hsv:#{round(h)},#{round(s)},#{round(v)}"
+  end
+
+  defp rgb_to_hsl({r, g, b}) do
+    {h, s, l} = Pote.Converters.rgb_to_hsl({r, g, b})
+    "hsl:#{round(h)},#{round(s)},#{round(l)}"
+  end
+
+  defp rgb_to_hwb({r, g, b}) do
+    {h, w, b_val} = Pote.Converters.rgb_to_hwb({r, g, b})
+    "hwb:#{round(h)},#{round(w)},#{round(b_val)}"
   end
 end

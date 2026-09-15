@@ -45,7 +45,7 @@ de despacho (comando desconocido, argumento faltante, flag inválido).
 Esto hace que el DSL sea seguro de usar como librería — llamar a `main/1`
 desde un test o desde otro módulo no mata el BEAM.
 
-Para comportamiento estilo escript (exit code 1 en error), opt-in explícito:
+Para comportamiento estilo release (exit code 1 en error), opt-in explícito:
 
 ```elixir
 use Alaja.CLI.Definition, otp_app: :my_app, halt_on_error: true

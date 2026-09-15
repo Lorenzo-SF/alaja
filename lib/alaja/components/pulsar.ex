@@ -461,69 +461,104 @@ defmodule Alaja.Components.Pulsar do
   end
 
   defp run_text(text, opts, global, speed, duration) do
-    height = Keyword.get(opts, :height, @default_height)
-    box_height = if global[:box], do: height + 2, else: height
-    use_abs = global[:raw] || (global[:pos_x] || 0) > 0 || (global[:pos_y] || 0) > 0
-    start_x = (global[:pos_x] || 0) + 1
-    start_y = (global[:pos_y] || 0) + 1
-    align = global[:align] || :left
-    internal_align = Keyword.get(opts, :align, :center)
-
-    left_pad =
-      if align == internal_align,
-        do: 0,
-        else: calculate_left_padding(align, Keyword.get(opts, :width, @default_width))
+    ctx = build_text_ctx(opts, global)
+    box_bottom = ctx.start_y + ctx.box_height - 1
 
     # Abort cleanly when the animation would not fit vertically. Without
     # this guard, the relative cursor-up escape would walk past row 1 and
     # wipe unrelated content above the pulsar.
-    term_h =
-      case :io.rows() do
-        {:ok, h} -> h
-        _ -> 24
-      end
+    case guard_vertical_space("pulsar", box_bottom, ctx.term_h) do
+      :ok -> drive_text(text, opts, global, speed, duration, ctx)
+      :abort -> :ok
+    end
+  end
 
-    if start_y + box_height - 1 > term_h do
+  # Pure helpers — extracted from `run_text/5` to keep its cyclomatic
+  # complexity within credo's `--strict` limits (≤ 9 paths).
+  defp build_text_ctx(opts, global) do
+    coords = text_coords(global)
+    left_pad = text_left_padding(opts, global)
+
+    %{
+      start_x: coords.start_x,
+      start_y: coords.start_y,
+      left_pad: left_pad,
+      box_height: text_box_height(opts, global),
+      use_abs: coords.use_abs,
+      no_color: global[:no_color] || false,
+      term_h: term_height()
+    }
+  end
+
+  defp text_coords(global) do
+    x = global[:pos_x] || 0
+    y = global[:pos_y] || 0
+    %{start_x: x + 1, start_y: y + 1, use_abs: abs_position?(global, x, y)}
+  end
+
+  defp abs_position?(global, x, y) do
+    global[:raw] || x > 0 || y > 0
+  end
+
+  defp text_box_height(opts, global) do
+    height = Keyword.get(opts, :height, @default_height)
+    if global[:box], do: height + 2, else: height
+  end
+
+  defp text_left_padding(opts, global) do
+    align = global[:align] || :left
+    internal_align = Keyword.get(opts, :align, :center)
+
+    if align == internal_align do
+      0
+    else
+      calculate_left_padding(align, Keyword.get(opts, :width, @default_width))
+    end
+  end
+
+  defp term_height do
+    case :io.rows() do
+      {:ok, h} -> h
+      _ -> 24
+    end
+  end
+
+  # `name` is the CLI subcommand name used in the diagnostic message.
+  defp guard_vertical_space(name, bottom, term_h) do
+    if bottom > term_h do
       IO.write(
         :stderr,
-        "alaja pulsar: not enough vertical space (#{start_y + box_height - 1} > #{term_h}); aborting\n"
+        "alaja #{name}: not enough vertical space (#{bottom} > #{term_h}); aborting\n"
       )
 
-      :ok
+      :abort
     else
-      IO.write(ANSI.hide_cursor())
-
-      try do
-        ctx = %{
-          start_x: start_x,
-          start_y: start_y,
-          left_pad: left_pad,
-          box_height: box_height,
-          use_abs: use_abs,
-          no_color: global[:no_color] || false
-        }
-
-        animate_text_loop(text, opts, global, speed, duration, ctx)
-      after
-        IO.write(ANSI.show_cursor())
-      end
-
       :ok
     end
   end
 
-  defp animate_text_loop(text, opts, global, speed, duration, ctx, frame \\ 0) do
-    cond do
-      duration && duration > 0 && frame * speed >= duration ->
-        IO.write([ANSI.clear_line_down(), ANSI.show_cursor()])
-        :ok
+  defp drive_text(text, opts, global, speed, duration, ctx) do
+    IO.write(ANSI.hide_cursor())
 
-      true ->
-        frame_output = render_frame(text, frame, opts)
-        output = wrap_if_boxed(frame_output, global, ctx.no_color)
-        write_text_frame(output, frame, ctx)
-        :timer.sleep(speed)
-        animate_text_loop(text, opts, global, speed, duration, ctx, frame + 1)
+    try do
+      animate_text_loop(text, opts, global, speed, duration, ctx)
+    after
+      IO.write(ANSI.show_cursor())
+    end
+
+    :ok
+  end
+
+  defp animate_text_loop(text, opts, global, speed, duration, ctx, frame \\ 0) do
+    if duration && duration > 0 && frame * speed >= duration do
+      IO.write([ANSI.clear_line_down(), ANSI.show_cursor()])
+      :ok
+    else
+      frame_output = render_frame(text, frame, opts)
+      output = wrap_if_boxed(frame_output, global, ctx.no_color)
+      write_text_frame(output, frame, ctx)
+      :timer.sleep(speed)
+      animate_text_loop(text, opts, global, speed, duration, ctx, frame + 1)
     end
   end
 

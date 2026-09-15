@@ -4,7 +4,7 @@ defmodule Alaja.MixProject do
   def project do
     [
       app: :alaja,
-      version: "3.0.0",
+      version: "3.1.1",
       elixir: "~> 1.19",
       start_permanent: Mix.env() == :prod,
       deps: deps(),
@@ -24,8 +24,7 @@ defmodule Alaja.MixProject do
       batamanta: batamanta(),
       aliases: aliases(),
       dialyzer: dialyzer(),
-      test_coverage: [tool: ExCoveralls],
-      escript: [main_module: Alaja.CLI]
+      test_coverage: [tool: ExCoveralls]
     ]
   end
 
@@ -125,7 +124,7 @@ defmodule Alaja.MixProject do
 
   defp batamanta do
     [
-      format: :escript,
+      format: :release,
       execution_mode: :cli,
       compression: 19,
       binary_name: "alaja",

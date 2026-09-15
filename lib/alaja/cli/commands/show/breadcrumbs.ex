@@ -40,12 +40,10 @@ defmodule Alaja.CLI.Commands.Show.Breadcrumbs do
     switches =
       [
         separator: :string,
-        color: :string
-      ] ++
-        [
-          {String.to_atom("separator-color"), :string},
-          {String.to_atom("current-color"), :string}
-        ]
+        color: :string,
+        separator_color: :string,
+        current_color: :string
+      ]
 
     {opts, items, _} = OptionParser.parse(rest, switches: switches)
 
