@@ -39,6 +39,10 @@ defmodule Alaja.Theme do
   # the macro, so this definition wins.
   def storage_dir, do: System.get_env("ALAJA_THEMES_PATH") || default_themes_path()
 
+  # Public alias kept for the smoke test. Calls the underlying
+  # `register_with_pote/0` (the macro-generated function).
+  defdelegate resolve_with_pote(), to: __MODULE__, as: :register_with_pote
+
   defp default_themes_path do
     Path.join([System.user_home!(), ".config", "alaja", "themes"])
   end
