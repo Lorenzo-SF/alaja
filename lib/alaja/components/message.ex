@@ -51,7 +51,7 @@ defmodule Alaja.Components.Message do
 
   Recognised style opts (all optional):
 
-    * `:color` / `:bg_color` — atom, RGB tuple, or hex string
+    * `:color` — atom, RGB tuple, or hex string
     * `:bold` / `:italic` / `:underline` / `:dim` / `:blink` /
       `:reverse` / `:hidden` / `:strikethrough` — boolean
     * `:padding` — non-negative integer
@@ -60,7 +60,6 @@ defmodule Alaja.Components.Message do
   @spec render(String.t(), atom(), keyword()) :: Buffer.t()
   def render(text, type, opts \\ []) when is_binary(text) and is_atom(type) and is_list(opts) do
     fg = resolve_color(Keyword.get(opts, :color)) || type_fg(type)
-    bg = resolve_color(Keyword.get(opts, :bg_color))
 
     effects =
       []
@@ -77,7 +76,6 @@ defmodule Alaja.Components.Message do
       %ChunkText{
         text: text,
         color: fg,
-        bg_color: bg,
         effects: effects
       }
     ]
@@ -90,8 +88,7 @@ defmodule Alaja.Components.Message do
         case Keyword.get(opts, :addline) do
           nil -> :none
           extra -> %ChunkText{text: extra, color: fg}
-        end,
-      bg_color: bg
+        end
     }
 
     render(info)
