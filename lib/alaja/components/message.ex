@@ -127,28 +127,6 @@ defmodule Alaja.Components.Message do
   defp maybe_effect(list, _effect, false), do: list
   defp maybe_effect(list, effect, true), do: [effect | list]
 
-  def render(%MessageInfo{} = msg) do
-    align = Map.get(msg, :align, :left)
-    padding = Map.get(msg, :padding, 0)
-    _add_line = Map.get(msg, :add_line, :none)
-
-    # Render each chunk into a separate Buffer, then concatenate horizontally.
-    chunk_buffers =
-      msg.chunks
-      |> Enum.map(&render_chunk/1)
-      |> Enum.reject(fn b -> b.width == 0 end)
-
-    buffer =
-      chunk_buffers
-      |> Enum.reduce(Buffer.new(0, 1), fn chunk_buf, acc ->
-        join_horizontal(acc, chunk_buf)
-      end)
-
-    buffer
-    |> apply_padding(padding)
-    |> apply_align(align)
-  end
-
   # ---------------------------------------------------------------------------
   # Internal: render a single chunk as a 1-row Buffer
   # ---------------------------------------------------------------------------
