@@ -278,7 +278,7 @@ defmodule Alaja.CLI.Definition do
         # Elixir crash dump — confusing for end users.
         result =
           try do
-            Alaja.CLI.Definition.run_dispatch(__commands__(), args)
+            Alaja.CLI.Definition.run_dispatch(__commands__(), args, __otp_app__())
           rescue
             e in Alaja.CLI.ActionError ->
               IO.puts(:stderr, "Error: #{Exception.message(e)}")
@@ -311,52 +311,52 @@ defmodule Alaja.CLI.Definition do
   alias Alaja.CLI.Parser
 
   @doc false
-  @spec run_dispatch([map()], [String.t()]) :: term()
-  def run_dispatch(commands, args) do
+  @spec run_dispatch([map()], [String.t()], atom()) :: term()
+  def run_dispatch(commands, args, otp_app) do
     case args do
       # Top-level help: `alaja`, `alaja --help`, `alaja -h`, and `alaja
       # help` all render the full help instead of trying to dispatch to a
       # command. `alaja` alone runs the startup showcase first on TTYs;
       # the full help is only rendered afterwards if the user asks for it.
       [] ->
-        dispatch_empty(commands)
+        dispatch_empty(commands, otp_app)
 
       ["--help" | _] ->
-        render_full_help(commands)
+        render_full_help(commands, otp_app)
 
       ["-h" | _] ->
-        render_full_help(commands)
+        render_full_help(commands, otp_app)
 
       ["help"] ->
-        render_full_help(commands)
+        render_full_help(commands, otp_app)
 
       ["--version" | _] ->
-        render_version()
+        render_version(otp_app)
 
       ["-v" | _] ->
-        render_version()
+        render_version(otp_app)
 
       _ ->
         dispatch(commands, args)
     end
   end
 
-  defp dispatch_empty(commands) do
+  defp dispatch_empty(commands, otp_app) do
     # The alaja welcome showcase (pulsar animation + interactive prompt)
     # is alaja-specific and only makes sense when alaja itself is the
     # host. For external apps that consume `Alaja.CLI.Definition` via
     # the DSL, skip it entirely and render the host's command summary.
-    if __otp_app__() == :alaja and Alaja.CLI.Showcase.enabled?() do
+    if otp_app == :alaja and Alaja.CLI.Showcase.enabled?() do
       case Alaja.CLI.Showcase.run() do
-        :help -> render_full_help(commands)
+        :help -> render_full_help(commands, otp_app)
         _ -> :ok
       end
     else
-      render_full_help(commands)
+      render_full_help(commands, otp_app)
     end
   end
 
-  defp render_full_help(commands) do
+  defp render_full_help(commands, otp_app) do
     # Print the available commands list as well, formatted like a
     # one-screen reference, so callers see what's available without
     # having to dig into the formatted tables.
@@ -364,7 +364,7 @@ defmodule Alaja.CLI.Definition do
       commands
       |> Enum.map(fn %{name: name, description: desc} -> {name, desc} end)
 
-    if __otp_app__() == :alaja do
+    if otp_app == :alaja do
       # Internal alaja CLI: render the full alaja reference (typed
       # messages, display commands, cookbook, theme, action, ...).
       if Alaja.CLI.HelpTabs.interactive?() do
@@ -380,14 +380,13 @@ defmodule Alaja.CLI.Definition do
       # apero, pote, trebejo, ...): never render alaja's own reference.
       # Only the host's command list is shown, branded with the host's
       # application name and version.
-      render_host_help(descriptions)
+      render_host_help(descriptions, otp_app)
     end
 
     :ok
   end
 
-  defp render_host_help(descriptions) do
-    otp_app = __otp_app__()
+  defp render_host_help(descriptions, otp_app) do
     app_title = otp_app |> Atom.to_string() |> String.capitalize()
     vsn = app_version(otp_app)
     app_name = to_string(otp_app)
@@ -431,8 +430,7 @@ defmodule Alaja.CLI.Definition do
     end
   end
 
-  defp render_version do
-    otp_app = __otp_app__()
+  defp render_version(otp_app) do
     vsn = app_version(otp_app)
     IO.puts("#{otp_app} #{vsn}")
     :ok
