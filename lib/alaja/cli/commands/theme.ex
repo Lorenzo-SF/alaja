@@ -398,20 +398,27 @@ defmodule Alaja.CLI.Commands.Theme do
     if themes == [] do
       IO.puts("  No themes found. Run `alaja theme init` first.")
     else
-      # Side-by-side compare. For > 3 themes we chunk in groups of 2
-      # so each table stays readable; between groups we wait for a key
-      # so the user has time to inspect each chunk.
-      themes
-      |> Enum.chunk_every(2)
-      |> Enum.each(fn chunk ->
-        show_compare(chunk, global)
-        if chunk != List.last(Enum.chunk_every(themes, 2)) do
-          IO.write("\n  --- press any key for next group ---")
-          _ = IO.read(:stdio, 1)
-          IO.puts("")
-        end
-      end)
+      paginate_compare(themes, global)
     end
+  end
+
+  # Side-by-side compare. For > 3 themes we chunk in groups of 2 so
+  # each table stays readable; between groups we wait for a key so
+  # the user has time to inspect each chunk.
+  defp paginate_compare(themes, global) do
+    chunks = Enum.chunk_every(themes, 2)
+    last_chunk = List.last(chunks)
+
+    Enum.each(chunks, fn chunk ->
+      show_compare(chunk, global)
+      if chunk != last_chunk, do: wait_for_key()
+    end)
+  end
+
+  defp wait_for_key do
+    IO.write("\n  --- press any key for next group ---")
+    _ = IO.read(:stdio, 1)
+    IO.puts("")
   end
 
   defp show_compare([], _), do: :ok
