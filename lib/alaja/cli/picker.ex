@@ -82,28 +82,16 @@ defmodule Alaja.CLI.Picker do
         cleanup()
         {:ok, item}
 
-      :arrow_up ->
-        next = max(state.index - 1, 0)
-        redraw(%{state | index: next}, x, y, h)
-        loop(%{state | index: next}, x, y, h, cancel_keys)
+      key when key in [:arrow_up, :arrow_down, :arrow_left, :arrow_right, :tab] ->
+        next =
+          case key do
+            :arrow_up -> max(state.index - 1, 0)
+            :arrow_down -> min(state.index + 1, length(state.items) - 1)
+            :arrow_left -> max(state.index - 1, 0)
+            :arrow_right -> min(state.index + 1, length(state.items) - 1)
+            :tab -> rem(state.index + 1, length(state.items))
+          end
 
-      :arrow_down ->
-        next = min(state.index + 1, length(state.items) - 1)
-        redraw(%{state | index: next}, x, y, h)
-        loop(%{state | index: next}, x, y, h, cancel_keys)
-
-      :arrow_left ->
-        next = max(state.index - 1, 0)
-        redraw(%{state | index: next}, x, y, h)
-        loop(%{state | index: next}, x, y, h, cancel_keys)
-
-      :arrow_right ->
-        next = min(state.index + 1, length(state.items) - 1)
-        redraw(%{state | index: next}, x, y, h)
-        loop(%{state | index: next}, x, y, h, cancel_keys)
-
-      :tab ->
-        next = rem(state.index + 1, length(state.items))
         redraw(%{state | index: next}, x, y, h)
         loop(%{state | index: next}, x, y, h, cancel_keys)
 
@@ -199,21 +187,24 @@ defmodule Alaja.CLI.Picker do
     end
   end
 
+  # ANSI cursor-key sequences. `[[A`=up, `[[B`=down, `[[C`=right,
+  # `[[D`=left, `[[H`=home (mapped to up), `[[F`=end (mapped to down).
+  @ansi_csi_arrow_key %{?A => :arrow_up, ?B => :arrow_down,
+                       ?C => :arrow_right, ?D => :arrow_left,
+                       ?H => :arrow_up, ?F => :arrow_down}
+
   defp read_escape do
     case IO.read(:stdio, 1) do
-      <<"[">> ->
-        case IO.read(:stdio, 1) do
-          <<"A">> -> :arrow_up
-          <<"B">> -> :arrow_down
-          <<"C">> -> :arrow_right
-          <<"D">> -> :arrow_left
-          <<"H">> -> :arrow_up
-          <<"F">> -> :arrow_down
-          _ -> :eof
-        end
+      <<"[", rest::binary>> -> translate_csi(rest)
       _ -> :eof
     end
   end
+
+  defp translate_csi(<<c, _::binary>>) when is_map_key(@ansi_csi_arrow_key, c) do
+    Map.fetch!(@ansi_csi_arrow_key, c)
+  end
+
+  defp translate_csi(_), do: :eof
 
   defp terminal_cols do
     case :io.columns() do
