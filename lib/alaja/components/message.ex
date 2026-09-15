@@ -65,6 +65,91 @@ defmodule Alaja.Components.Message do
     |> apply_align(align)
   end
 
+  @doc """
+  Convenience renderer for the CLI command. Takes a text string, a
+  type (`:success | :error | :warning | :info | ...`), and a style
+  map or keyword list. Returns an `Alaja.Buffer.t/0` ready to be
+  converted to iolist or written to the terminal.
+
+  Recognised style opts (all optional):
+
+    * `:color` — atom, RGB tuple, or hex string
+    * `:bold` / `:italic` / `:underline` / `:dim` / `:blink` /
+      `:reverse` / `:hidden` / `:strikethrough` — boolean
+    * `:padding` — non-negative integer
+    * `:addline` — extra text printed below the message
+  """
+  @spec render(String.t(), atom(), keyword() | map()) :: Buffer.t()
+  def render(text, type, opts \\ []) when is_binary(text) and is_atom(type) and (is_list(opts) or is_map(opts)) do
+    opts_map = if is_list(opts), do: Map.new(opts), else: opts
+    fg = resolve_color(Map.get(opts_map, :color)) || type_fg(type)
+
+    effects =
+      []
+      |> maybe_effect(:bold, Map.get(opts_map, :bold, false))
+      |> maybe_effect(:italic, Map.get(opts_map, :italic, false))
+      |> maybe_effect(:underline, Map.get(opts_map, :underline, false))
+      |> maybe_effect(:strikethrough, Map.get(opts_map, :strikethrough, false))
+      |> maybe_effect(:dim, Map.get(opts_map, :dim, false))
+      |> maybe_effect(:blink, Map.get(opts_map, :blink, false))
+      |> maybe_effect(:reverse, Map.get(opts_map, :reverse, false))
+      |> maybe_effect(:hidden, Map.get(opts_map, :hidden, false))
+
+    chunks = [
+      %ChunkText{
+        text: text,
+        color: fg,
+        effects: effects
+      }
+    ]
+
+    info = %MessageInfo{
+      chunks: chunks,
+      align: :left,
+      padding: Map.get(opts_map, :padding, 0),
+      add_line:
+        case Map.get(opts_map, :addline) do
+          nil -> :none
+          extra -> %ChunkText{text: extra, color: fg}
+        end
+    }
+
+    render(info)
+  end
+
+  defp type_fg(:success), do: {0xA6, 0xE3, 0xA1}
+  defp type_fg(:error), do: {0xF3, 0x8B, 0xA8}
+  defp type_fg(:warning), do: {0xF9, 0xE2, 0xAF}
+  defp type_fg(:info), do: {0x89, 0xB4, 0xFA}
+  defp type_fg(:debug), do: {0xCB, 0xA6, 0xF7}
+  defp type_fg(:notice), do: {0x94, 0xE2, 0xD5}
+  defp type_fg(:critical), do: {0xF3, 0x8B, 0xA8}
+  defp type_fg(:alert), do: {0xF3, 0x8B, 0xA8}
+  defp type_fg(:emergency), do: {0xF3, 0x8B, 0xA8}
+  defp type_fg(:happy), do: {0xF5, 0xC2, 0xE7}
+  defp type_fg(:sad), do: {0x94, 0xE2, 0xD5}
+  defp type_fg(_), do: nil
+
+  defp resolve_color(nil), do: nil
+  defp resolve_color({_r, _g, _b} = rgb), do: %Pote.ColorInfo{rgb: rgb}
+
+  defp resolve_color(name) when is_atom(name) do
+    case Pote.Orchestrator.to_rgb(name) do
+      {:ok, rgb} -> %Pote.ColorInfo{rgb: rgb}
+      _ -> nil
+    end
+  end
+
+  defp resolve_color(hex) when is_binary(hex) do
+    case Pote.parse(hex) do
+      {:ok, {r, g, b}} -> %Pote.ColorInfo{rgb: {r, g, b}}
+      _ -> nil
+    end
+  end
+
+  defp maybe_effect(list, _effect, false), do: list
+  defp maybe_effect(list, effect, true), do: [effect | list]
+
   # ---------------------------------------------------------------------------
   # Internal: render a single chunk as a 1-row Buffer
   # ---------------------------------------------------------------------------

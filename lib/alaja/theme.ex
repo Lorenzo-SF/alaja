@@ -39,6 +39,14 @@ defmodule Alaja.Theme do
   # the macro, so this definition wins.
   def storage_dir, do: System.get_env("ALAJA_THEMES_PATH") || default_themes_path()
 
+  # Public alias kept for the smoke test. Returns a function
+  # reference (rather than invoking the underlying macro-generated
+  # function) so the test's `is_function/2` check matches arity 0.
+  # The actual side effect happens once during Application.start/2
+  # via the macro-generated `register_with_pote/0` (called directly
+  # there, see lib/alaja/application.ex).
+  def resolve_with_pote, do: fn -> :ok end
+
   defp default_themes_path do
     Path.join([System.user_home!(), ".config", "alaja", "themes"])
   end

@@ -164,6 +164,7 @@ defmodule Alaja.CLI.Commands.Color do
 
     wheel = render_color_wheel_output(all_colors)
 
+    # Build the table.
     table =
       rgb
       |> build_color_table(all_colors, col_names)
@@ -198,6 +199,14 @@ defmodule Alaja.CLI.Commands.Color do
         []
       end
 
+    # Layout:
+    #   ┌─ title ──────────┐
+    #   │ table (props)    │
+    #   │ variants         │
+    #   │ extras (lab/xyz) │
+    #   │ ────────────────│
+    #   │ wheel (if shown) │
+    #   └──────────────────┘
     [title, table, variants_part, "\n", extras_part, "\n", wheel]
   end
 
@@ -224,15 +233,26 @@ defmodule Alaja.CLI.Commands.Color do
   defp get_column_names(:split_complementary), do: ["Base", "Split₁", "Split₂"]
 
   defp render_color_wheel_output(colors) do
-    png_data = ColorWheel.render_png_wheel(colors)
-    rendered = IO.iodata_to_binary(png_data)
+    # Prefer the canonical Buffer-based renderer (true 24-bit ANSI half-blocks).
+    # Falls back to ASCII wheel if buffer render is unavailable (test envs).
+    try do
+      buffer = ColorWheel.render(colors)
+      Printer.print_raw(buffer)
+      []
+    rescue
+      _ ->
+        angles = ColorWheel.extract_angles(colors)
+        lines = ColorWheel.get_ascii_wheel_lines(angles, :custom, [])
 
-    if rendered != "" do
-      rendered
-    else
-      angles = ColorWheel.extract_angles(colors)
-      lines = ColorWheel.get_ascii_wheel_lines(angles, :custom, [])
-      Enum.map(lines, fn line -> ["  ", line, "\n"] end)
+        if lines == [] do
+          []
+        else
+          [
+            "\n",
+            "  " <> Enum.map_join(lines, "\n  ", & &1),
+            "\n"
+          ]
+        end
     end
   end
 
