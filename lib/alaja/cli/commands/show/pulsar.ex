@@ -18,7 +18,7 @@ defmodule Alaja.CLI.Commands.Show.Pulsar do
     title: "Alaja Pulsar",
     subtitle: "Pulsar/radar animation with gradient wave effect",
     usage:
-      "alaja pulsar <text> [--width N] [--height N] [--chars C] [--colors C|C|C] [--color C] [--speed N] [--align left|center|right] [--direction in|out] [--content-position-x N] [--content-position-y N] [--content-type text|image] [--image-path FILE]",
+      "alaja pulsar <text> [--width N] [--height N] [--chars C] [--colors C|C|C] [--color C] [--speed N] [--align left|center|right] [--direction in|out] [--content-position_x N] [--content-position_y N] [--content-type text|image] [--image-path FILE]",
     description: """
     Renders a pulsar/radar animation. The text is drawn in the center
     surrounded by a pulsing gradient ring/box. Useful as a long-running
@@ -35,8 +35,8 @@ defmodule Alaja.CLI.Commands.Show.Pulsar do
       {:align, :string, "center", "Text alignment"},
       {:chars, :string, "░▒▓█", "Custom pulse ramp chars (default: ░▒▓█)"},
       {:direction, :string, "in", "Pulse direction: in (collapse) or out (expand)"},
-      {:"content-position-x", :integer, nil, "Override content X position"},
-      {:"content-position-y", :integer, nil, "Override content Y position"},
+      {:content_position_x, :integer, nil, "Override content X position"},
+      {:content_position_y, :integer, nil, "Override content Y position"},
       {:content_type, :string, "text", "Content type: text or image"},
       {:image_path, :string, nil, "Path to image (when content_type=image)"},
       {:duration, :integer, nil, "Stop automatically after N ms (nil = run until Ctrl+C)"}
@@ -59,25 +59,22 @@ defmodule Alaja.CLI.Commands.Show.Pulsar do
 
     {opts, positional, _} =
       OptionParser.parse(rest,
-        switches:
-          [
-            text: :string,
-            width: :integer,
-            height: :integer,
-            colors: :string,
-            color: :string,
-            speed: :integer,
-            align: :string,
-            chars: :string,
-            direction: :string,
-            content_type: :string,
-            image_path: :string,
-            duration: :integer
-          ] ++
-            [
-              {String.to_atom("content-position-x"), :integer},
-              {String.to_atom("content-position-y"), :integer}
-            ]
+        switches: [
+          text: :string,
+          width: :integer,
+          height: :integer,
+          colors: :string,
+          color: :string,
+          speed: :integer,
+          align: :string,
+          chars: :string,
+          direction: :string,
+          content_type: :string,
+          image_path: :string,
+          duration: :integer,
+          content_position_x: :integer,
+          content_position_y: :integer
+        ]
       )
 
     if global.help do

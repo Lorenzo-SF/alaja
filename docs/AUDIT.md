@@ -104,7 +104,7 @@ Ninguno. El proyecto no tiene bugs de runtime conocidos, fugas de seguridad, ni 
 #### P2.6 — I/O directo a stderr sin pasar por el sistema de logging
 
 **Archivo**: `lib/alaja/cli/error_handler.ex`  
-**Problema**: Todas las funciones usan `IO.puts(:stderr, ...)` en lugar de `Logger.warning()` o similar. En modo biblioteca (no escript), los errores de CLI se pierden si el caller no captura stderr.  
+**Problema**: Todas las funciones usan `IO.puts(:stderr, ...)` en lugar de `Logger.warning()` o similar. En modo biblioteca (no release), los errores de CLI se pierden si el caller no captura stderr.
 **Recomendación**: Añadir un mecanismo de callback o Logger opcional, manteniendo stderr como fallback.
 
 #### P2.7 — `Clock` genérico no detenido en test (GenServer crash en test suite)

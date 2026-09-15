@@ -7,9 +7,16 @@ defmodule Alaja.Application do
 
   @impl true
   def start(_type, _args) do
+    # Bootstrap the theme directory on first run. Idempotent — runs the
+    # installer only on a clean `~/.config/alaja/`. Doing this here
+    # (before `Config.ensure_loaded/0`) means every `mix test` (and
+    # therefore `mix test --cover` in CI) starts with a populated
+    # theme directory, regardless of the order in which tests run.
+    :ok = Alaja.Theme.Bootstrap.ensure_installed()
+
     # Load the on-disk alaja.conf into Application env BEFORE registering
     # the theme resolver. The resolver reads `:theme_active` from app env
-    # at lookup time — if we don't load the conf first, every escript
+    # at lookup time — if we don't load the conf first, every release
     # starts with `:theme_active` set to the default atom `:default`,
     # ignoring whatever the user persisted via `alaja theme set`.
     :ok = Config.ensure_loaded()
