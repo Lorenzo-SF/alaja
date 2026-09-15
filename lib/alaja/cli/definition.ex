@@ -342,7 +342,11 @@ defmodule Alaja.CLI.Definition do
   end
 
   defp dispatch_empty(commands) do
-    if Alaja.CLI.Showcase.enabled?() do
+    # The alaja welcome showcase (pulsar animation + interactive prompt)
+    # is alaja-specific and only makes sense when alaja itself is the
+    # host. For external apps that consume `Alaja.CLI.Definition` via
+    # the DSL, skip it entirely and render the host's command summary.
+    if __otp_app__() == :alaja and Alaja.CLI.Showcase.enabled?() do
       case Alaja.CLI.Showcase.run() do
         :help -> render_full_help(commands)
         _ -> :ok
@@ -360,21 +364,77 @@ defmodule Alaja.CLI.Definition do
       commands
       |> Enum.map(fn %{name: name, description: desc} -> {name, desc} end)
 
-    if Alaja.CLI.HelpTabs.interactive?() do
-      # On a TTY the full help renders as tabs; the command list is
-      # embedded in the Commands tab.
-      Alaja.CLI.Help.full(descriptions)
+    if __otp_app__() == :alaja do
+      # Internal alaja CLI: render the full alaja reference (typed
+      # messages, display commands, cookbook, theme, action, ...).
+      if Alaja.CLI.HelpTabs.interactive?() do
+        # On a TTY the full help renders as tabs; the command list is
+        # embedded in the Commands tab.
+        Alaja.CLI.Help.full(descriptions)
+      else
+        Alaja.CLI.Help.full()
+        Alaja.CLI.Help.summary(descriptions)
+      end
     else
-      Alaja.CLI.Help.full()
-      Alaja.CLI.Help.summary(descriptions)
+      # External host (arrea, delfos, elpaso, zaguan, candil, botica,
+      # apero, pote, trebejo, ...): never render alaja's own reference.
+      # Only the host's command list is shown, branded with the host's
+      # application name and version.
+      render_host_help(descriptions)
     end
 
     :ok
   end
 
+  defp render_host_help(descriptions) do
+    otp_app = __otp_app__()
+    app_title = otp_app |> Atom.to_string() |> String.capitalize()
+    vsn = app_version(otp_app)
+    app_name = to_string(otp_app)
+
+    Alaja.Components.Header.print(app_title,
+      subtitle: "v#{vsn} · Complete command reference",
+      size: :medium,
+      color: {0, 180, 216},
+      subtitle_color: {150, 150, 160}
+    )
+
+    IO.puts("")
+
+    rows = Enum.map(descriptions, fn {cmd, desc} -> [cmd, desc] end)
+
+    Alaja.Components.Table.print(
+      headers: ["Command", "Description"],
+      rows: rows,
+      table_border: :rounded,
+      border_color: {0, 180, 216},
+      headers_color: :cyan,
+      headers_effects: [:bold],
+      padding: 1
+    )
+
+    IO.puts("")
+
+    IO.puts(
+      "Run '#{app_name} <command> --help' for the full option list of a specific command."
+    )
+
+    :ok
+  end
+
+  # Reads the host application's own version from its Application spec,
+  # so an external host's `--version` reports its own semver, not alaja's.
+  defp app_version(otp_app) do
+    case Application.spec(otp_app, :vsn) do
+      nil -> "0.0.0"
+      vsn -> to_string(vsn)
+    end
+  end
+
   defp render_version do
-    vsn = Application.spec(:alaja, :vsn) |> to_string()
-    IO.puts("alaja #{vsn}")
+    otp_app = __otp_app__()
+    vsn = app_version(otp_app)
+    IO.puts("#{otp_app} #{vsn}")
     :ok
   end
 
