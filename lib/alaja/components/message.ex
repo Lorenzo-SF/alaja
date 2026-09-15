@@ -43,6 +43,28 @@ defmodule Alaja.Components.Message do
   @spec render(MessageInfo.t()) :: Buffer.t()
   def render(%MessageInfo{chunks: []}), do: Buffer.new(0, 1)
 
+  def render(%MessageInfo{} = msg) do
+    align = Map.get(msg, :align, :left)
+    padding = Map.get(msg, :padding, 0)
+    _add_line = Map.get(msg, :add_line, :none)
+
+    # Render each chunk into a separate Buffer, then concatenate horizontally.
+    chunk_buffers =
+      msg.chunks
+      |> Enum.map(&render_chunk/1)
+      |> Enum.reject(fn b -> b.width == 0 end)
+
+    buffer =
+      chunk_buffers
+      |> Enum.reduce(Buffer.new(0, 1), fn chunk_buf, acc ->
+        join_horizontal(acc, chunk_buf)
+      end)
+
+    buffer
+    |> apply_padding(padding)
+    |> apply_align(align)
+  end
+
   @doc """
   Convenience renderer for the CLI command. Takes a text string, a
   type (`:success | :error | :warning | :info | ...`), and a style
