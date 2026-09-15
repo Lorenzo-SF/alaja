@@ -52,9 +52,9 @@ defmodule Alaja.CLI.Picker do
     box_height = min(length(items), rows - 4)
     {x, y, h} = {max(div(cols, 2) - 20, 0), 2, max(box_height, 3)}
 
-    IO.write([ANSI.clear(), ANSI.cursor_home(), ANSI.hide_cursor()])
-    IO.write([ANSI.move_to(x, y - 1)])
-    IO.puts(ANSI.fg(0, 180, 216) <> prompt <> ANSI.reset())
+    IO.write([__MODULE__.ANSI.clear(), __MODULE__.ANSI.cursor_home(), __MODULE__.ANSI.hide_cursor()])
+    IO.write([__MODULE__.ANSI.move_to(x, y - 1)])
+    IO.puts(__MODULE__.ANSI.fg(0, 180, 216) <> prompt <> __MODULE__.ANSI.reset())
     draw_items(state, x, y, h)
     IO.write([ANSI.move_to(x, y + state.index - y), ANSI.show_cursor()])
 
@@ -68,14 +68,7 @@ defmodule Alaja.CLI.Picker do
         :cancelled
 
       {:char, c} when is_integer(c) ->
-        ch = <<c::utf8>>
-
-        if ch in cancel_keys do
-          cleanup()
-          :cancelled
-        else
-          loop(state, x, y, h, cancel_keys)
-        end
+        handle_char(c, state, x, y, h, cancel_keys)
 
       :enter ->
         item = Enum.at(state.items, state.index)
@@ -83,20 +76,37 @@ defmodule Alaja.CLI.Picker do
         {:ok, item}
 
       key when key in [:arrow_up, :arrow_down, :arrow_left, :arrow_right, :tab] ->
-        next =
-          case key do
-            :arrow_up -> max(state.index - 1, 0)
-            :arrow_down -> min(state.index + 1, length(state.items) - 1)
-            :arrow_left -> max(state.index - 1, 0)
-            :arrow_right -> min(state.index + 1, length(state.items) - 1)
-            :tab -> rem(state.index + 1, length(state.items))
-          end
-
+        next = next_index(state, key)
         redraw(%{state | index: next}, x, y, h)
         loop(%{state | index: next}, x, y, h, cancel_keys)
 
       _ ->
         loop(state, x, y, h, cancel_keys)
+    end
+  end
+
+  defp handle_char(c, state, x, y, h, cancel_keys) do
+    ch = <<c::utf8>>
+
+    if ch in cancel_keys do
+      cleanup()
+      :cancelled
+    else
+      loop(state, x, y, h, cancel_keys)
+    end
+  end
+
+  # Compute the next cursor index for a navigation key. `tab` wraps
+  # around (last → first); arrows clamp at the ends.
+  defp next_index(state, key) do
+    last = length(state.items) - 1
+
+    case key do
+      :arrow_up -> max(state.index - 1, 0)
+      :arrow_down -> min(state.index + 1, last)
+      :arrow_left -> max(state.index - 1, 0)
+      :arrow_right -> min(state.index + 1, last)
+      :tab -> rem(state.index + 1, length(state.items))
     end
   end
 

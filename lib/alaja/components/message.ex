@@ -46,8 +46,8 @@ defmodule Alaja.Components.Message do
   @doc """
   Convenience renderer for the CLI command. Takes a text string, a
   type (`:success | :error | :warning | :info | ...`), and a style
-  keyword list. Returns an `Alaja.Buffer.t/0` ready to be converted
-  to iolist or written to the terminal.
+  map or keyword list. Returns an `Alaja.Buffer.t/0` ready to be
+  converted to iolist or written to the terminal.
 
   Recognised style opts (all optional):
 
@@ -57,20 +57,21 @@ defmodule Alaja.Components.Message do
     * `:padding` — non-negative integer
     * `:addline` — extra text printed below the message
   """
-  @spec render(String.t(), atom(), keyword()) :: Buffer.t()
-  def render(text, type, opts \\ []) when is_binary(text) and is_atom(type) and is_list(opts) do
-    fg = resolve_color(Keyword.get(opts, :color)) || type_fg(type)
+  @spec render(String.t(), atom(), keyword() | map()) :: Buffer.t()
+  def render(text, type, opts \\ []) when is_binary(text) and is_atom(type) and (is_list(opts) or is_map(opts)) do
+    opts_map = if is_list(opts), do: Map.new(opts), else: opts
+    fg = resolve_color(Map.get(opts_map, :color)) || type_fg(type)
 
     effects =
       []
-      |> maybe_effect(:bold, Keyword.get(opts, :bold, false))
-      |> maybe_effect(:italic, Keyword.get(opts, :italic, false))
-      |> maybe_effect(:underline, Keyword.get(opts, :underline, false))
-      |> maybe_effect(:strikethrough, Keyword.get(opts, :strikethrough, false))
-      |> maybe_effect(:dim, Keyword.get(opts, :dim, false))
-      |> maybe_effect(:blink, Keyword.get(opts, :blink, false))
-      |> maybe_effect(:reverse, Keyword.get(opts, :reverse, false))
-      |> maybe_effect(:hidden, Keyword.get(opts, :hidden, false))
+      |> maybe_effect(:bold, Map.get(opts_map, :bold, false))
+      |> maybe_effect(:italic, Map.get(opts_map, :italic, false))
+      |> maybe_effect(:underline, Map.get(opts_map, :underline, false))
+      |> maybe_effect(:strikethrough, Map.get(opts_map, :strikethrough, false))
+      |> maybe_effect(:dim, Map.get(opts_map, :dim, false))
+      |> maybe_effect(:blink, Map.get(opts_map, :blink, false))
+      |> maybe_effect(:reverse, Map.get(opts_map, :reverse, false))
+      |> maybe_effect(:hidden, Map.get(opts_map, :hidden, false))
 
     chunks = [
       %ChunkText{
@@ -83,9 +84,9 @@ defmodule Alaja.Components.Message do
     info = %MessageInfo{
       chunks: chunks,
       align: :left,
-      padding: Keyword.get(opts, :padding, 0),
+      padding: Map.get(opts_map, :padding, 0),
       add_line:
-        case Keyword.get(opts, :addline) do
+        case Map.get(opts_map, :addline) do
           nil -> :none
           extra -> %ChunkText{text: extra, color: fg}
         end

@@ -395,18 +395,22 @@ defmodule Alaja.CLI.Commands.Theme do
 
     themes = Enum.filter(names, &(&1 in Theme.list()))
 
-    cond do
-      themes == [] ->
-        IO.puts("  No themes found. Run `alaja theme init` first.")
-
-      length(themes) > 3 ->
-        Alaja.CLI.Pagination.paginate(themes,
-          per_page: 2,
-          render: &show_compare(&1, global)
-        )
-
-      true ->
-        show_compare(themes, global)
+    if themes == [] do
+      IO.puts("  No themes found. Run `alaja theme init` first.")
+    else
+      # Side-by-side compare. For > 3 themes we chunk in groups of 2
+      # so each table stays readable; between groups we wait for a key
+      # so the user has time to inspect each chunk.
+      themes
+      |> Enum.chunk_every(2)
+      |> Enum.each(fn chunk ->
+        show_compare(chunk, global)
+        if chunk != List.last(Enum.chunk_every(themes, 2)) do
+          IO.write("\n  --- press any key for next group ---")
+          _ = IO.read(:stdio, 1)
+          IO.puts("")
+        end
+      end)
     end
   end
 
