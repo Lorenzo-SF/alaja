@@ -466,20 +466,6 @@ defmodule Alaja.CLI.Commands.Theme do
     "\e[48;2;#{r};#{g};#{b}m    \e[0m"
   end
 
-  defp color_swatch_for(theme_name) do
-    case Config.load_theme(theme_name) do
-      {:ok, data} ->
-        case Map.get(data, "colors", %{}) do
-          %{"primary" => [r, g, b]} -> color_swatch({r, g, b})
-          %{"background" => [r, g, b]} -> color_swatch({r, g, b})
-          _ -> "  "
-        end
-
-      _ ->
-        "  "
-    end
-  end
-
   # ── Help ────────────────────────────────────────────────────────────────
 
   @spec help(Alaja.CLI.GlobalOpts.t() | nil) :: :ok
