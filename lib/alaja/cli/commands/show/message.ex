@@ -38,6 +38,7 @@ defmodule Alaja.CLI.Commands.Show.Message do
           strikethrough: :boolean,
           padding: :integer,
           addline: :string,
+          text: :string,
           text2: :string,
           text3: :string
         ]
@@ -69,7 +70,8 @@ defmodule Alaja.CLI.Commands.Show.Message do
     type = parse_type(opts[:type] || List.first(positional))
 
     text =
-      opts[:text2] ||
+      opts[:text] ||
+        opts[:text2] ||
         opts[:text3] ||
         Enum.at(positional, 1) ||
         List.first(positional) ||
