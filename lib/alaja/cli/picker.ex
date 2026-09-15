@@ -127,7 +127,7 @@ defmodule Alaja.CLI.Picker do
       :eof -> :cancelled
       input ->
         case Integer.parse(String.trim(input)) do
-          {n, _} when n in 1..length(items) -> {:ok, Enum.at(items, n - 1)}
+          {n, _} when n in 1..length(items)//1 -> {:ok, Enum.at(items, n - 1)}
           _ -> :cancelled
         end
     end
