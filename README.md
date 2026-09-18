@@ -1,8 +1,8 @@
 # Alaja — Declarative CLI framework & terminal rendering kit for Elixir
 
-[![Hex version](https://img.shields.io/badge/hex-2.4.0-blue.svg)](https://hex.pm/packages/alaja)
+[![Hex version](https://img.shields.io/badge/hex-3.1.2-blue.svg)](https://hex.pm/packages/alaja)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE.md)
-[![Version](https://img.shields.io/badge/version-2.4.0-blue.svg)](https://github.com/Lorenzo-SF/alaja)
+[![Version](https://img.shields.io/badge/version-3.1.2-blue.svg)](https://github.com/Lorenzo-SF/alaja)
 
 <p align="center">
   <img src="https://raw.githubusercontent.com/Lorenzo-SF/alaja/main/docs/batamantaman_alaja.png" width="400" alt="Alaja" />
@@ -461,7 +461,7 @@ Alaja.Components.Breadcrumbs.print(["Home", "Projects", "Zaguan"])
 **JSON**:
 
 ```elixir
-Alaja.Components.Json.print(%{name: "Alaja", version: "2.0.0", deps: ["pote", "jason"]})
+Alaja.Components.Json.print(%{name: "Alaja", version: "3.1.2", deps: ["pote", "jason"]})
 ```
 
 **ColorWheel**:
@@ -704,8 +704,8 @@ Add `alaja` and `pote` to your `mix.exs`:
 ```elixir
 def deps do
   [
-    {:alaja, "~> 2.0"},
-    {:pote, github: "Lorenzo-SF/pote", branch: "main"}
+    {:alaja, "~> 3.1"},
+    {:pote, "~> 3.0"}
   ]
 end
 ```
