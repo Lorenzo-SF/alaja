@@ -4,7 +4,7 @@ defmodule Alaja.MixProject do
   def project do
     [
       app: :alaja,
-      version: "3.1.1",
+      version: "3.1.2",
       elixir: "~> 1.19",
       start_permanent: Mix.env() == :prod,
       deps: deps(),
@@ -56,22 +56,33 @@ defmodule Alaja.MixProject do
       homepage_url: "https://github.com/Lorenzo-SF/alaja",
       extras: ["README.md", "docs/README_ES.md", "LICENSE.md"],
       groups_for_modules: [
-        "Core API": [Alaja],
+        "Core API": [Alaja, Alaja.App, Alaja.Cmd, Alaja.Sub, Alaja.Msg],
         CLI: [
           Alaja.CLI,
           Alaja.CLI.Definition,
           Alaja.CLI.Dispatch,
           Alaja.CLI.Parser,
           Alaja.CLI.Help,
+          Alaja.CLI.HelpFormatter,
+          Alaja.CLI.HelpTabs,
           Alaja.CLI.Validator,
           Alaja.CLI.GlobalOpts,
-          Alaja.CLI.ErrorHandler
+          Alaja.CLI.ErrorHandler,
+          Alaja.CLI.ActionError,
+          Alaja.CLI.Color,
+          Alaja.CLI.NoColor,
+          Alaja.CLI.Pagination,
+          Alaja.CLI.Picker,
+          Alaja.CLI.Showcase,
+          Alaja.CLI.ViewText
         ],
         "CLI Commands": [
+          Alaja.CLI.Commands.Base,
           Alaja.CLI.Commands.Config,
           Alaja.CLI.Commands.Action,
           Alaja.CLI.Commands.Color,
-          Alaja.CLI.Commands.Show,
+          Alaja.CLI.Commands.Theme,
+          Alaja.CLI.Commands.Show.Animate,
           Alaja.CLI.Commands.Show.AnimatedBar,
           Alaja.CLI.Commands.Show.Ask,
           Alaja.CLI.Commands.Show.Bar,
@@ -79,46 +90,105 @@ defmodule Alaja.MixProject do
           Alaja.CLI.Commands.Show.Gradient,
           Alaja.CLI.Commands.Show.Header,
           Alaja.CLI.Commands.Show.Image,
+          Alaja.CLI.Commands.Show.Json,
           Alaja.CLI.Commands.Show.List,
           Alaja.CLI.Commands.Show.Menu,
           Alaja.CLI.Commands.Show.Message,
+          Alaja.CLI.Commands.Show.Pulsar,
           Alaja.CLI.Commands.Show.Separator,
           Alaja.CLI.Commands.Show.Table,
           Alaja.CLI.Commands.Show.YesNo
         ],
         Components: [
+          Alaja.Components,
+          Alaja.Components.Animate,
           Alaja.Components.AnimatedBar,
           Alaja.Components.Bar,
           Alaja.Components.Box,
           Alaja.Components.Breadcrumbs,
           Alaja.Components.ColorWheel,
+          Alaja.Components.ColorWheel.Harmonies,
+          Alaja.Components.ColorWheel.Info,
+          Alaja.Components.ColorWheel.Renderer,
+          Alaja.Components.Gradient,
           Alaja.Components.Header,
           Alaja.Components.Json,
+          Alaja.Components.List,
+          Alaja.Components.Message,
+          Alaja.Components.MultiBar,
+          Alaja.Components.Progress,
+          Alaja.Components.Pulsar,
           Alaja.Components.Separator,
-          Alaja.Components.Table
+          Alaja.Components.Table,
+          Alaja.Components.Table.Borders,
+          Alaja.Components.Table.Builder,
+          Alaja.Components.Table.Calculator,
+          Alaja.Components.Table.Page,
+          Alaja.Components.Table.Renderer,
+          Alaja.Components.Table.Theme
         ],
         Rendering: [
           Alaja.Printer,
           Alaja.Printer.Basics,
+          Alaja.Printer.Formatter,
           Alaja.Printer.Interactive,
+          Alaja.Printer.RawPrinter,
+          Alaja.Renderer,
           Alaja.Buffer,
-          Alaja.Cell
+          Alaja.Buffer.Position,
+          Alaja.Buffer.Range,
+          Alaja.Buffer.Renderer,
+          Alaja.Buffer.Writer,
+          Alaja.Cell,
+          Alaja.Frame,
+          Alaja.Layout
         ],
-        "Syntax & Effects": [Alaja.Ansi],
+        "Syntax & Effects": [
+          Alaja.Ansi,
+          Alaja.Syntax,
+          Alaja.Syntax.Builtin,
+          Alaja.Syntax.Engine,
+          Alaja.Syntax.Language,
+          Alaja.Syntax.Renderer,
+          Alaja.Syntax.Special,
+          Alaja.Syntax.Theme
+        ],
         Structures: [
           Alaja.Structures.ChunkText,
           Alaja.Structures.EffectInfo,
           Alaja.Structures.MessageInfo
+        ],
+        Theme: [
+          Alaja.Theme,
+          Alaja.Theme.Bootstrap,
+          Alaja.Theme.CustomTemplates,
+          Alaja.Theme.RequiredKeys
+        ],
+        Interactive: [
+          Alaja.Wizard,
+          Alaja.Wizard.Renderers,
+          Alaja.Input,
+          Alaja.FocusManager,
+          Alaja.View.Node
         ],
         Utilities: [
           Alaja.Config,
           Alaja.Helpers,
           Alaja.Terminal,
           Alaja.ImageRenderer,
-          Alaja.ImageTerminal
+          Alaja.ImageRenderer.PNG,
+          Alaja.ImageTerminal,
+          Alaja.Text,
+          Alaja.Backend,
+          Alaja.Backend.Tty,
+          Alaja.TestBackend
+        ],
+        "Mix Tasks": [
+          Mix.Tasks.Alaja.Demo,
+          Mix.Tasks.Alaja.Snapshot
         ]
       ],
-      source_ref: "2.1.0"
+      source_ref: "3.1.2"
     ]
   end
 
@@ -134,7 +204,7 @@ defmodule Alaja.MixProject do
 
   defp deps do
     [
-      {:pote, git: "https://github.com/Lorenzo-SF/pote.git", override: true},
+      {:pote, "~> 3.0", override: true},
       {:jason, "~> 1.4"},
       {:credo, "~> 1.7", only: [:dev, :test], runtime: false},
       {:dialyxir, "~> 1.4", only: [:dev, :test], runtime: false},
