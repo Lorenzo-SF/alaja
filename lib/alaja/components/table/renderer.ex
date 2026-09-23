@@ -270,14 +270,7 @@ defmodule Alaja.Components.Table.Renderer do
         |> Enum.map(fn {text, idx} ->
           width = Enum.at(widths, idx, 10)
           cell_color = Theme.get_column_opts(idx, row_color, nil)
-
-          cell_effects =
-            row_effects
-            |> Theme.get_column_opts(idx, [])
-            |> then(fn eff ->
-              Alaja.Components.Table.Builder.apply_effect_mask(eff, idx, effect_masks)
-            end)
-
+          cell_effects = cell_effects_for(idx, row_effects, effect_masks)
           cell_align = Theme.get_column_opts(idx, row_align, @default_align)
           aligned = Calculator.apply_alignment(to_string(text), cell_align, width, config.padding)
           Theme.render_formatted(aligned, cell_color, cell_effects)
@@ -291,6 +284,15 @@ defmodule Alaja.Components.Table.Renderer do
         "\n"
       ]
     end)
+  end
+
+  # Per-cell effects for `build_rows/4`: take the row-wide effect list,
+  # filter it through any per-cell mask in `effect_masks`. Extracted
+  # to keep the Enum.map closure shallow (credo nesting cap = 2).
+  defp cell_effects_for(idx, row_effects, effect_masks) do
+    row_effects
+    |> Theme.get_column_opts(idx, [])
+    |> Alaja.Components.Table.Builder.apply_effect_mask(idx, effect_masks)
   end
 
   @spec print_header_row(list(), list(integer()), Alaja.Components.Table.Config.t(), keyword()) ::
@@ -340,14 +342,7 @@ defmodule Alaja.Components.Table.Renderer do
       |> Enum.map(fn {cell, i} ->
         width = Enum.at(widths, i, 0)
         cell_color = Theme.get_column_opts(i, color, nil)
-
-        cell_effects =
-          effects
-          |> Theme.get_column_opts(i, [])
-          |> then(fn eff ->
-            Alaja.Components.Table.Builder.apply_effect_mask(eff, i, masks)
-          end)
-
+        cell_effects = cell_effects_for(i, effects, masks)
         cell_align = Theme.get_column_opts(i, align, @default_align)
 
         aligned_str =
