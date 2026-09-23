@@ -238,6 +238,23 @@ defmodule Alaja.CLI.Commands.Show.Table do
     end)
   end
 
+  # Suffixes a `rows_<N>_<suffix>` key may carry. Used by
+  # per_row_key?/1 to decide which CLI opt keys are per-row
+  # candidates before handing each one to a type-specific parser.
+  @row_per_row_suffixes [
+    "_color",
+    "_align",
+    "_effects",
+    "_bold",
+    "_italic",
+    "_underline",
+    "_dim",
+    "_blink",
+    "_reverse",
+    "_hidden",
+    "_strikethrough"
+  ]
+
   # Accepts `--row-N-<X>` where N is a positive integer and `<X>` is
   # at least one character. Covers colour/align/effects plus the new
   # per-cell effect-name masks (bold, italic, ...).
@@ -322,21 +339,7 @@ defmodule Alaja.CLI.Commands.Show.Table do
     |> Enum.any?(fn suffix -> String.ends_with?(key_str, suffix) end)
   end
 
-  @row_per_row_suffixes [
-    "_color",
-    "_align",
-    "_effects",
-    "_bold",
-    "_italic",
-    "_underline",
-    "_dim",
-    "_blink",
-    "_reverse",
-    "_hidden",
-    "_strikethrough"
-  ]
-
-  defp parse_per_row_value({key, val} = pair) when is_binary(val) do
+  defp parse_per_row_value({key, val}) when is_binary(val) do
     {key, parse_value_for_key(key, val)}
   end
 
