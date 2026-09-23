@@ -111,32 +111,44 @@ defmodule Alaja.CLI.Color do
   def parse_or_nil(_), do: nil
 
   @doc """
-  Parsea una lista de colores separados por `|` (NO por comas).
+  Parsea una lista de colores separados por `|` o `;`.
 
   Devuelve `{:ok, [{r,g,b}, ...]}` o `{:error, msg}` acumulando todos
   los colores que fallaron la validacion. `nil` pasa como `nil`.
 
-  El separador `|` separa colores distintos. Las comas (`;` o `,`) solo se
-  usan dentro de un color para separar sus componentes (ej: `rgb:255,0,0`).
+  El separador entre colores es `|` o `;`. Los dos son válidos para
+  encajar con el separador de celdas (`;`) que usa `alaja table` y
+  similares — así puedes escribir
+  `--row-1-color "hex:#ff0000;rgb:0,255,0;theme:primary"` y cada
+  celda se colorea de forma independiente.
+
+  Dentro de un color las comas siguen siendo el separador de
+  componentes (ej: `rgb:255,0,0`).
 
   ## Ejemplos
 
       iex> Color.parse_list("rgb:255,0,0|theme:primary")
       {:ok, [{255, 0, 0}, {_, _, _}]}
 
-      iex> Color.parse_list("hex:#ff0000;00ff00|rgb:0,0,255")
-      {:ok, [{255, 0, 0}, {0, 255, 0}, {0, 0, 255}]}
+      iex> Color.parse_list("hex:#ff0000;rgb:0,255,0;theme:primary")
+      {:ok, [{255, 0, 0}, {0, 255, 0}, {_, _, _}]}
   """
   @spec parse_list(String.t() | nil) ::
           {:ok, [{0..255, 0..255, 0..255}]} | {:error, String.t()} | nil
   def parse_list(nil), do: nil
 
   def parse_list(str) when is_binary(str) do
-    # List separator is only `|` to avoid splitting inside color codes like
-    # `rgb:255,0,0`. Users can use commas for color components but must use
-    # pipe for separate colors.
+    # List separator is `|` or `;`. The semicolon form is what
+    # `--row-N-color` callers use because `;` is already the cell
+    # separator elsewhere in the CLI; accepting it here means you can
+    # do `--row-1-color "hex:#ff0000;rgb:0,255,0;theme:primary"` and
+    # have each cell coloured independently.
+    #
+    # We strip the `;` form by first splitting on `|`, then on `;`, so
+    # `--rows-color "hex:#ff0000|theme:primary"` still works as before.
     str
     |> String.split("|", trim: true)
+    |> Enum.flat_map(fn part -> String.split(part, ";", trim: true) end)
     |> Enum.map(&String.trim/1)
     |> Enum.reject(&(&1 == ""))
     |> parse_each()
