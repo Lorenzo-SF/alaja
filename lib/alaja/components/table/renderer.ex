@@ -292,6 +292,7 @@ defmodule Alaja.Components.Table.Renderer do
   defp cell_effects_for(idx, row_effects, effect_masks) do
     row_effects
     |> Theme.get_column_opts(idx, [])
+    |> List.wrap()
     |> Alaja.Components.Table.Builder.apply_effect_mask(idx, effect_masks)
   end
 
