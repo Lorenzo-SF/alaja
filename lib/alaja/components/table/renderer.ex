@@ -270,10 +270,13 @@ defmodule Alaja.Components.Table.Renderer do
         |> Enum.map(fn {text, idx} ->
           width = Enum.at(widths, idx, 10)
           cell_color = Theme.get_column_opts(idx, row_color, nil)
+
           cell_effects =
             row_effects
             |> Theme.get_column_opts(idx, [])
-            |> Alaja.Components.Table.Builder.apply_effect_mask(idx, effect_masks)
+            |> then(fn eff ->
+              Alaja.Components.Table.Builder.apply_effect_mask(eff, idx, effect_masks)
+            end)
 
           cell_align = Theme.get_column_opts(idx, row_align, @default_align)
           aligned = Calculator.apply_alignment(to_string(text), cell_align, width, config.padding)
@@ -341,7 +344,9 @@ defmodule Alaja.Components.Table.Renderer do
         cell_effects =
           effects
           |> Theme.get_column_opts(i, [])
-          |> Alaja.Components.Table.Builder.apply_effect_mask(i, masks)
+          |> then(fn eff ->
+            Alaja.Components.Table.Builder.apply_effect_mask(eff, i, masks)
+          end)
 
         cell_align = Theme.get_column_opts(i, align, @default_align)
 
