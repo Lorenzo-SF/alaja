@@ -83,13 +83,17 @@ defmodule Alaja.CLI.Commands.Show.Message do
   def run(args) do
     {global, rest} = GlobalOpts.parse(args)
 
-    # Two-pass parse: strict mode validates flag types but does NOT
-    # collect repeated values for the same flag, so we run a second
-    # non-strict pass to extract `--text` and `--color` lists.
+    # Single strict parse. The flags that need to repeat (`text`,
+    # `color`) use `:keep` so all occurrences survive in the keyword
+    # list. `:keep` keeps the raw string value the user supplied,
+    # which is exactly what we want — we coerce colour values
+    # downstream in `Color.parse_or_nil/1`.
     {opts, positional, _} =
       OptionParser.parse(rest,
         strict: [
           type: :string,
+          text: :keep,
+          color: :keep,
           bg_color: :string,
           bold: :boolean,
           italic: :boolean,
@@ -104,16 +108,8 @@ defmodule Alaja.CLI.Commands.Show.Message do
         ]
       )
 
-    {repeatable_opts, _, _} =
-      OptionParser.parse(rest,
-        switches: [
-          text: :string,
-          color: :string
-        ]
-      )
-
-    text_list = Keyword.get_values(repeatable_opts, :text)
-    color_list = Keyword.get_values(repeatable_opts, :color)
+    text_list = Keyword.get_values(opts, :text)
+    color_list = Keyword.get_values(opts, :color)
 
     if global.help do
       help(global)
