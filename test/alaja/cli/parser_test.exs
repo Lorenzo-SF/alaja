@@ -91,9 +91,19 @@ defmodule Alaja.CLI.ParserTest do
   end
 
   describe "parse_color_list/1" do
-    test "parses semicolon-separated colors" do
+    test "parses pipe-separated colors" do
       assert Parser.parse_color_list("hex:ff0000|hex:00ff00|hex:0000ff") ==
                {:ok, [{255, 0, 0}, {0, 255, 0}, {0, 0, 255}]}
+    end
+
+    test "parses semicolon-separated colors (cell-mode)" do
+      assert Parser.parse_color_list("hex:ff0000;rgb:0,255,0;theme:primary") ==
+               {:ok, [{255, 0, 0}, {0, 255, 0}, {_, _, _}]}
+    end
+
+    test "accepts both separators mixed together" do
+      assert Parser.parse_color_list("hex:ff0000;rgb:0,255,0|theme:primary") ==
+               {:ok, [{255, 0, 0}, {0, 255, 0}, {_, _, _}]}
     end
 
     test "returns nil for nil input" do
@@ -105,13 +115,18 @@ defmodule Alaja.CLI.ParserTest do
       assert elem(result, 0) == :error
     end
 
-    test "parses colors with extra whitespace around semicolons" do
+    test "parses colors with extra whitespace around separators" do
       assert Parser.parse_color_list("hex:ff0000 | hex:00ff00 | hex:0000ff") ==
                {:ok, [{255, 0, 0}, {0, 255, 0}, {0, 0, 255}]}
     end
 
     test "handles empty segments in the list" do
       assert Parser.parse_color_list("hex:ff0000||hex:0000ff") ==
+               {:ok, [{255, 0, 0}, {0, 0, 255}]}
+    end
+
+    test "handles empty segments in semicolon-separated list" do
+      assert Parser.parse_color_list("hex:ff0000;;hex:0000ff") ==
                {:ok, [{255, 0, 0}, {0, 0, 255}]}
     end
 
