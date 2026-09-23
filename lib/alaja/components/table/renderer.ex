@@ -296,7 +296,9 @@ defmodule Alaja.Components.Table.Renderer do
     color = Keyword.get(opts, :headers_color)
     effects = Keyword.get(opts, :headers_effects, [])
     align = Keyword.get(opts, :headers_align, @default_align)
-    print_row(headers, widths, color, effects, align, config)
+    # Headers don't carry per-cell effect masks — the row-wide
+    # effects list is applied uniformly.
+    print_row_with_masks(headers, widths, color, effects, align, %{}, config)
   end
 
   @spec print_rows(list(), list(integer()), Alaja.Components.Table.Config.t(), keyword()) :: :ok
@@ -321,9 +323,11 @@ defmodule Alaja.Components.Table.Renderer do
     end)
   end
 
-  # Like print_row/6 but applies per-cell effect masks (e.g.
-  # `--row-1-bold "true;false;true"` keeps `bold` on cells 0 and 2
-  # but drops it on cell 1 of row 1).
+  # Print a row with per-cell effect masking. When `masks` is empty
+  # (e.g. the header row), this is the same as a vanilla row print.
+  # When `masks` has an entry like `%{bold: [true, false, true]}`,
+  # the `bold` effect survives on cells 0 and 2 but is dropped on
+  # cell 1 of this row.
   defp print_row_with_masks(row, widths, color, effects, align, masks, config) do
     filled_row = fill_row(row, length(widths))
 

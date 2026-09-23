@@ -27,6 +27,8 @@ defmodule Alaja.CLI.Commands.Base do
     end
   end
 
+  def parse_color_list(_), do: nil
+
   @doc """
   Parse a cellwise colour list — accepts both `|` and `;` as the
   colour separator.
@@ -46,8 +48,6 @@ defmodule Alaja.CLI.Commands.Base do
   end
 
   def parse_cell_color_list(_), do: nil
-
-  def parse_color_list(_), do: nil
 
   @doc "Parse alignment from a binary or atom. Returns an atom `:left`, `:center`, or `:right`. Defaults to `:left`."
   def parse_align(nil), do: nil
