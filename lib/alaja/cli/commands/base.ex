@@ -5,6 +5,7 @@ defmodule Alaja.CLI.Commands.Base do
   as well as terminal width and alignment helpers.
   """
 
+  alias Alaja.CLI.Color
   alias Alaja.CLI.Parser
   alias Alaja.Helpers
 

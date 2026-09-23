@@ -167,25 +167,25 @@ defmodule Alaja.Components.Table.Builder do
   @spec apply_effect_mask(list(atom()), non_neg_integer(), %{optional(atom()) => [boolean()]}) ::
           list(atom())
   def apply_effect_mask(effects, cell_index, masks) when is_map(masks) do
-    Enum.filter(effects, fn effect ->
-      case Map.get(masks, effect) do
-        nil ->
-          true
-
-        mask when is_list(mask) ->
-          case Enum.at(mask, cell_index) do
-            nil -> true
-            truthy when is_boolean(truthy) -> truthy
-            _ -> true
-          end
-
-        _ ->
-          true
-      end
-    end)
+    Enum.filter(effects, &effect_kept?(&1, cell_index, masks))
   end
 
   def apply_effect_mask(effects, _cell_index, _masks), do: effects
+
+  defp effect_kept?(effect, cell_index, masks) do
+    case Map.get(masks, effect) do
+      mask when is_list(mask) -> mask_allows?(mask, cell_index)
+      _ -> true
+    end
+  end
+
+  defp mask_allows?(mask, cell_index) do
+    case Enum.at(mask, cell_index) do
+      nil -> true
+      truthy when is_boolean(truthy) -> truthy
+      _ -> true
+    end
+  end
 
   @spec print_with_headers(list() | nil, list(), keyword()) :: :ok
   def print_with_headers(headers, rows, opts) do
