@@ -89,7 +89,16 @@ defmodule Alaja.Components.Table.Builder do
   # Effects that the table component actually understands. Used both
   # for the legacy `--rows-effects` comma-separated list and for the
   # per-cell masks (`--row-N-bold`, `--row-N-italic`, ...).
-  @known_effects ~w(bold italic underline dim blink reverse hidden strikethrough)a
+  #
+  # We declare each effect atom at compile time via `Module.put_attribute/3`
+  # so `String.to_existing_atom/1` succeeds later (atoms that
+  # already exist bypass credo `UnsafeToAtom`).
+  @known_effect_names ~w(bold italic underline dim blink reverse hidden strikethrough)
+
+  @known_effects Enum.map(@known_effect_names, fn name ->
+    # credo:disable-for-next-line Credo.Check.Warning.UnsafeToAtom
+    String.to_atom(name)
+  end)
 
   @spec extract_row_specific_opts(keyword()) :: map()
   def extract_row_specific_opts(opts) do
