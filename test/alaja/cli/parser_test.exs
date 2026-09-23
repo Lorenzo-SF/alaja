@@ -97,13 +97,17 @@ defmodule Alaja.CLI.ParserTest do
     end
 
     test "parses semicolon-separated colors (cell-mode)" do
-      assert Parser.parse_color_list("hex:ff0000;rgb:0,255,0;theme:primary") ==
-               {:ok, [{255, 0, 0}, {0, 255, 0}, {_, _, _}]}
+      assert {:ok, [{255, 0, 0}, {0, 255, 0}, third]} =
+               Parser.parse_color_list("hex:ff0000;rgb:0,255,0;theme:primary")
+
+      assert match?({r, g, b} when is_integer(r) and is_integer(g) and is_integer(b), third)
     end
 
     test "accepts both separators mixed together" do
-      assert Parser.parse_color_list("hex:ff0000;rgb:0,255,0|theme:primary") ==
-               {:ok, [{255, 0, 0}, {0, 255, 0}, {_, _, _}]}
+      assert {:ok, [{255, 0, 0}, {0, 255, 0}, third]} =
+               Parser.parse_color_list("hex:ff0000;rgb:0,255,0|theme:primary")
+
+      assert match?({r, g, b} when is_integer(r) and is_integer(g) and is_integer(b), third)
     end
 
     test "returns nil for nil input" do
