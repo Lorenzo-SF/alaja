@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- **`alaja message` help**: now goes through `HelpFormatter.render/2`
+  via `@help_data` (mirrors `gradient`/`header`). Adds usage,
+  description, options table, and examples sections.
+- **`alaja message --text X --color Y --text Z --color W` prints all
+  chunks**: `--text` and `--color` are now repeatable in `OptionParser`
+  (strict mode). Chunks are paired positionally; overflow colours
+  fall back to the type's default.
+- **`alaja table --row-N-color "red;blue;green"` applies one colour
+  per cell**: `Color.parse_list/1` now accepts `;` (alongside `|`) as
+  the colour separator. `parse_list/1` splits on `|` first, then on
+  `;` per part. Tests for both separators and mixed mode added.
+- **`alaja table` default border**: aligned the runtime default with
+  what `help_data` advertises (`rounded`).
+- **Host-aware CLI isolation**: a synthetic host module test
+  (`test/alaja/cli/host_aware_test.exs`) locks the contract that
+  `__commands__/0` and `__otp_app__/0` are per-module — alaja's
+  command catalogue cannot leak into a host that consumes
+  `Alaja.CLI.Definition` as a library.
+
 ## [3.1.2] — 2026-09-18
 
 ### Fixed
