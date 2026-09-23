@@ -92,13 +92,24 @@ defmodule Alaja.Components.Table.Builder do
   #
   # We declare each effect atom at compile time via `Module.put_attribute/3`
   # so `String.to_existing_atom/1` succeeds later (atoms that
-  # already exist bypass credo `UnsafeToAtom`).
+  # already exist bypass credo `UnsafeToAtom`). `:effects`, `:color`,
+  # and `:align` are pre-created for the same reason — they're
+  # used as `opt_type` discriminators in `extract_row_specific_opts/1`.
   @known_effect_names ~w(bold italic underline dim blink reverse hidden strikethrough)
 
   @known_effects Enum.map(@known_effect_names, fn name ->
     # credo:disable-for-next-line Credo.Check.Warning.UnsafeToAtom
     String.to_atom(name)
   end)
+
+  # Make sure the opt_type discriminators exist as atoms BEFORE we
+  # call `String.to_existing_atom/1` from inside the parser.
+  # credo:disable-for-next-line Credo.Check.Warning.UnsafeToAtom
+  _ = String.to_atom("effects")
+  # credo:disable-for-next-line Credo.Check.Warning.UnsafeToAtom
+  _ = String.to_atom("color")
+  # credo:disable-for-next-line Credo.Check.Warning.UnsafeToAtom
+  _ = String.to_atom("align")
 
   @spec extract_row_specific_opts(keyword()) :: map()
   def extract_row_specific_opts(opts) do
