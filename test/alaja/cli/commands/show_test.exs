@@ -86,6 +86,50 @@ defmodule ShowTest do
     assert String.contains?(output, "Done!")
   end
 
+  test "message command renders multi-chunk text with paired colors" do
+    output =
+      capture_io(fn ->
+        Message.run([
+          "--text", "AAA ",
+          "--color", "hex:#ff0000",
+          "--text", "BBB ",
+          "--color", "hex:#00ff00",
+          "--text", "CCC",
+          "--color", "hex:#0000ff"
+        ])
+      end)
+
+    assert String.contains?(output, "AAA")
+    assert String.contains?(output, "BBB")
+    assert String.contains?(output, "CCC")
+  end
+
+  test "message command falls back to type default when chunk has no color" do
+    output =
+      capture_io(fn ->
+        Message.run(["--type", "warning", "--text", "alert without color"])
+      end)
+
+    assert String.contains?(output, "alert without color")
+  end
+
+  test "message command applies bold to all chunks" do
+    output =
+      capture_io(fn ->
+        Message.run(["--bold", "--text", "Bold A", "--text", "Bold B"])
+      end)
+
+    assert String.contains?(output, "Bold A")
+    assert String.contains?(output, "Bold B")
+    # ANSI bold (SGR 1) should appear at least once.
+    assert String.contains?(output, "\x1b[1m") or String.contains?(output, "\x1b[1;")
+  end
+
+  test "message command respects positional fallback when no --text given" do
+    output = capture_io(fn -> Message.run_typed("error", ["boom!"]) end)
+    assert String.contains?(output, "boom!")
+  end
+
   test "json command renders a JSON object" do
     output = capture_io(fn -> Json.run([~S({"key": "value"})]) end)
     assert String.contains?(output, "key")

@@ -186,7 +186,7 @@ defmodule Alaja.CLI.Commands.Show.Table do
 
   @spec build_table_opts(keyword(), GlobalOpts.t()) :: keyword()
   defp build_table_opts(opts, global) do
-    border = parse_border_opt(Keyword.get(opts, :border, "normal"))
+    border = parse_border_opt(Keyword.get(opts, :border, "rounded"))
     padding = Keyword.get(opts, :padding, 1)
 
     per_row_opts = build_per_row_opts(opts)
