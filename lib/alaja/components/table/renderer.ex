@@ -255,7 +255,7 @@ defmodule Alaja.Components.Table.Renderer do
     rows_with_index = Enum.with_index(rows)
 
     Enum.map(rows_with_index, fn {row, row_index} ->
-      {row_color, row_effects, row_align} =
+      {row_color, row_effects, row_align, effect_masks} =
         Alaja.Components.Table.Builder.get_row_opts(
           row_index,
           row_specific_opts,
@@ -270,7 +270,11 @@ defmodule Alaja.Components.Table.Renderer do
         |> Enum.map(fn {text, idx} ->
           width = Enum.at(widths, idx, 10)
           cell_color = Theme.get_column_opts(idx, row_color, nil)
-          cell_effects = Theme.get_column_opts(idx, row_effects, [])
+          cell_effects =
+            row_effects
+            |> Theme.get_column_opts(idx, [])
+            |> Alaja.Components.Table.Builder.apply_effect_mask(idx, effect_masks)
+
           cell_align = Theme.get_column_opts(idx, row_align, @default_align)
           aligned = Calculator.apply_alignment(to_string(text), cell_align, width, config.padding)
           Theme.render_formatted(aligned, cell_color, cell_effects)
@@ -304,7 +308,7 @@ defmodule Alaja.Components.Table.Renderer do
 
     Enum.with_index(rows)
     |> Enum.each(fn {row, row_index} ->
-      {color, effects, align} =
+      {color, effects, align, effect_masks} =
         Alaja.Components.Table.Builder.get_row_opts(
           row_index,
           row_specific_opts,
@@ -313,20 +317,14 @@ defmodule Alaja.Components.Table.Renderer do
           rows_align
         )
 
-      print_row(row, widths, color, effects, align, config)
+      print_row_with_masks(row, widths, color, effects, align, effect_masks, config)
     end)
   end
 
-  @spec print_row(
-          list(),
-          list(integer()),
-          term(),
-          list(),
-          atom(),
-          Alaja.Components.Table.Config.t()
-        ) ::
-          :ok
-  def print_row(row, widths, color, effects, align, config) do
+  # Like print_row/6 but applies per-cell effect masks (e.g.
+  # `--row-1-bold "true;false;true"` keeps `bold` on cells 0 and 2
+  # but drops it on cell 1 of row 1).
+  defp print_row_with_masks(row, widths, color, effects, align, masks, config) do
     filled_row = fill_row(row, length(widths))
 
     cells =
@@ -335,7 +333,12 @@ defmodule Alaja.Components.Table.Renderer do
       |> Enum.map(fn {cell, i} ->
         width = Enum.at(widths, i, 0)
         cell_color = Theme.get_column_opts(i, color, nil)
-        cell_effects = Theme.get_column_opts(i, effects, [])
+
+        cell_effects =
+          effects
+          |> Theme.get_column_opts(i, [])
+          |> Alaja.Components.Table.Builder.apply_effect_mask(i, masks)
+
         cell_align = Theme.get_column_opts(i, align, @default_align)
 
         aligned_str =

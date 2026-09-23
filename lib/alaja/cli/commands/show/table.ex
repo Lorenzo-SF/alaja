@@ -238,31 +238,58 @@ defmodule Alaja.CLI.Commands.Show.Table do
     end)
   end
 
+  # Accepts `--row-N-<X>` where N is a positive integer at least one
+  # digit long and `<X>` is at least one character. That covers all
+  # known suffixes (color, align, effects, effect) plus the new
+  # per-cell effect-name masks (bold, italic, ...).
   defp row_flag?([flag, _val]) when is_binary(flag) do
-    String.starts_with?(flag, "--row-") and
-      (String.ends_with?(flag, "-color") or
-         String.ends_with?(flag, "-align") or
-         String.ends_with?(flag, "-effect"))
+    case flag do
+      "--row-" <> rest ->
+        case String.split(rest, "-", parts: 2) do
+          [row_num, suffix] ->
+            case Integer.parse(row_num) do
+              {n, ""} when n > 0 and byte_size(suffix) > 0 -> true
+              _ -> false
+            end
+
+          _ ->
+            false
+        end
+
+      _ ->
+        false
+    end
   end
 
   defp row_flag?(_), do: false
+
+  # Per-row flag suffixes the parser recognises explicitly:
+  #   `color`, `align`, `effects` (and the legacy singular `effect`).
+  # Anything else is treated as an effect-name mask — `--row-N-bold`,
+  # `--row-N-italic`, `--row-N-underline`, ... — and stored under
+  # `rows_N_<name>`. The Builder picks those up per-cell.
+  @row_known_suffixes ~w(color align effects effect)
 
   defp parse_row_flag([flag, val]) do
     rest = String.trim_leading(flag, "--row-")
     parts = String.split(rest, "-", parts: 2)
 
-    with [row_str, suffix] when suffix in ~w(color align effects effect) <- parts,
+    with [row_str, suffix] <- parts,
          {row_num, ""} when row_num > 0 <- Integer.parse(row_str) do
-      # Normalise singular `effect` to plural `effects` so the
-      # backend's `_effects` matcher picks it up.
-      normalised = if suffix == "effect", do: "effects", else: suffix
+      normalised =
+        cond do
+          suffix == "effect" -> "effects"
+          suffix in @row_known_suffixes -> suffix
+          true -> suffix
+        end
+
       build_per_row_key(row_num - 1, normalised, val)
     else
       _ -> nil
     end
   end
 
-  # Atoms are deterministic: bounded row numbers (0..99 max) + 3 known suffixes.
+  # Atoms are deterministic: bounded row numbers (0..99 max) + suffix.
   # Using String.to_atom/1 is safe here — cannot exhaust the atom table.
   defp build_per_row_key(backend_row, suffix, val),
     # credo:disable-for-next-line Credo.Check.Warning.UnsafeToAtom
@@ -278,7 +305,15 @@ defmodule Alaja.CLI.Commands.Show.Table do
       String.starts_with?(key_str, "rows_") and
         (String.ends_with?(key_str, "_color") or
            String.ends_with?(key_str, "_align") or
-           String.ends_with?(key_str, "_effects"))
+           String.ends_with?(key_str, "_effects") or
+           String.ends_with?(key_str, "_bold") or
+           String.ends_with?(key_str, "_italic") or
+           String.ends_with?(key_str, "_underline") or
+           String.ends_with?(key_str, "_dim") or
+           String.ends_with?(key_str, "_blink") or
+           String.ends_with?(key_str, "_reverse") or
+           String.ends_with?(key_str, "_hidden") or
+           String.ends_with?(key_str, "_strikethrough"))
     end)
     |> Enum.map(fn
       {key, val} when is_binary(val) ->
@@ -295,8 +330,11 @@ defmodule Alaja.CLI.Commands.Show.Table do
           String.ends_with?(Atom.to_string(key), "_effects") ->
             {key, Base.parse_effects_list(val)}
 
+          # Anything else is a per-cell boolean mask for a specific
+          # effect. `--row-1-bold "true;false;true"` becomes
+          # `rows_0_bold: [true, false, true]`.
           true ->
-            {key, val}
+            {key, parse_boolean_mask(val)}
         end
 
       {key, val} ->
@@ -304,6 +342,28 @@ defmodule Alaja.CLI.Commands.Show.Table do
     end)
     |> Enum.reject(fn {_, v} -> is_nil(v) end)
   end
+
+  # Parse a `;`-separated list of `true`/`false`/`1`/`0` values into
+  # a list of booleans. Anything that doesn't parse becomes `false`
+  # so a typo silently opts the cell out of the effect instead of
+  # aborting the whole command.
+  defp parse_boolean_mask(nil), do: nil
+
+  defp parse_boolean_mask(str) when is_binary(str) do
+    str
+    |> String.split(";", trim: true)
+    |> Enum.map(&String.trim/1)
+    |> Enum.reject(&(&1 == ""))
+    |> Enum.map(&truthy?/1)
+  end
+
+  defp parse_boolean_mask(_), do: nil
+
+  defp truthy?("true"), do: true
+  defp truthy?("1"), do: true
+  defp truthy?("yes"), do: true
+  defp truthy?("on"), do: true
+  defp truthy?(_), do: false
 
   @spec table_align(keyword(), GlobalOpts.t()) :: atom()
   defp table_align(opts, global) do
