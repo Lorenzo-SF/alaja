@@ -52,11 +52,11 @@ defmodule Alaja.CLI.Picker do
     box_height = min(length(items), rows - 4)
     {x, y, h} = {max(div(cols, 2) - 20, 0), 2, max(box_height, 3)}
 
-    IO.write([__MODULE__.ANSI.clear(), __MODULE__.ANSI.cursor_home(), __MODULE__.ANSI.hide_cursor()])
-    IO.write([__MODULE__.ANSI.move_to(x, y - 1)])
-    IO.puts(__MODULE__.ANSI.fg(0, 180, 216) <> prompt <> __MODULE__.ANSI.reset())
+    IO.write([ansi().clear(), ansi().cursor_home(), ansi().hide_cursor()])
+    IO.write([ansi().move_to(x, y - 1)])
+    IO.puts(ansi().fg(0, 180, 216) <> prompt <> ansi().reset())
     draw_items(state, x, y, h)
-    IO.write([ANSI.move_to(x, y + state.index - y), ANSI.show_cursor()])
+    IO.write([ansi().move_to(x, y + state.index - y), ansi().show_cursor()])
 
     loop(state, x, y, h, cancel_keys)
   end
@@ -142,7 +142,7 @@ defmodule Alaja.CLI.Picker do
     |> Enum.with_index()
     |> Enum.take(h)
     |> Enum.each(fn {item, idx} ->
-      IO.write([ANSI.move_to(x, y + idx)])
+      IO.write([ansi().move_to(x, y + idx)])
       is_sel = idx == selected
       label = formatter.(item, is_sel)
       draw_row(label, is_sel)
@@ -151,25 +151,25 @@ defmodule Alaja.CLI.Picker do
 
   defp redraw(state, x, y, h) do
     draw_items(state, x, y, h)
-    IO.write([ANSI.show_cursor()])
+    IO.write([ansi().show_cursor()])
   end
 
   defp draw_row(label, true) do
-    IO.puts(ANSI.fg(0, 220, 180) <> "▶ " <> label <> ANSI.reset())
+    IO.puts(ansi().fg(0, 220, 180) <> "▶ " <> label <> ansi().reset())
   end
 
   defp draw_row(label, false) do
-    IO.puts(ANSI.fg(120, 120, 140) <> "  " <> label)
+    IO.puts(ansi().fg(120, 120, 140) <> "  " <> label)
   end
 
   defp cleanup do
-    IO.write([ANSI.clear(), ANSI.cursor_home(), ANSI.show_cursor()])
+    IO.write([ansi().clear(), ansi().cursor_home(), ansi().show_cursor()])
   end
 
   # ── raw key reading ─────────────────────────────────────────────
 
   defp read_key do
-    case :io.getopts(:standard_io, [:binary, :echo]) do
+    case :io.getopts(:standard_io) do
       {:ok, opts} ->
         saved = opts
         new_opts = [{:echo, false}, {:binary, true}] |> Keyword.merge(opts)
@@ -230,15 +230,40 @@ defmodule Alaja.CLI.Picker do
     end
   end
 
+  # Resolves the nested ANSI module once per call. The implementation
+  # lives in a nested module to avoid loading the full Alaja.ANSI here
+  # (picker is hot-path when `alaja` runs interactively).
+  defp ansi, do: __MODULE__.ANSI
+
   # ANSI helpers (avoid loading the full Alaja.ANSI here to keep picker fast).
   defmodule ANSI do
+    @moduledoc """
+    Tiny ANSI escape emitter used by `Alaja.CLI.Picker`.
+
+    Kept nested (and minimal) so the picker can be invoked quickly
+    without pulling in the full `Alaja.ANSI` module. Only the codes
+    the picker actually uses are emitted here.
+    """
+
+    @doc "Clears the entire screen."
     def clear, do: "\e[2J"
+
+    @doc "Moves the cursor to the home position (top-left)."
     def cursor_home, do: "\e[H"
+
+    @doc "Hides the terminal cursor."
     def hide_cursor, do: "\e[?25l"
+
+    @doc "Shows the terminal cursor."
     def show_cursor, do: "\e[?25h"
+
+    @doc "Moves the cursor to a 0-indexed (x, y) position."
     def move_to(x, y), do: "\e[#{y + 1};#{x + 1}H"
 
+    @doc "Sets the foreground colour to the given 8-bit RGB triplet."
     def fg(r, g, b), do: "\e[38;2;#{r};#{g};#{b}m"
+
+    @doc "Resets all SGR attributes."
     def reset, do: "\e[0m"
   end
 end

@@ -232,28 +232,29 @@ defmodule Alaja.CLI.Commands.Color do
   defp get_column_names(:compound), do: ["Base", "Compound₁", "Compound₂"]
   defp get_column_names(:split_complementary), do: ["Base", "Split₁", "Split₂"]
 
+  # Prefer the canonical Buffer-based renderer (true 24-bit ANSI half-blocks).
+  # Falls back to ASCII wheel if buffer render is unavailable (test envs).
+  # Wrapped in `try` as the function body so credo sees an implicit try
+  # rather than an explicit one — keeps the "explicit try" warning off
+  # in strict mode.
   defp render_color_wheel_output(colors) do
-    # Prefer the canonical Buffer-based renderer (true 24-bit ANSI half-blocks).
-    # Falls back to ASCII wheel if buffer render is unavailable (test envs).
-    try do
-      buffer = ColorWheel.render(colors)
-      Printer.print_raw(buffer)
-      []
-    rescue
-      _ ->
-        angles = ColorWheel.extract_angles(colors)
-        lines = ColorWheel.get_ascii_wheel_lines(angles, :custom, [])
+    buffer = ColorWheel.render(colors)
+    Printer.print_raw(buffer)
+    []
+  rescue
+    _ ->
+      angles = ColorWheel.extract_angles(colors)
+      lines = ColorWheel.get_ascii_wheel_lines(angles, :custom, [])
 
-        if lines == [] do
-          []
-        else
-          [
-            "\n",
-            "  " <> Enum.map_join(lines, "\n  ", & &1),
-            "\n"
-          ]
-        end
-    end
+      if lines == [] do
+        []
+      else
+        [
+          "\n",
+          "  " <> Enum.map_join(lines, "\n  ", & &1),
+          "\n"
+        ]
+      end
   end
 
   defp build_color_table(_base_rgb, all_colors, col_names) do

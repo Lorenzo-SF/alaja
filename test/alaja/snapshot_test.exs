@@ -39,11 +39,6 @@ defmodule Alaja.SnapshotTest do
     :ok
   end
 
-  defp load_snapshot(name) do
-    path = Path.join(@snapshot_dir, "#{name}.snap")
-    File.read!(path)
-  end
-
   defp assert_snapshot(name, actual) do
     path = Path.join(@snapshot_dir, "#{name}.snap")
 

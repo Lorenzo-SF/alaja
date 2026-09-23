@@ -9,10 +9,8 @@ defmodule Alaja.CLI.Commands.ThemeTest do
 
   use ExUnit.Case, async: false
 
-  import ExUnit.CaptureIO, only: [capture_io: 1, capture_io: 2]
-
   alias Alaja.CLI.Commands.Theme, as: ThemeCmd
-  alias Alaja.{Config, Theme}
+  alias Alaja.Theme
 
   # We never want a stale `~/.config/alaja/themes` directory from a
   # developer machine to leak into the "no themes installed" tests, and
