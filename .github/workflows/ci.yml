@@ -14,7 +14,7 @@ env:
 
 jobs:
   # ---------------------------------------------------------------------------
-  # 1. Format — pure formatting check, fast.
+  # 1. Format — pure formatting check, fast. STRICT: any drift fails.
   # ---------------------------------------------------------------------------
   format:
     name: Format Check
@@ -29,14 +29,11 @@ jobs:
           elixir-version: ${{ env.ELIXIR_VERSION }}
 
       - name: Check formatting
-        # mix format --check-formatted will be re-enabled after a
-        # one-shot `mix format` pass on main. For now it's non-blocking
-        # because the merge mixed formatting styles from pre-1.19 and
-        # 1.19 codebases.
-        run: mix format --check-formatted || true
+        run: mix format --check-formatted
 
   # ---------------------------------------------------------------------------
-  # 2. Lint — credo strict + dialyzer as separate jobs.
+  # 2. Lint — credo strict. STRICT: any issue at default priority or
+  # higher fails the build. Lower-priority issues stay as warnings.
   # ---------------------------------------------------------------------------
   lint:
     name: Credo Strict
@@ -66,16 +63,15 @@ jobs:
         run: mix deps.get
 
       - name: Run Credo (strict)
-        # mix credo --strict will be re-enabled after we clean up the
-        # legacy modules brought in by the merge. For now it's the
-        # non-strict default so CI can validate the rest of the
-        # pipeline.
-        run: mix credo --strict || true
+        # Run strict credo. We only fail on issues at the default
+        # priority or higher (i.e. refactors the codebase has agreed
+        # to enforce); lower-priority suggestions remain advisory
+        # so that the suite stays focused on substantive problems.
+        run: mix credo --strict --min-priority=normal
 
   # ---------------------------------------------------------------------------
-  # 3. Compile + test with coverage — main quality gate.
-  #    Uses --warnings-as-errors so the compile step rejects any warning,
-  #    and excludes :external network-bound tests so CI is deterministic.
+  # 3. Compile + test with coverage — main quality gate. STRICT.
+  # --warnings-as-errors turns any compile warning into a hard fail.
   # ---------------------------------------------------------------------------
   test:
     name: Compile & Test
@@ -109,22 +105,16 @@ jobs:
       - name: Install dependencies
         run: mix deps.get
 
-      # Compile with --warnings-as-errors as a quality gate. Anything that
-      # would have been a warning becomes a hard failure here.
-      # Compile with --warnings-as-errors as a quality gate. Anything that
-      # would have been a warning becomes a hard failure here.
-      - name: Compile
-        # --warnings-as-errors will be re-enabled after a one-shot pass to
-        # clear remaining legacy warnings. For now non-blocking so CI
-        # validates the rest of the pipeline.
-        run: mix compile --force
+      # STRICT: --warnings-as-errors. Any warning becomes a hard failure.
+      - name: Compile (warnings-as-errors)
+        run: mix compile --force --warnings-as-errors
 
-      - name: Run tests with coverage
-        # mix test --cover is currently failing on legacy smoke tests
-        # that the user's pre-existing test suite introduced. Mark as
-        # best-effort until those tests are aligned with the post-merge
-        # main.
-        run: mix test --cover || true
+      - name: Run tests (only failed first, then full)
+        # Two-step: first surface any existing failures with --failed
+        # for fast feedback, then run the full suite to confirm.
+        run: |
+          mix test --failed || true
+          mix test --cover
 
       - name: Generate coverage report
         if: success()
@@ -134,8 +124,7 @@ jobs:
           fi
 
   # ---------------------------------------------------------------------------
-  # 4. Dialyzer — runs only on main to keep PR cycle fast. Catches type
-  #    contract regressions that unit tests don't see.
+  # 4. Dialyzer — runs only on main to keep PR cycle fast. STRICT.
   # ---------------------------------------------------------------------------
   typespecs:
     name: Dialyzer
@@ -170,19 +159,17 @@ jobs:
         run: mix deps.get
 
       - name: Compile
-        run: mix compile --force
+        run: mix compile --force --warnings-as-errors
 
       - name: Build PLT (cacheable)
         run: mix dialyzer --plt
 
       - name: Run Dialyzer
-        # Dialyzer warnings will be re-enabled as a hard gate after the
-        # legacy cleanup pass. For now non-blocking so CI validates
-        # the rest of the pipeline.
-        run: mix dialyzer --no-check || true
+        # STRICT: no --no-check. Dialyzer warnings become hard failures.
+        run: mix dialyzer
 
   # ---------------------------------------------------------------------------
-  # 5. Dependency security audit.
+  # 5. Dependency security audit. STRICT.
   # ---------------------------------------------------------------------------
   audit:
     name: Dependency Audit
@@ -209,4 +196,5 @@ jobs:
         run: mix deps.get
 
       - name: Hex audit
-        run: mix hex.audit
+        # STRICT: any outdated dep or known vuln fails the build.
+        run: mix hex.audit --all
