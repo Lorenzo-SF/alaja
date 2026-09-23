@@ -99,7 +99,7 @@ defmodule Alaja.CLI.ColorTest do
   describe "parse_list/1 — separador |" do
     test "lista de colores con formato" do
       assert {:ok, [{255, 0, 0}, {0, 255, 0}]} =
-               Color.parse_list("rgb:255;0;0|rgb:0;255;0")
+               Color.parse_list("rgb:255,0,0|rgb:0,255,0")
     end
 
     test "lista mixta con theme (parse_list falla en el primer theme: key inexistente)" do
@@ -112,7 +112,7 @@ defmodule Alaja.CLI.ColorTest do
     end
 
     test "error indica el color que falló" do
-      assert {:error, msg} = Color.parse_list("rgb:255;0;0|cyan")
+      assert {:error, msg} = Color.parse_list("rgb:255,0,0|cyan")
       assert msg =~ "cyan"
       assert msg =~ "invalid color"
     end
@@ -120,6 +120,14 @@ defmodule Alaja.CLI.ColorTest do
     test "nil pasa" do
       assert nil == Color.parse_list(nil)
       assert nil == Color.parse(nil)
+    end
+
+    test "rechaza ; como separador entre colores (usa parse_cell_list para eso)" do
+      # parse_list/1 solo acepta |. ; se reserva como separador de
+      # celda para `alaja table --row-N-color`. Esto evita que
+      # inputs legacy tipo "rgb:255;0;0" se malinterpreten.
+      assert {:error, msg} = Color.parse_list("rgb:255,0,0;rgb:0,255,0")
+      assert msg =~ "invalid color" or msg =~ "missing format"
     end
   end
 

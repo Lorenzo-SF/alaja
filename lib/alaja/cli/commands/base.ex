@@ -27,6 +27,26 @@ defmodule Alaja.CLI.Commands.Base do
     end
   end
 
+  @doc """
+  Parse a cellwise colour list — accepts both `|` and `;` as the
+  colour separator.
+
+  Used by `alaja table --row-N-color` (and similar call sites) where
+  the user provides one colour per cell and we want `;` to be a valid
+  separator so the syntax lines up with `--rows`'s own `;` cell
+  delimiter. Falls back to `parse_color_list/1` on nil or any failure.
+  """
+  def parse_cell_color_list(nil), do: nil
+
+  def parse_cell_color_list(s) when is_binary(s) do
+    case Color.parse_cell_list(s) do
+      {:ok, colors} -> colors
+      _ -> nil
+    end
+  end
+
+  def parse_cell_color_list(_), do: nil
+
   def parse_color_list(_), do: nil
 
   @doc "Parse alignment from a binary or atom. Returns an atom `:left`, `:center`, or `:right`. Defaults to `:left`."

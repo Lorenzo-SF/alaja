@@ -284,7 +284,10 @@ defmodule Alaja.CLI.Commands.Show.Table do
       {key, val} when is_binary(val) ->
         cond do
           String.ends_with?(Atom.to_string(key), "_color") ->
-            {key, Base.parse_color_list(val)}
+            # Per-row colour accepts both `|` and `;` as separators
+            # so the syntax lines up with the rest of the cellwise
+            # CLI surface (--rows uses `;` between cells).
+            {key, Base.parse_cell_color_list(val)}
 
           String.ends_with?(Atom.to_string(key), "_align") ->
             {key, Base.parse_align_list(val)}

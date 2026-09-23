@@ -83,16 +83,13 @@ defmodule Alaja.CLI.Commands.Show.Message do
   def run(args) do
     {global, rest} = GlobalOpts.parse(args)
 
-    # Strict mode is fine with repeated switches: the parser keeps every
-    # value in the keyword list and `Keyword.get_values/2` returns the
-    # full sequence. We declare `--text` and `--color` here so they can
-    # be repeated; all other flags validate their declared types.
+    # Two-pass parse: strict mode validates flag types but does NOT
+    # collect repeated values for the same flag, so we run a second
+    # non-strict pass to extract `--text` and `--color` lists.
     {opts, positional, _} =
       OptionParser.parse(rest,
         strict: [
           type: :string,
-          text: :string,
-          color: :string,
           bg_color: :string,
           bold: :boolean,
           italic: :boolean,
@@ -107,8 +104,16 @@ defmodule Alaja.CLI.Commands.Show.Message do
         ]
       )
 
-    text_list = Keyword.get_values(opts, :text)
-    color_list = Keyword.get_values(opts, :color)
+    {repeatable_opts, _, _} =
+      OptionParser.parse(rest,
+        switches: [
+          text: :string,
+          color: :string
+        ]
+      )
+
+    text_list = Keyword.get_values(repeatable_opts, :text)
+    color_list = Keyword.get_values(repeatable_opts, :color)
 
     if global.help do
       help(global)

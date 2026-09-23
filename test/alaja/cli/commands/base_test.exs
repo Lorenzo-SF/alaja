@@ -17,7 +17,7 @@ defmodule BaseTest do
     end
   end
 
-  describe "parse_color_list/1" do
+  describe "parse_color_list/1 (pipe-only)" do
     test "returns nil for nil" do
       assert Base.parse_color_list(nil) == nil
     end
@@ -26,10 +26,20 @@ defmodule BaseTest do
       # hex:ff0000 => {255,0,0}, hex:00ff00 => {0,255,0}
       assert Base.parse_color_list("hex:ff0000|hex:00ff00") == [{255, 0, 0}, {0, 255, 0}]
     end
+  end
+
+  describe "parse_cell_color_list/1 (semicolon- and pipe-aware)" do
+    test "returns nil for nil" do
+      assert Base.parse_cell_color_list(nil) == nil
+    end
 
     test "parses a semicolon separated list of colors" do
-      # Useful for `--row-N-color` per-cell colourisation.
-      assert Base.parse_color_list("hex:ff0000;rgb:0,255,0") == [{255, 0, 0}, {0, 255, 0}]
+      # Used for `--row-N-color` per-cell colourisation.
+      assert Base.parse_cell_color_list("hex:ff0000;rgb:0,255,0") == [{255, 0, 0}, {0, 255, 0}]
+    end
+
+    test "parses a pipe separated list of colors" do
+      assert Base.parse_cell_color_list("hex:ff0000|hex:00ff00") == [{255, 0, 0}, {0, 255, 0}]
     end
   end
 
