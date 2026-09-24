@@ -31,10 +31,15 @@ defmodule Alaja.CLI.DSLValidationTest do
   end
 
   defp compile_cli(label, dsl_body) do
+    # Each test gets a fresh module name. The atom is built at
+    # runtime via `String.to_atom/1`, but we disable the credo check
+    # inline because the suffix is bounded (a positive integer from
+    # `System.unique_integer/1`) — no atom-table exhaustion risk.
+    # credo:disable-for-next-line Credo.Check.Warning.UnsafeToAtom
     module_name = :"Fixture#{label}#{System.unique_integer([:positive])}"
 
     Code.compile_string("""
-    defmodule #{module_name} do
+    defmodule #{inspect(module_name)} do
       use Alaja.CLI.Definition, otp_app: :alaja
 
     #{dsl_body}
