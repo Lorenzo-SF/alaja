@@ -88,12 +88,12 @@ defmodule Alaja.CLI.DSLValidationTest do
     end
 
     test "supplied required flag dispatches to the handler" do
-      # Capture the test pid BEFORE the task spawns so the fixture's
-      # `capture/1` callback (running in the task) can send its message
-      # to the test process. If we used `self()` inside the task,
-      # `self()` would be the task pid and the message would be lost
-      # when the task exits.
-      test_pid = self()
+      # Embed the test pid as a string and convert it back with
+      # `:erlang.list_to_pid/1` inside the compiled module. The raw
+      # `#PID<...>` representation from `inspect/1` would be parsed
+      # as an Elixir comment by the Code.compile_string/1 reader
+      # and break compilation.
+      test_pid_str = inspect(self())
 
       module = compile_cli("req2", """
         command "deploy", "deploy something" do
@@ -102,7 +102,8 @@ defmodule Alaja.CLI.DSLValidationTest do
         end
 
         def capture(opts) do
-          send(#{inspect(test_pid)}, {:captured, opts})
+          pid = :erlang.list_to_pid(#{test_pid_str})
+          send(pid, {:captured, opts})
           :ok
         end
       """)
@@ -182,7 +183,7 @@ defmodule Alaja.CLI.DSLValidationTest do
     end
 
     test "positional arguments still pass through unchanged" do
-      test_pid = self()
+      test_pid_str = inspect(self())
 
       module = compile_cli("pos", """
         command "deploy", "deploy something" do
@@ -191,7 +192,8 @@ defmodule Alaja.CLI.DSLValidationTest do
         end
 
         def capture(opts) do
-          send(#{inspect(test_pid)}, {:captured, opts})
+          pid = :erlang.list_to_pid(#{test_pid_str})
+          send(pid, {:captured, opts})
           :ok
         end
       """)
