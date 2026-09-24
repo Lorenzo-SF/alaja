@@ -860,8 +860,9 @@ defmodule Alaja.CLI.Definition do
         end
 
       direct_required =
-        if f.required and (not Map.has_key?(flag_values, f.name) or
-                             Map.get(flag_values, f.name) == nil) do
+        if f.required and
+             (not Map.has_key?(flag_values, f.name) or
+                Map.get(flag_values, f.name) == nil) do
           [f.name]
         else
           []
