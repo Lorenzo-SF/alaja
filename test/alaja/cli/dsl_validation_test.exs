@@ -7,27 +7,62 @@ defmodule Alaja.CLI.DSLValidationTest do
       Jaro-distance-based suggestions from the current command's
       declared flag names.
 
-  Both behaviours invoke `dispatch_main/1`, which calls
-  `exit({:shutdown, 1})` on the error path. We use
-  `ExUnit.CaptureIO.capture_io/2` with `:stderr` plus a wrapper that
-  traps the exit and converts it into an exception so the test can
-  assert on the message.
+  Both behaviours invoke `main/1`, which calls `exit/1` on the
+  error path. We drive each invocation in a separate `Task` so the
+  exit doesn't bring down the test process, and capture the
+  `stderr` written by that subprocess via a dedicated group leader
+  process.
+
+  The capture trick uses a small helper (`capture_in_subprocess/2`)
+  that spawns a worker process whose `Process.group_leader/0` is a
+  fresh `StringIO` device. After the worker exits (normally or via
+  `exit/1`), we read everything the device accumulated.
   """
 
   use ExUnit.Case, async: false
 
-  defp capture_stderr_during(fn_) do
-    ExUnit.CaptureIO.capture_io(:stderr, fn ->
-      Process.flag(:trap_exit, true)
+  # Run `fun.()` in a child process whose group leader is a fresh
+  # `StringIO`. Returns `{status, captured_stderr}` where `status`
+  # is `:ok`, `{:exited, reason}`, or `{:crashed, kind, reason}`.
+  defp capture_in_subprocess(fun) do
+    {:ok, dev} = StringIO.open("")
+    parent = self()
+    ref = make_ref()
 
-      try do
-        fn_.()
-        :ok
-      catch
-        :exit, status -> {:exited, status}
-        kind, reason -> {kind, reason}
+    pid =
+      spawn_link(fn ->
+        Process.group_leader(self(), dev)
+
+        status =
+          try do
+            fun.()
+            :ok
+          catch
+            :exit, reason -> {:exited, reason}
+            kind, reason -> {:crashed, kind, reason}
+          end
+
+        send(parent, {ref, :done, status})
+      end)
+
+    Process.flag(:trap_exit, true)
+
+    status =
+      receive do
+        {^ref, :done, s} -> s
+        {:EXIT, ^pid, reason} -> {:exited, reason}
+      after
+        3_000 -> :timeout
       end
-    end)
+
+    Process.flag(:trap_exit, false)
+    stderr = IO.binread(dev, :all) |> case do
+      {:error, _} -> ""
+      {:eof, _} -> ""
+      {:ok, data} -> data
+    end
+
+    {status, stderr}
   end
 
   defp compile_cli(label, dsl_body) do
@@ -60,8 +95,10 @@ defmodule Alaja.CLI.DSLValidationTest do
         def noop(_opts), do: :ok
       """)
 
-      stderr = capture_stderr_during(fn -> apply(module, :main, [["deploy"]]) end)
+      {status, stderr} =
+        capture_in_subprocess(fn -> apply(module, :main, [["deploy"]]) end)
 
+      assert {:exited, _} = status
       assert stderr =~ "missing required flags"
       assert stderr =~ "--target"
     end
@@ -79,10 +116,12 @@ defmodule Alaja.CLI.DSLValidationTest do
         end
       """)
 
-      capture_stderr_during(fn ->
-        apply(module, :main, [["deploy", "--target", "prod"]])
-      end)
+      {status, _stderr} =
+        capture_in_subprocess(fn ->
+          apply(module, :main, [["deploy", "--target", "prod"]])
+        end)
 
+      assert status == :ok
       assert_received {:captured, opts}
       assert opts.target == "prod"
     end
@@ -99,11 +138,12 @@ defmodule Alaja.CLI.DSLValidationTest do
         def noop(_opts), do: :ok
       """)
 
-      stderr =
-        capture_stderr_during(fn ->
+      {status, stderr} =
+        capture_in_subprocess(fn ->
           apply(module, :main, [["deploy", "--comand", "x"]])
         end)
 
+      assert {:exited, _} = status
       assert stderr =~ "unknown flag '--comand'"
       assert stderr =~ "Did you mean"
       assert stderr =~ "--command"
@@ -119,11 +159,12 @@ defmodule Alaja.CLI.DSLValidationTest do
         def noop(_opts), do: :ok
       """)
 
-      stderr =
-        capture_stderr_during(fn ->
+      {status, stderr} =
+        capture_in_subprocess(fn ->
           apply(module, :main, [["deploy", "--totally-different-flag", "x"]])
         end)
 
+      assert {:exited, _} = status
       assert stderr =~ "unknown flag '--totally-different-flag'"
     end
 
@@ -140,10 +181,12 @@ defmodule Alaja.CLI.DSLValidationTest do
         end
       """)
 
-      capture_stderr_during(fn ->
-        apply(module, :main, [["deploy", "production"]])
-      end)
+      {status, _stderr} =
+        capture_in_subprocess(fn ->
+          apply(module, :main, [["deploy", "production"]])
+        end)
 
+      assert status == :ok
       assert_received {:captured, opts}
       assert opts.name == "production"
     end
