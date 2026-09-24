@@ -4,16 +4,20 @@ defmodule Alaja.CLI.ColorTest do
   alias Alaja.CLI.Color
 
   describe "parse accepts uppercase formats" do
-    test "CMYK:10;40;60;8" do
-      assert {:ok, _} = Color.parse("CMYK:10;40;60;8")
+    # `parse/1` only substitutes `;` for `,` in the autodetect path
+    # (no `format:` prefix). Explicit `format:code` strings always
+    # require the standard `,` separator because `;` is reserved for
+    # the cellwise colour-list path (see parse_cell_list/1).
+    test "CMYK:10,40,60,8" do
+      assert {:ok, _} = Color.parse("CMYK:10,40,60,8")
     end
 
     test "HEX:ff3940" do
       assert {:ok, _} = Color.parse("HEX:ff3940")
     end
 
-    test "Argb:44;141;255;10" do
-      assert {:ok, _} = Color.parse("Argb:44;141;255;10")
+    test "Argb:44,141,255,10" do
+      assert {:ok, _} = Color.parse("Argb:44,141,255,10")
     end
   end
 
@@ -24,10 +28,6 @@ defmodule Alaja.CLI.ColorTest do
   end
 
   describe "parse/1 — formato estricto <formato>:<codigo>" do
-    test "rgb con separador ;" do
-      assert {:ok, {255, 0, 0}} = Color.parse("rgb:255;0;0")
-    end
-
     test "rgb con separador ," do
       assert {:ok, {255, 0, 0}} = Color.parse("rgb:255,0,0")
     end
@@ -40,20 +40,20 @@ defmodule Alaja.CLI.ColorTest do
       assert {:ok, {0, 128, 255}} = Color.parse("hex:0080ff")
     end
 
-    test "cmyk con ;" do
-      assert {:ok, {255, 0, 0}} = Color.parse("cmyk:0;100;100;0")
+    test "cmyk con ," do
+      assert {:ok, {255, 0, 0}} = Color.parse("cmyk:0,100,100,0")
     end
 
     test "argb" do
-      assert {:ok, {0, 255, 0}} = Color.parse("argb:255;0;255;0")
+      assert {:ok, {0, 255, 0}} = Color.parse("argb:255,0,255,0")
     end
 
     test "hsl" do
-      assert {:ok, {255, 0, 0}} = Color.parse("hsl:0;100;50")
+      assert {:ok, {255, 0, 0}} = Color.parse("hsl:0,100,50")
     end
 
     test "hsv" do
-      assert {:ok, {255, 0, 0}} = Color.parse("hsv:0;100;100")
+      assert {:ok, {255, 0, 0}} = Color.parse("hsv:0,100,100")
     end
 
     test "xterm" do
@@ -86,20 +86,29 @@ defmodule Alaja.CLI.ColorTest do
     end
 
     test "formato desconocido → error" do
-      assert {:error, msg} = Color.parse("foobar:1;2;3")
+      assert {:error, msg} = Color.parse("foobar:1,2,3")
       assert msg =~ "foobar"
     end
 
     test "rgb fuera de rango → error" do
-      assert {:error, msg} = Color.parse("rgb:999;0;0")
-      assert msg =~ "rgb:999;0;0"
+      assert {:error, msg} = Color.parse("rgb:999,0,0")
+      assert msg =~ "rgb:999,0,0"
+    end
+
+    test "explicit format:code with `;` is rejected (regression — ; is the cell separator)" do
+      # `;` was wrongly substituted for `,` inside explicit format
+      # codes, masking malformed `rgb:255;0;0` legacy inputs. The
+      # new contract: explicit `format:code` requires `,`. Use
+      # `parse_cell_list/1` if `;` is the desired separator.
+      assert {:error, _} = Color.parse("rgb:255;0;0")
+      assert {:error, _} = Color.parse("hsl:0;100;50")
     end
   end
 
   describe "parse_list/1 — separador |" do
     test "lista de colores con formato" do
       assert {:ok, [{255, 0, 0}, {0, 255, 0}]} =
-               Color.parse_list("rgb:255;0;0|rgb:0;255;0")
+               Color.parse_list("rgb:255,0,0|rgb:0,255,0")
     end
 
     test "lista mixta con theme (parse_list falla en el primer theme: key inexistente)" do
@@ -112,7 +121,7 @@ defmodule Alaja.CLI.ColorTest do
     end
 
     test "error indica el color que falló" do
-      assert {:error, msg} = Color.parse_list("rgb:255;0;0|cyan")
+      assert {:error, msg} = Color.parse_list("rgb:255,0,0|cyan")
       assert msg =~ "cyan"
       assert msg =~ "invalid color"
     end
@@ -120,6 +129,14 @@ defmodule Alaja.CLI.ColorTest do
     test "nil pasa" do
       assert nil == Color.parse_list(nil)
       assert nil == Color.parse(nil)
+    end
+
+    test "rechaza ; como separador entre colores (usa parse_cell_list para eso)" do
+      # parse_list/1 solo acepta |. ; se reserva como separador de
+      # celda para `alaja table --row-N-color`. Esto evita que
+      # inputs legacy tipo "rgb:255;0;0" se malinterpreten.
+      assert {:error, msg} = Color.parse_list("rgb:255,0,0;rgb:0,255,0")
+      assert msg =~ "invalid color" or msg =~ "missing format"
     end
   end
 

@@ -27,6 +27,40 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   command catalogue cannot leak into a host that consumes
   `Alaja.CLI.Definition` as a library.
 
+### Added
+- **`alaja table --row-N-<effect> "<bool>;<bool>;..."`** — per-cell
+  boolean mask for any effect. The flag's suffix can be `bold`,
+  `italic`, `underline`, `dim`, `blink`, `reverse`, `hidden`, or
+  `strikethrough`. The value is a `;`-separated list of `true|false`
+  cells. `true` keeps the effect (combined with `--rows-effects`);
+  `false` opts the cell out. Mask length is short by design — cells
+  beyond the list keep the effect.
+
+      alaja table --rows-effects bold \\
+        --row-1-bold "true;false;true;true" \\
+        --row-2-italic "true;true;false;true"
+
+### Changed
+- **`Color.parse_list/1` reverted to `|`-only.** The previous
+  `;`-accepting version broke a legacy test that fed
+  `rgb:255;0;0` (where `;` is the component separator, not the list
+  separator). The new `Color.parse_cell_list/1` does the
+  cellwise-aware parsing (accepts both `|` and `;`); the table
+  command uses it via `Base.parse_cell_color_list/1`. Generic
+  colour lists (`--rows-color`, etc.) keep the strict `|`-only
+  contract.
+- **`alaja message` parsing is now two-pass.** Strict mode in
+  `OptionParser` doesn't collect repeated values, so the strict
+  pass validates flag types (`bold`, `padding`, ...) while a
+  second non-strict pass pulls out `--text` and `--color` lists
+  via `Keyword.get_values/2`. The two-pass is isolated to the
+  message command.
+- **`Components.Table.Builder.get_row_opts/5` now returns a
+  4-tuple** — `{color, effects, align, effect_masks}`. The new
+  `effect_masks` map (`%{bold: [true, false, ...], ...}`) feeds
+  the per-cell effect filter applied by
+  `apply_effect_mask/3`.
+
 ## [3.1.2] — 2026-09-18
 
 ### Fixed

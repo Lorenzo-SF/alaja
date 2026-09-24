@@ -82,7 +82,13 @@ defmodule Alaja.CLI.Color do
         format_down = String.downcase(format)
 
         if format_down in @formats do
-          parse_format(format_down, code |> String.trim() |> String.replace(";", ","), str)
+          # Explicit `format:code`: do NOT substitute `;` for `,`.
+          # `;` is reserved as a colour-list separator (see
+          # `parse_list/1` / `parse_cell_list/1`), so accepting it
+          # inside the value would silently mis-parse inputs like
+          # `rgb:255;0;0`. The autodetect branch below still accepts
+          # both for backward compat with bare comma/separated input.
+          parse_format(format_down, String.trim(code), str)
         else
           parse_detected(String.replace(str, ";", ","))
         end
@@ -111,44 +117,37 @@ defmodule Alaja.CLI.Color do
   def parse_or_nil(_), do: nil
 
   @doc """
-  Parsea una lista de colores separados por `|` o `;`.
+  Parsea una lista de colores separados por `|`.
 
   Devuelve `{:ok, [{r,g,b}, ...]}` o `{:error, msg}` acumulando todos
   los colores que fallaron la validacion. `nil` pasa como `nil`.
 
-  El separador entre colores es `|` o `;`. Los dos son válidos para
-  encajar con el separador de celdas (`;`) que usa `alaja table` y
-  similares — así puedes escribir
-  `--row-1-color "hex:#ff0000;rgb:0,255,0;theme:primary"` y cada
-  celda se colorea de forma independiente.
-
-  Dentro de un color las comas siguen siendo el separador de
-  componentes (ej: `rgb:255,0,0`).
+  Solo `|` es separador entre colores. `;` se reserva como separador
+  dentro de valores `rgb:255;0;0` (no estándar — viene de tests
+  legacy). Si necesitas `;` como separador entre colores
+  explícitamente (p.ej. `--row-N-color` en `alaja table`), usa
+  `parse_cell_list/1`.
 
   ## Ejemplos
 
       iex> Color.parse_list("rgb:255,0,0|theme:primary")
       {:ok, [{255, 0, 0}, {_, _, _}]}
-
-      iex> Color.parse_list("hex:#ff0000;rgb:0,255,0;theme:primary")
-      {:ok, [{255, 0, 0}, {0, 255, 0}, {_, _, _}]}
   """
   @spec parse_list(String.t() | nil) ::
           {:ok, [{0..255, 0..255, 0..255}]} | {:error, String.t()} | nil
   def parse_list(nil), do: nil
 
   def parse_list(str) when is_binary(str) do
-    # List separator is `|` or `;`. The semicolon form is what
-    # `--row-N-color` callers use because `;` is already the cell
-    # separator elsewhere in the CLI; accepting it here means you can
-    # do `--row-1-color "hex:#ff0000;rgb:0,255,0;theme:primary"` and
-    # have each cell coloured independently.
+    # List separator is `|`. The `;` form is intentionally NOT
+    # accepted here because `;` is also the separator used inside
+    # `rgb:255;0;0` style code values in legacy tests/inputs, and
+    # accepting it globally would silently mis-parse them.
     #
-    # We strip the `;` form by first splitting on `|`, then on `;`, so
-    # `--rows-color "hex:#ff0000|theme:primary"` still works as before.
+    # For cellwise colour lists (one RGB per row-N cell, where `;`
+    # matches the cell delimiter already used by `alaja table
+    # --rows`), use `parse_cell_list/1` below.
     str
     |> String.split("|", trim: true)
-    |> Enum.flat_map(fn part -> String.split(part, ";", trim: true) end)
     |> Enum.map(&String.trim/1)
     |> Enum.reject(&(&1 == ""))
     |> parse_each()
@@ -172,6 +171,33 @@ defmodule Alaja.CLI.Color do
   end
 
   def parse_list_or_nil(_), do: nil
+
+  @doc """
+  Cellwise colour list — accepts `|` and `;` as separators.
+
+  Use this from contexts where `;` is already the cell delimiter on
+  the caller's side (e.g. `alaja table --row-N-color "x;y;z"`), so
+  the same syntax lines up with `--rows` and `--row-1-color`. For
+  generic colour lists (e.g. `--headers-color`), stick with
+  `parse_list/1`, which only accepts `|`.
+
+  Returns `{:ok, [rgb, ...]}` on success, `{:error, msg}` if any
+  chunk fails to parse, or `nil` for nil input.
+  """
+  @spec parse_cell_list(String.t() | nil) ::
+          {:ok, [{0..255, 0..255, 0..255}]} | {:error, String.t()} | nil
+  def parse_cell_list(nil), do: nil
+
+  def parse_cell_list(str) when is_binary(str) do
+    str
+    |> String.split("|", trim: true)
+    |> Enum.flat_map(fn part -> String.split(part, ";", trim: true) end)
+    |> Enum.map(&String.trim/1)
+    |> Enum.reject(&(&1 == ""))
+    |> parse_each()
+  end
+
+  def parse_cell_list(_), do: nil
 
   @doc false
   def normalize_hex("hex", code), do: String.trim_leading(code, "#")

@@ -54,3 +54,4 @@ Thumbs.db
 # --- Dialyzer PLTs ---
 /priv/plts/
 graphify-out/
+.tool-versions

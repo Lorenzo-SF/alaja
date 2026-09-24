@@ -117,9 +117,9 @@ defmodule Alaja.Printer.Interactive do
   end
 
   # Keys that move the cursor through the option list: `:up`/`:down`
-# (arrow keys) plus vim-style `k`/`j`. Mapping them as a single class
-# keeps the dispatch `case` below within credo's `--strict` complexity
-# limit (≤ 9 branches).
+  # (arrow keys) plus vim-style `k`/`j`. Mapping them as a single class
+  # keeps the dispatch `case` below within credo's `--strict` complexity
+  # limit (≤ 9 branches).
   @nav_keys [:up, :down, "k", "j"]
 
   defp arrow_loop(text, numbered, active, color, align) do

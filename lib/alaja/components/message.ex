@@ -33,6 +33,7 @@ defmodule Alaja.Components.Message do
   """
 
   alias Alaja.Buffer
+  alias Alaja.Cell
   alias Alaja.Structures.{ChunkText, MessageInfo}
 
   @doc """
@@ -80,7 +81,8 @@ defmodule Alaja.Components.Message do
     * `:addline` — extra text printed below the message
   """
   @spec render(String.t(), atom(), keyword() | map()) :: Buffer.t()
-  def render(text, type, opts \\ []) when is_binary(text) and is_atom(type) and (is_list(opts) or is_map(opts)) do
+  def render(text, type, opts \\ [])
+      when is_binary(text) and is_atom(type) and (is_list(opts) or is_map(opts)) do
     opts_map = if is_list(opts), do: Map.new(opts), else: opts
     fg = resolve_color(Map.get(opts_map, :color)) || type_fg(type)
 
@@ -172,17 +174,53 @@ defmodule Alaja.Components.Message do
 
   defp write_colored(buffer, x, y, text, chunk) do
     fg = resolve_chunk_fg(chunk)
+    effects = resolve_chunk_effects(chunk)
 
     text
     |> String.graphemes()
     |> Enum.with_index()
     |> Enum.reduce(buffer, fn {char, idx}, buf ->
       if x + idx < buf.width do
-        Buffer.put(buf, x + idx, y, char, fg)
+        # Use update_cell with a Cell carrying effects so the printer
+        # later emits bold/italic/underline SGR codes. Buffer.put/6
+        # doesn't have an effects slot, hence the explicit Cell path.
+        cell = Cell.new(char, fg, nil, effects: effects)
+        Buffer.update_cell(buf, x + idx, y, cell)
       else
         buf
       end
     end)
+  end
+
+  # `ChunkText.effects` may be a list of atoms (the legacy CLI shape)
+  # or an `%EffectInfo{}` struct (used by the rest of the codebase).
+  # Normalise both into a plain list of atoms so Cell.new can take it.
+  defp resolve_chunk_effects(%ChunkText{effects: effects}) when is_list(effects), do: effects
+
+  defp resolve_chunk_effects(%ChunkText{effects: %Alaja.Structures.EffectInfo{} = ei}) do
+    ei
+    |> Alaja.Structures.EffectInfo.to_ansi()
+    |> case do
+      "" -> []
+      _ -> effects_from_struct(ei)
+    end
+  end
+
+  defp resolve_chunk_effects(_), do: []
+
+  defp effects_from_struct(%Alaja.Structures.EffectInfo{} = ei) do
+    [
+      {:bold, :bold},
+      {:dim, :dim},
+      {:italic, :italic},
+      {:underline, :underline},
+      {:blink, :blink},
+      {:reverse, :reverse},
+      {:invert, :invert},
+      {:hidden, :hidden},
+      {:strikethrough, :strikethrough}
+    ]
+    |> Enum.flat_map(fn {field, atom} -> if Map.get(ei, field), do: [atom], else: [] end)
   end
 
   defp resolve_chunk_fg(%ChunkText{color: nil}), do: nil

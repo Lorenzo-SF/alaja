@@ -2,6 +2,24 @@ defmodule Alaja.CellTest do
   use ExUnit.Case
   alias Alaja.Cell
 
+  # `Cell.to_ansi/1` short-circuits to plain text when
+  # `Alaja.Config.color_enabled?/0` is false. Pin ANSI on so the
+  # tests that assert against ANSI prefixes (`38;2;...`, `48;2;...`)
+  # are independent of any state another suite has leaked.
+  setup do
+    original_no_color = Application.get_env(:alaja, :no_color)
+    original_ansi = Application.get_env(:elixir, :ansi_enabled)
+    Application.put_env(:alaja, :no_color, false)
+    Application.put_env(:elixir, :ansi_enabled, true)
+
+    on_exit(fn ->
+      Application.put_env(:alaja, :no_color, original_no_color)
+      Application.put_env(:elixir, :ansi_enabled, original_ansi)
+    end)
+
+    :ok
+  end
+
   describe "empty" do
     test "creates an empty cell" do
       cell = Cell.empty()

@@ -170,7 +170,10 @@ defmodule Alaja.CLI.Commands.Theme do
         IO.puts(:stderr, "  No active theme to display.")
 
       :missing ->
-        IO.puts(:stderr, "  Active theme has no colour data. Run `alaja theme init` then re-activate.")
+        IO.puts(
+          :stderr,
+          "  Active theme has no colour data. Run `alaja theme init` then re-activate."
+        )
 
       colors ->
         print_color_table(colors, show_keys(nil, colors))

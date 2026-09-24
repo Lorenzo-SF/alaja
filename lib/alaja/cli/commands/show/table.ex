@@ -238,31 +238,76 @@ defmodule Alaja.CLI.Commands.Show.Table do
     end)
   end
 
+  # Suffixes a `rows_<N>_<suffix>` key may carry. Used by
+  # per_row_key?/1 to decide which CLI opt keys are per-row
+  # candidates before handing each one to a type-specific parser.
+  @row_per_row_suffixes [
+    "_color",
+    "_align",
+    "_effects",
+    "_bold",
+    "_italic",
+    "_underline",
+    "_dim",
+    "_blink",
+    "_reverse",
+    "_hidden",
+    "_strikethrough"
+  ]
+
+  # Accepts `--row-N-<X>` where N is a positive integer and `<X>` is
+  # at least one character. Covers colour/align/effects plus the new
+  # per-cell effect-name masks (bold, italic, ...).
   defp row_flag?([flag, _val]) when is_binary(flag) do
-    String.starts_with?(flag, "--row-") and
-      (String.ends_with?(flag, "-color") or
-         String.ends_with?(flag, "-align") or
-         String.ends_with?(flag, "-effect"))
+    valid_row_flag?(flag)
   end
 
   defp row_flag?(_), do: false
+
+  defp valid_row_flag?("--row-" <> rest), do: row_num_suffix_valid?(rest)
+  defp valid_row_flag?(_), do: false
+
+  defp row_num_suffix_valid?(rest) do
+    case String.split(rest, "-", parts: 2) do
+      [num, suffix] -> positive_int?(num) and suffix != ""
+      _ -> false
+    end
+  end
+
+  defp positive_int?(num_str) do
+    case Integer.parse(num_str) do
+      {n, ""} when n > 0 -> true
+      _ -> false
+    end
+  end
+
+  # Per-row flag suffixes the parser recognises explicitly:
+  #   `color`, `align`, `effects` (and the legacy singular `effect`).
+  # Anything else is treated as an effect-name mask — `--row-N-bold`,
+  # `--row-N-italic`, `--row-N-underline`, ... — and stored under
+  # `rows_N_<name>`. The Builder picks those up per-cell.
+  @row_known_suffixes ~w(color align effects effect)
 
   defp parse_row_flag([flag, val]) do
     rest = String.trim_leading(flag, "--row-")
     parts = String.split(rest, "-", parts: 2)
 
-    with [row_str, suffix] when suffix in ~w(color align effects effect) <- parts,
+    with [row_str, suffix] <- parts,
          {row_num, ""} when row_num > 0 <- Integer.parse(row_str) do
-      # Normalise singular `effect` to plural `effects` so the
-      # backend's `_effects` matcher picks it up.
-      normalised = if suffix == "effect", do: "effects", else: suffix
+      normalised =
+        cond do
+          suffix == "effect" -> "effects"
+          suffix in @row_known_suffixes -> suffix
+          true -> suffix
+        end
+
       build_per_row_key(row_num - 1, normalised, val)
     else
       _ -> nil
     end
   end
 
-  # Atoms are deterministic: bounded row numbers (0..99 max) + 3 known suffixes.
+  # Atoms are deterministic: bounded row numbers (0..99 max) + suffix.
   # Using String.to_atom/1 is safe here — cannot exhaust the atom table.
   defp build_per_row_key(backend_row, suffix, val),
     # credo:disable-for-next-line Credo.Check.Warning.UnsafeToAtom
@@ -272,35 +317,66 @@ defmodule Alaja.CLI.Commands.Show.Table do
   @spec build_per_row_opts(keyword()) :: keyword()
   defp build_per_row_opts(opts) do
     opts
-    |> Enum.filter(fn {key, _val} ->
-      key_str = Atom.to_string(key)
-
-      String.starts_with?(key_str, "rows_") and
-        (String.ends_with?(key_str, "_color") or
-           String.ends_with?(key_str, "_align") or
-           String.ends_with?(key_str, "_effects"))
-    end)
-    |> Enum.map(fn
-      {key, val} when is_binary(val) ->
-        cond do
-          String.ends_with?(Atom.to_string(key), "_color") ->
-            {key, Base.parse_color_list(val)}
-
-          String.ends_with?(Atom.to_string(key), "_align") ->
-            {key, Base.parse_align_list(val)}
-
-          String.ends_with?(Atom.to_string(key), "_effects") ->
-            {key, Base.parse_effects_list(val)}
-
-          true ->
-            {key, val}
-        end
-
-      {key, val} ->
-        {key, val}
-    end)
+    |> Enum.filter(&per_row_opt?/1)
+    |> Enum.map(&parse_per_row_value/1)
     |> Enum.reject(fn {_, v} -> is_nil(v) end)
   end
+
+  # A per-row opt key has the shape `rows_<N>_<suffix>`. The suffix
+  # is one of the known keys (color / align / effects) or one of the
+  # effects we accept as a per-cell mask (bold / italic / ...).
+  defp per_row_opt?({key, _val}) do
+    key_str = Atom.to_string(key)
+    per_row_key?(key_str)
+  end
+
+  defp per_row_key?(key_str) do
+    String.starts_with?(key_str, "rows_") and per_row_suffix?(key_str)
+  end
+
+  defp per_row_suffix?(key_str) do
+    @row_per_row_suffixes
+    |> Enum.any?(fn suffix -> String.ends_with?(key_str, suffix) end)
+  end
+
+  defp parse_per_row_value({key, val}) when is_binary(val) do
+    {key, parse_value_for_key(key, val)}
+  end
+
+  defp parse_per_row_value(pair), do: pair
+
+  defp parse_value_for_key(key, val) do
+    cond do
+      color_key?(key) -> Base.parse_cell_color_list(val)
+      String.ends_with?(Atom.to_string(key), "_align") -> Base.parse_align_list(val)
+      String.ends_with?(Atom.to_string(key), "_effects") -> Base.parse_effects_list(val)
+      true -> parse_boolean_mask(val)
+    end
+  end
+
+  defp color_key?(key), do: String.ends_with?(Atom.to_string(key), "_color")
+
+  # Parse a `;`-separated list of `true`/`false`/`1`/`0` values into
+  # a list of booleans. Anything that doesn't parse becomes `false`
+  # so a typo silently opts the cell out of the effect instead of
+  # aborting the whole command.
+  defp parse_boolean_mask(nil), do: nil
+
+  defp parse_boolean_mask(str) when is_binary(str) do
+    str
+    |> String.split(";", trim: true)
+    |> Enum.map(&String.trim/1)
+    |> Enum.reject(&(&1 == ""))
+    |> Enum.map(&truthy?/1)
+  end
+
+  defp parse_boolean_mask(_), do: nil
+
+  defp truthy?("true"), do: true
+  defp truthy?("1"), do: true
+  defp truthy?("yes"), do: true
+  defp truthy?("on"), do: true
+  defp truthy?(_), do: false
 
   @spec table_align(keyword(), GlobalOpts.t()) :: atom()
   defp table_align(opts, global) do

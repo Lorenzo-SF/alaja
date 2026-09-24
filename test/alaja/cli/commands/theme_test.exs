@@ -188,7 +188,12 @@ defmodule Alaja.CLI.Commands.ThemeTest do
       # table — required first, customs after, alphabetically.
       with_themes_dir(fn ->
         base = dracula_palette()
-        extra = %{"surface0" => {54, 58, 79}, "surface1" => {73, 77, 100}, "surface2" => {91, 96, 120}}
+
+        extra = %{
+          "surface0" => {54, 58, 79},
+          "surface1" => {73, 77, 100},
+          "surface2" => {91, 96, 120}
+        }
 
         write_theme_json("catppuccin_macchiato", Map.merge(base, extra))
 
@@ -241,8 +246,10 @@ defmodule Alaja.CLI.Commands.ThemeTest do
         end
 
         # Lossless wire codes are emitted for the parseable ones.
-        assert output =~ "rgb:224,187,228"  # maroon
-        assert output =~ "rgb:30,194,178"   # teal
+        # maroon
+        assert output =~ "rgb:224,187,228"
+        # teal
+        assert output =~ "rgb:30,194,178"
 
         # The invalid value's row is still drawn (and its cells are
         # the dim `-` placeholder) rather than crashing or being
@@ -256,6 +263,7 @@ defmodule Alaja.CLI.Commands.ThemeTest do
         # Every code-format column in that row must be the dim
         # placeholder, not garbage.
         broken_placeholders = Regex.scan(~r/\e\[2m-\e\[0m/, broken_line)
+
         assert length(broken_placeholders) >= 8,
                "expected dim '-' placeholders for broken_key, got #{inspect(broken_line)}"
       end)
@@ -285,6 +293,7 @@ defmodule Alaja.CLI.Commands.ThemeTest do
           # Every code-format column after the swatch should be the
           # dim `-` placeholder.
           placeholders = Regex.scan(~r/\e\[2m-\e\[0m/, line)
+
           assert length(placeholders) >= 8,
                  "expected at least 8 dim '-' cells in row for #{key}, got #{length(placeholders)}: #{inspect(line)}"
         end

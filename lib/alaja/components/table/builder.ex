@@ -86,6 +86,31 @@ defmodule Alaja.Components.Table.Builder do
     }
   end
 
+  # Effects that the table component actually understands. Used both
+  # for the legacy `--rows-effects` comma-separated list and for the
+  # per-cell masks (`--row-N-bold`, `--row-N-italic`, ...).
+  #
+  # We declare each effect atom at compile time via `Module.put_attribute/3`
+  # so `String.to_existing_atom/1` succeeds later (atoms that
+  # already exist bypass credo `UnsafeToAtom`). `:effects`, `:color`,
+  # and `:align` are pre-created for the same reason — they're
+  # used as `opt_type` discriminators in `extract_row_specific_opts/1`.
+  @known_effect_names ~w(bold italic underline dim blink reverse hidden strikethrough)
+
+  @known_effects Enum.map(@known_effect_names, fn name ->
+                   # credo:disable-for-next-line Credo.Check.Warning.UnsafeToAtom
+                   String.to_atom(name)
+                 end)
+
+  # Make sure the opt_type discriminators exist as atoms BEFORE we
+  # call `String.to_existing_atom/1` from inside the parser.
+  # credo:disable-for-next-line Credo.Check.Warning.UnsafeToAtom
+  _ = String.to_atom("effects")
+  # credo:disable-for-next-line Credo.Check.Warning.UnsafeToAtom
+  _ = String.to_atom("color")
+  # credo:disable-for-next-line Credo.Check.Warning.UnsafeToAtom
+  _ = String.to_atom("align")
+
   @spec extract_row_specific_opts(keyword()) :: map()
   def extract_row_specific_opts(opts) do
     opts
@@ -95,7 +120,8 @@ defmodule Alaja.Components.Table.Builder do
       String.starts_with?(key_string, "rows") and
         (String.contains?(key_string, "color") or
            String.contains?(key_string, "effects") or
-           String.contains?(key_string, "align"))
+           String.contains?(key_string, "align") or
+           effect_name_in_key?(key_string))
     end)
     |> Enum.map(fn {key, value} ->
       key_string = Atom.to_string(key) |> String.replace("-", "_")
@@ -117,7 +143,25 @@ defmodule Alaja.Components.Table.Builder do
     |> Enum.group_by(fn {row_num, _, _} -> row_num end)
   end
 
-  @spec get_row_opts(integer(), map(), term(), list(), atom()) :: {term(), list(), atom()}
+  defp effect_name_in_key?(key_string) do
+    suffix_str = key_string |> String.split("_") |> List.last()
+
+    # `;` is already handled by the upstream filter; here we only need
+    # to recognise effect-name suffixes. `to_existing_atom/1` is safe:
+    # every effect atom was pre-created in `@known_effects` at module
+    # load time, so a misspelt suffix raises and falls through.
+    if Enum.any?(@known_effects, &(Atom.to_string(&1) == suffix_str)) do
+      true
+    else
+      try do
+        String.to_existing_atom(suffix_str) in @known_effects
+      rescue
+        ArgumentError -> false
+      end
+    end
+  end
+
+  @spec get_row_opts(integer(), map(), term(), list(), atom()) :: {term(), list(), atom(), map()}
   def get_row_opts(row_index, row_specific_opts, default_color, default_effects, default_align) do
     specific_opts = Map.get(row_specific_opts, row_index, [])
 
@@ -139,7 +183,41 @@ defmodule Alaja.Components.Table.Builder do
         _ -> default_align
       end
 
-    {color, effects, align}
+    effect_masks =
+      specific_opts
+      |> Enum.filter(fn {_, opt_type, _} -> opt_type in @known_effects end)
+      |> Map.new(fn {_, opt_type, mask} -> {opt_type, mask} end)
+
+    {color, effects, align, effect_masks}
+  end
+
+  # Apply per-cell effect masks (e.g. --row-1-bold "true;false;true")
+  # to the row-wide effect list. A cell at index `idx` keeps an
+  # effect only if the mask for that effect (if any) is truthy at
+  # index `idx`. Cells beyond the mask length keep the effect (the
+  # mask is short by design — the user only lists the cells they
+  # want to opt out of).
+  @spec apply_effect_mask(list(atom()), non_neg_integer(), %{optional(atom()) => [boolean()]}) ::
+          list(atom())
+  def apply_effect_mask(effects, cell_index, masks) when is_map(masks) do
+    Enum.filter(effects, &effect_kept?(&1, cell_index, masks))
+  end
+
+  def apply_effect_mask(effects, _cell_index, _masks), do: effects
+
+  defp effect_kept?(effect, cell_index, masks) do
+    case Map.get(masks, effect) do
+      mask when is_list(mask) -> mask_allows?(mask, cell_index)
+      _ -> true
+    end
+  end
+
+  defp mask_allows?(mask, cell_index) do
+    case Enum.at(mask, cell_index) do
+      nil -> true
+      truthy when is_boolean(truthy) -> truthy
+      _ -> true
+    end
   end
 
   @spec print_with_headers(list() | nil, list(), keyword()) :: :ok

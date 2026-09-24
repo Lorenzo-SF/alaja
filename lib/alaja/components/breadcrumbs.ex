@@ -122,7 +122,7 @@ defmodule Alaja.Components.Breadcrumbs do
     end
   end
 
-defp color_for(idx, last_idx, ctx) do
+  defp color_for(idx, last_idx, ctx) do
     if idx == last_idx do
       Enum.at(ctx.current_colors, idx, Enum.at(ctx.current_colors, 0))
     else

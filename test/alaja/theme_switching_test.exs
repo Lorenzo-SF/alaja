@@ -43,10 +43,30 @@ defmodule Alaja.ThemeSwitchingTest do
     # Install all built-in templates into the sandbox dir.
     Enum.each(Theme.templates(), &Theme.install_template/1)
 
+    # These tests assert on raw `\e[38;2;…m` escapes captured from
+    # `print_success/1` / `print_error/1`. The renderer emits plain text
+    # whenever `Alaja.Config.color_enabled?/0` is false, so any earlier
+    # suite that leaves `:no_color` / `NO_COLOR` behind makes `Regex.run/2`
+    # return nil and the destructure blow up. Pin ANSI on here, same as
+    # `Alaja.SnapshotTest`.
+    original_no_color = Application.get_env(:alaja, :no_color)
+    original_ansi = Application.get_env(:elixir, :ansi_enabled)
+    original_no_color_env = System.get_env("NO_COLOR")
+    Application.put_env(:alaja, :no_color, false)
+    Application.put_env(:elixir, :ansi_enabled, true)
+    System.delete_env("NO_COLOR")
+
     on_exit(fn ->
       File.rm_rf!(sandbox)
       System.delete_env("ALAJA_THEMES_PATH")
       System.delete_env("ALAJA_CONFIG_PATH")
+
+      Application.put_env(:alaja, :no_color, original_no_color)
+      Application.put_env(:elixir, :ansi_enabled, original_ansi)
+
+      if original_no_color_env == nil,
+        do: System.delete_env("NO_COLOR"),
+        else: System.put_env("NO_COLOR", original_no_color_env)
     end)
 
     :ok

@@ -4,11 +4,15 @@ defmodule Alaja.Components.Table.Theme do
   alias Alaja.Structures.ChunkText
 
   @spec render_formatted(String.t(), term(), list()) :: String.t()
-  def render_formatted(text, nil, _effects), do: text
+  # No color, no effects: plain text path (cheap; no chunk build).
+  def render_formatted(text, nil, effects) when effects in [nil, []], do: text
 
+  # Color or effects present: go through ChunkText so we emit ANSI codes.
+  # Without this clause, an effect-only cell (e.g. `--row-N-effects bold`
+  # without any `--row-N-color`) would silently drop the bold attribute.
   def render_formatted(text, color, effects) do
     if Alaja.Config.color_enabled?() do
-      color_info = Pote.ColorInfo.new(color)
+      color_info = if color, do: Pote.ColorInfo.new(color)
 
       ChunkText.render(ChunkText.new(text, color: color_info, effects: effects))
     else
