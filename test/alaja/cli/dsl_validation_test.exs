@@ -21,33 +21,34 @@ defmodule Alaja.CLI.DSLValidationTest do
 
   use ExUnit.Case, async: false
 
-  # Run `fun.()` inside a `Task` and surface the exit reason (or
-  # crash) as a tuple. Returns:
+  # Run `fun.()` inside a `Task` and surface the result as a tuple.
+  # Returns:
   #
   #   `{:ok, result}`      — fun returned normally
   #   `{:exit, reason}`    — fun called `exit/1` with `reason`
-  #   `{:crash, kind, reason}` — fun raised something else
   #   `:timeout`           — fun didn't return within 2 s
+  #
+  # We use two channels: a `:done` message for the happy path and
+  # the `{:EXIT, pid, reason}` from `Process.flag(:trap_exit, true)`
+  # for the error path. We don't wrap the task body in `try/catch`
+  # because doing so would convert `exit/1` into a normal return —
+  # we want the task to actually die so the trap_exit channel
+  # surfaces the reason.
   defp run_in_task(test_pid, fun) do
     parent = test_pid
 
     task =
       Task.async(fn ->
-        try do
-          Process.put(:alaja_test_pid, parent)
-          result = fun.()
-          send(test_pid, {:done, :ok, result})
-        catch
-          :exit, reason -> send(test_pid, {:done, {:exit, reason}, nil})
-          kind, reason -> send(test_pid, {:done, {:crash, kind, reason}, nil})
-        end
+        Process.put(:alaja_test_pid, parent)
+        result = fun.()
+        send(test_pid, {:done, result})
       end)
 
     Process.flag(:trap_exit, true)
 
     result =
       receive do
-        {:done, status, value} -> {status, value}
+        {:done, value} -> {:ok, value}
         {:EXIT, ^task, reason} -> {:exit, reason}
       after
         2_000 -> :timeout
