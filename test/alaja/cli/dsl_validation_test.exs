@@ -88,6 +88,13 @@ defmodule Alaja.CLI.DSLValidationTest do
     end
 
     test "supplied required flag dispatches to the handler" do
+      # Capture the test pid BEFORE the task spawns so the fixture's
+      # `capture/1` callback (running in the task) can send its message
+      # to the test process. If we used `self()` inside the task,
+      # `self()` would be the task pid and the message would be lost
+      # when the task exits.
+      test_pid = self()
+
       module = compile_cli("req2", """
         command "deploy", "deploy something" do
           flag :target, :string, required: true
@@ -95,7 +102,7 @@ defmodule Alaja.CLI.DSLValidationTest do
         end
 
         def capture(opts) do
-          send(self(), {:captured, opts})
+          send(#{inspect(test_pid)}, {:captured, opts})
           :ok
         end
       """)
@@ -175,6 +182,8 @@ defmodule Alaja.CLI.DSLValidationTest do
     end
 
     test "positional arguments still pass through unchanged" do
+      test_pid = self()
+
       module = compile_cli("pos", """
         command "deploy", "deploy something" do
           argument :name, :string, required: true
@@ -182,7 +191,7 @@ defmodule Alaja.CLI.DSLValidationTest do
         end
 
         def capture(opts) do
-          send(self(), {:captured, opts})
+          send(#{inspect(test_pid)}, {:captured, opts})
           :ok
         end
       """)
