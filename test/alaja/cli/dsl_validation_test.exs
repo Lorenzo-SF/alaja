@@ -13,15 +13,10 @@ defmodule Alaja.CLI.DSLValidationTest do
   reason via the trap_exit channel — no IO buffer tricks needed
   because the assertion is on the *status*, not the rendered text.
 
-  To assert on the captured opts flowing into the handler, we put the
-  test pid into the process dictionary before the task spawns and read
-  it back inside the compiled fixture via `Process.get/1`. Process
-  dict entries don't survive across a `Task.async/1` boundary by
-  default, but the fixture is compiled inside the test process's
-  world (the closure on `__ENV__` we pass to `Code.eval_string/3`
-  keeps the dict live), and the `main/1` invocation runs in a child
-  process whose parent (the test) has already populated the dict
-  for the child's spawned compile session.
+  To assert on the captured opts flowing into the handler, the test
+  stashes its own pid in the process dictionary and the fixture's
+  `capture/1` callback reads it via `Process.get/1` and sends to it.
+  Same pattern as `test/alaja/cli/definition_test.exs`.
   """
 
   use ExUnit.Case, async: false
@@ -33,22 +28,18 @@ defmodule Alaja.CLI.DSLValidationTest do
   #   `{:exit, reason}`    — fun called `exit/1` with `reason`
   #   `{:crash, kind, reason}` — fun raised something else
   #   `:timeout`           — fun didn't return within 2 s
-  #
-  # The task captures the test pid via `Process.put(:alaja_test_pid,
-  # parent())` BEFORE invoking `fun.()` so the fixture's compiled
-  # callback can read it via `Process.get/1`.
-  defp run_in_task(fun) do
-    parent = self()
+  defp run_in_task(test_pid, fun) do
+    parent = test_pid
 
     task =
       Task.async(fn ->
         try do
-          Process.put(:alaja_test_pid, parent())
+          Process.put(:alaja_test_pid, parent)
           result = fun.()
-          send(parent, {:done, :ok, result})
+          send(test_pid, {:done, :ok, result})
         catch
-          :exit, reason -> send(parent, {:done, {:exit, reason}, nil})
-          kind, reason -> send(parent, {:done, {:crash, kind, reason}, nil})
+          :exit, reason -> send(test_pid, {:done, {:exit, reason}, nil})
+          kind, reason -> send(test_pid, {:done, {:crash, kind, reason}, nil})
         end
       end)
 
@@ -66,10 +57,8 @@ defmodule Alaja.CLI.DSLValidationTest do
     result
   end
 
-  # Compile a `Alaja.CLI.Definition` user in-process with `Code.eval_string/3`
-  # so we can inject `Process.put(:alaja_test_pid, ...)` values from the
-  # calling test (and read them back from inside the compiled fixture via
-  # `Process.get(:alaja_test_pid)`).
+  # Compile an `Alaja.CLI.Definition` user in-process via
+  # `Code.eval_string/3`.
   defp compile_cli(label, dsl_body) do
     # Each test gets a fresh module name. The atom is built at
     # runtime via `String.to_atom/1`, but we disable the credo check
@@ -102,16 +91,10 @@ defmodule Alaja.CLI.DSLValidationTest do
       """)
 
       assert {:exit, {:shutdown, 1}} =
-               run_in_task(fn -> apply(module, :main, [["deploy"]]) end)
+               run_in_task(self(), fn -> apply(module, :main, [["deploy"]]) end)
     end
 
     test "supplied required flag dispatches to the handler" do
-      # Stash the test pid in the process dictionary INSIDE the task so
-      # the fixture's `capture/1` callback (running in the same task's
-      # process tree) can read it via `Process.get/1`. Process dict
-      # entries are per-process, so we have to set it from the same
-      # process that runs `main/1`. Same pattern as the existing
-      # `definition_test.exs` (line 19).
       capture_callback = """
         def capture(opts) do
           case Process.get(:alaja_test_pid) do
@@ -132,8 +115,7 @@ defmodule Alaja.CLI.DSLValidationTest do
       """)
 
       assert {:ok, _} =
-               run_in_task(fn ->
-                 Process.put(:alaja_test_pid, parent())
+               run_in_task(self(), fn ->
                  apply(module, :main, [["deploy", "--target", "prod"]])
                end)
 
@@ -154,15 +136,12 @@ defmodule Alaja.CLI.DSLValidationTest do
       """)
 
       assert {:exit, {:shutdown, 1}} =
-               run_in_task(fn ->
+               run_in_task(self(), fn ->
                  apply(module, :main, [["deploy", "--comand", "x"]])
                end)
     end
 
     test "typo'd flag error message includes the suggestion" do
-      # Single test that exercises the stderr render path. Process.flag
-      # :trap_exit + try/catch :exit survives the IO buffer flush and
-      # lets us read what dispatch_main wrote to stderr before exiting.
       module = compile_cli("unk1msg", """
         command "deploy", "deploy something" do
           flag :command, :string, required: true
@@ -199,7 +178,7 @@ defmodule Alaja.CLI.DSLValidationTest do
       """)
 
       assert {:exit, {:shutdown, 1}} =
-               run_in_task(fn ->
+               run_in_task(self(), fn ->
                  apply(module, :main, [["deploy", "--totally-different-flag", "x"]])
                end)
     end
@@ -225,8 +204,7 @@ defmodule Alaja.CLI.DSLValidationTest do
       """)
 
       assert {:ok, _} =
-               run_in_task(fn ->
-                 Process.put(:alaja_test_pid, parent())
+               run_in_task(self(), fn ->
                  apply(module, :main, [["deploy", "production"]])
                end)
 
