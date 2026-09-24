@@ -449,8 +449,13 @@ defmodule Alaja.CLI.Definition do
         dispatch_with_subcommands(cmd, rest, parent_flags)
 
       cmd ->
-        with {:ok, flags, remaining} <- parse_flags(cmd.flags, rest) do
-          execute(cmd, flags, remaining, parent_flags)
+        case parse_flags(cmd.flags, rest) do
+          {:ok, flags, remaining} ->
+            execute(cmd, flags, remaining, parent_flags)
+
+          {:error, msg} ->
+            IO.puts(:stderr, msg)
+            exit({:shutdown, 1})
         end
     end
   end
@@ -475,8 +480,13 @@ defmodule Alaja.CLI.Definition do
   end
 
   defp dispatch_with_subcommands(%{subcommands: subs} = cmd, rest, parent_flags) do
-    with {:ok, flags, remaining} <- parse_flags(cmd.flags, rest) do
-      handle_remaining(subs, cmd, flags, remaining, parent_flags)
+    case parse_flags(cmd.flags, rest) do
+      {:ok, flags, remaining} ->
+        handle_remaining(subs, cmd, flags, remaining, parent_flags)
+
+      {:error, msg} ->
+        IO.puts(:stderr, msg)
+        exit({:shutdown, 1})
     end
   end
 
@@ -503,6 +513,21 @@ defmodule Alaja.CLI.Definition do
   defp parse_flags(flags, args, acc) do
     matched = match_flag(flags, args)
     parse_matched_flag(matched, flags, args, acc)
+  end
+
+  # When `match_flag/2` returns nil, the next arg is either a known
+  # global flag (handled outside this code path), a positional, or an
+  # unknown flag (a typo or a flag from another tool). We refuse to
+  # silently drop unknown `--xxx` flags because that turns typos
+  # into silent "nothing happened" failures — `arrea run --comand "x"`
+  # would parse the typo as positional, miss the real `--command`,
+  # and crash deep inside the runner instead of saying "did you
+  # mean --command?".
+  defp parse_matched_flag(nil, flags, [arg | _] = args, acc) when is_binary(arg) do
+    case reject_unknown_flag(flags, arg) do
+      :ok -> {:ok, acc, args}
+      {:error, _} = err -> err
+    end
   end
 
   defp parse_matched_flag(nil, _flags, args, acc), do: {:ok, acc, args}
@@ -551,6 +576,54 @@ defmodule Alaja.CLI.Definition do
       String.starts_with?(arg, full) or
         (short && String.starts_with?(arg, short))
     end)
+  end
+
+  # Detect a flag-like argument that no known flag matches. We
+  # only flag strings that look like flags (`-x`, `--xxx`, with or
+  # without `=value`). Anything else is a positional and passes
+  # through to `parse_arguments` as before.
+  defp reject_unknown_flag(flags, arg) do
+    cond do
+      arg in ["--", "-"] ->
+        :ok
+
+      String.starts_with?(arg, "-") ->
+        bare = arg |> String.trim_leading("-") |> String.split("=") |> hd()
+        names = Enum.map(flags, & &1.name)
+        {:error, unknown_flag_message(arg, bare, names)}
+
+      true ->
+        :ok
+    end
+  end
+
+  defp unknown_flag_message(arg, bare, names) do
+    suggestions = suggest_bare(bare, names)
+    base = "Error: unknown flag '#{arg}'"
+
+    if suggestions == [] do
+      base
+    else
+      base <> "\n  Did you mean? " <> Enum.map_join(suggestions, ", ", &"--#{&1}")
+    end
+  end
+
+  # Suggest similar flag names from the current command's flag set.
+  # Same Jaro distance heuristic as `Alaja.CLI.ErrorHandler.suggest/2`.
+  # `names` here is a list of flag atoms, so we coerce each one to a
+  # binary before scoring against `bare`.
+  defp suggest_bare(bare, names) do
+    bare_lc = String.downcase(bare)
+
+    names
+    |> Enum.map(&to_string/1)
+    |> Enum.filter(fn name ->
+      String.jaro_distance(bare_lc, String.downcase(name)) > 0.6
+    end)
+    |> Enum.sort_by(fn name ->
+      -String.jaro_distance(bare_lc, String.downcase(name))
+    end)
+    |> Enum.take(3)
   end
 
   defp parse_flag_value(arg, rest) do
@@ -769,15 +842,32 @@ defmodule Alaja.CLI.Definition do
     end)
   end
 
-  # Requirements: if flag :a declares requires [:b], then :b
-  # must also be present in flag_values.
+  # Two checks: (1) a flag declared `required: true` must have a
+  # non-nil value present in `flag_values`; (2) a flag declared
+  # `requires: [:a, :b]` must have every named sibling also present.
+  #
+  # `Map.has_key?/2` returns true even when the value is `nil`
+  # (which is what we get when the user did not pass the flag at
+  # all and there's no default), so we explicitly check for non-nil
+  # in case (1).
   defp find_missing_required(flags, flag_values) do
     Enum.flat_map(flags, fn f ->
-      if Map.has_key?(flag_values, f.name) and f.requires != [] do
-        Enum.filter(f.requires, &(not Map.has_key?(flag_values, &1)))
-      else
-        []
-      end
+      cross_requires =
+        if Map.has_key?(flag_values, f.name) and f.requires != [] do
+          Enum.filter(f.requires, &(not Map.has_key?(flag_values, &1)))
+        else
+          []
+        end
+
+      direct_required =
+        if f.required and (not Map.has_key?(flag_values, f.name) or
+                             Map.get(flag_values, f.name) == nil) do
+          [f.name]
+        else
+          []
+        end
+
+      cross_requires ++ direct_required
     end)
   end
 
