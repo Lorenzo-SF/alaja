@@ -45,11 +45,12 @@ defmodule Alaja.CLI.DSLValidationTest do
       end)
 
     Process.flag(:trap_exit, true)
+    task_pid = task.pid
 
     result =
       receive do
         {:done, value} -> {:ok, value}
-        {:EXIT, ^task, reason} -> {:exit, reason}
+        {:EXIT, ^task_pid, reason} -> {:exit, reason}
       after
         2_000 -> :timeout
       end
