@@ -48,7 +48,7 @@ defmodule Alaja.CLI.DSLValidationTest do
     result =
       receive do
         {:done, status, value} -> {status, value}
-        {:EXIT, ^task, reason} -> {{:exit, reason}, nil}
+        {:EXIT, ^task, reason} -> {:exit, reason}
       after
         2_000 -> :timeout
       end
