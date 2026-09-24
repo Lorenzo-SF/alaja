@@ -33,12 +33,17 @@ defmodule Alaja.CLI.DSLValidationTest do
   #   `{:exit, reason}`    — fun called `exit/1` with `reason`
   #   `{:crash, kind, reason}` — fun raised something else
   #   `:timeout`           — fun didn't return within 2 s
+  #
+  # The task captures the test pid via `Process.put(:alaja_test_pid,
+  # parent())` BEFORE invoking `fun.()` so the fixture's compiled
+  # callback can read it via `Process.get/1`.
   defp run_in_task(fun) do
     parent = self()
 
     task =
       Task.async(fn ->
         try do
+          Process.put(:alaja_test_pid, parent())
           result = fun.()
           send(parent, {:done, :ok, result})
         catch
@@ -101,11 +106,12 @@ defmodule Alaja.CLI.DSLValidationTest do
     end
 
     test "supplied required flag dispatches to the handler" do
-      # Stash the test pid in the process dictionary BEFORE compiling
-      # the fixture, so the fixture's `capture/1` callback can read it
-      # via `Process.get/1` regardless of which process happens to be
-      # running at dispatch time. Process.put is per-process so we
-      # have to push it again from within the task that drives main/1.
+      # Stash the test pid in the process dictionary INSIDE the task so
+      # the fixture's `capture/1` callback (running in the same task's
+      # process tree) can read it via `Process.get/1`. Process dict
+      # entries are per-process, so we have to set it from the same
+      # process that runs `main/1`. Same pattern as the existing
+      # `definition_test.exs` (line 19).
       capture_callback = """
         def capture(opts) do
           case Process.get(:alaja_test_pid) do
@@ -125,13 +131,10 @@ defmodule Alaja.CLI.DSLValidationTest do
         #{capture_callback}
       """)
 
-      parent_pid = self()
-      Process.put(:alaja_test_pid, parent_pid)
-
       assert {:ok, _} =
                run_in_task(fn ->
-                 Process.put(:alaja_test_pid, unquote(parent_pid))
-                 apply(unquote(module), :main, [["deploy", "--target", "prod"]])
+                 Process.put(:alaja_test_pid, parent())
+                 apply(module, :main, [["deploy", "--target", "prod"]])
                end)
 
       assert_received {:captured, opts}
@@ -221,12 +224,10 @@ defmodule Alaja.CLI.DSLValidationTest do
         #{capture_callback}
       """)
 
-      parent_pid = self()
-
       assert {:ok, _} =
                run_in_task(fn ->
-                 Process.put(:alaja_test_pid, unquote(parent_pid))
-                 apply(unquote(module), :main, [["deploy", "production"]])
+                 Process.put(:alaja_test_pid, parent())
+                 apply(module, :main, [["deploy", "production"]])
                end)
 
       assert_received {:captured, opts}
