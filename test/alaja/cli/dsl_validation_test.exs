@@ -55,7 +55,7 @@ defmodule Alaja.CLI.DSLValidationTest do
         def noop(_opts), do: :ok
       """)
 
-      stderr = capture_stderr_during(fn -> apply(module, :dispatch_main, [["deploy"]]) end)
+      stderr = capture_stderr_during(fn -> apply(module, :main, [["deploy"]]) end)
 
       assert stderr =~ "missing required flags"
       assert stderr =~ "--target"
@@ -75,7 +75,7 @@ defmodule Alaja.CLI.DSLValidationTest do
       """)
 
       capture_stderr_during(fn ->
-        apply(module, :dispatch_main, [["deploy", "--target", "prod"]])
+        apply(module, :main, [["deploy", "--target", "prod"]])
       end)
 
       assert_received {:captured, opts}
@@ -96,7 +96,7 @@ defmodule Alaja.CLI.DSLValidationTest do
 
       stderr =
         capture_stderr_during(fn ->
-          apply(module, :dispatch_main, [["deploy", "--comand", "x"]])
+          apply(module, :main, [["deploy", "--comand", "x"]])
         end)
 
       assert stderr =~ "unknown flag '--comand'"
@@ -116,7 +116,7 @@ defmodule Alaja.CLI.DSLValidationTest do
 
       stderr =
         capture_stderr_during(fn ->
-          apply(module, :dispatch_main, [["deploy", "--totally-different-flag", "x"]])
+          apply(module, :main, [["deploy", "--totally-different-flag", "x"]])
         end)
 
       assert stderr =~ "unknown flag '--totally-different-flag'"
@@ -136,7 +136,7 @@ defmodule Alaja.CLI.DSLValidationTest do
       """)
 
       capture_stderr_during(fn ->
-        apply(module, :dispatch_main, [["deploy", "production"]])
+        apply(module, :main, [["deploy", "production"]])
       end)
 
       assert_received {:captured, opts}
