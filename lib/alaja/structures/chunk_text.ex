@@ -164,7 +164,13 @@ defmodule Alaja.Structures.ChunkText do
           {String.t(), String.t(), String.t()}
   defp render_normal_mode(color, bg_color, effects) do
     color_code = if color, do: ColorInfo.to_ansi(color), else: ""
-    bg_code = if bg_color, do: ColorInfo.to_ansi(bg_color), else: ""
+    # `ColorInfo.to_ansi/1` emits `48;…` (background) only when the
+    # struct carries `inverted: true`; without it the bg colour would be
+    # emitted as a second `38;…` foreground code and silently lost. This
+    # is what kept alert / critical / emergency flat.
+    bg_code =
+      if bg_color, do: bg_color |> ColorInfo.new(inverted: true) |> ColorInfo.to_ansi(), else: ""
+
     effects_code = if effects, do: EffectInfo.to_ansi(effects), else: ""
 
     reset = if color || bg_color || effects, do: "\e[0m", else: ""
