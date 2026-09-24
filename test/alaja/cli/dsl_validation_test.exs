@@ -7,13 +7,21 @@ defmodule Alaja.CLI.DSLValidationTest do
       Jaro-distance-based suggestions from the current command's
       declared flag names.
 
-  Each test compiles a self-contained `Alaja.CLI.Definition` user
-  via `Code.compile_string/1` and invokes its `main/1` from a fresh
-  task. `main/1` calls `exit/1` on the error path, so we trap the
-  exit and convert it to a tuple we can assert on. The exit
-  message is captured via the standard `Process.exit/1` channel —
-  no IO buffer tricks needed because the assertion is on the
-  *status*, not the rendered text.
+  Both behaviours invoke `main/1`, which calls `exit/1` on the
+  error path. We drive each invocation in a separate `Task` so the
+  exit doesn't bring down the test process, and surface the exit
+  reason via the trap_exit channel — no IO buffer tricks needed
+  because the assertion is on the *status*, not the rendered text.
+
+  To assert on the captured opts flowing into the handler, we put the
+  test pid into the process dictionary before the task spawns and read
+  it back inside the compiled fixture via `Process.get/1`. Process
+  dict entries don't survive across a `Task.async/1` boundary by
+  default, but the fixture is compiled inside the test process's
+  world (the closure on `__ENV__` we pass to `Code.eval_string/3`
+  keeps the dict live), and the `main/1` invocation runs in a child
+  process whose parent (the test) has already populated the dict
+  for the child's spawned compile session.
   """
 
   use ExUnit.Case, async: false
@@ -53,6 +61,10 @@ defmodule Alaja.CLI.DSLValidationTest do
     result
   end
 
+  # Compile a `Alaja.CLI.Definition` user in-process with `Code.eval_string/3`
+  # so we can inject `Process.put(:alaja_test_pid, ...)` values from the
+  # calling test (and read them back from inside the compiled fixture via
+  # `Process.get(:alaja_test_pid)`).
   defp compile_cli(label, dsl_body) do
     # Each test gets a fresh module name. The atom is built at
     # runtime via `String.to_atom/1`, but we disable the credo check
@@ -61,14 +73,15 @@ defmodule Alaja.CLI.DSLValidationTest do
     # credo:disable-for-next-line Credo.Check.Warning.UnsafeToAtom
     module_name = :"Fixture#{label}#{System.unique_integer([:positive])}"
 
-    Code.compile_string("""
+    source = """
     defmodule #{inspect(module_name)} do
       use Alaja.CLI.Definition, otp_app: :alaja
 
     #{dsl_body}
     end
-    """)
+    """
 
+    Code.eval_string(source)
     module_name
   end
 
@@ -88,12 +101,20 @@ defmodule Alaja.CLI.DSLValidationTest do
     end
 
     test "supplied required flag dispatches to the handler" do
-      # Embed the test pid as a string and convert it back with
-      # `:erlang.list_to_pid/1` inside the compiled module. The raw
-      # `#PID<...>` representation from `inspect/1` would be parsed
-      # as an Elixir comment by the Code.compile_string/1 reader
-      # and break compilation.
-      test_pid_str = inspect(self())
+      # Stash the test pid in the process dictionary BEFORE compiling
+      # the fixture, so the fixture's `capture/1` callback can read it
+      # via `Process.get/1` regardless of which process happens to be
+      # running at dispatch time. Process.put is per-process so we
+      # have to push it again from within the task that drives main/1.
+      capture_callback = """
+        def capture(opts) do
+          case Process.get(:alaja_test_pid) do
+            nil -> :ok
+            pid -> send(pid, {:captured, opts})
+          end
+          :ok
+        end
+      """
 
       module = compile_cli("req2", """
         command "deploy", "deploy something" do
@@ -101,16 +122,16 @@ defmodule Alaja.CLI.DSLValidationTest do
           run({__MODULE__, :capture})
         end
 
-        def capture(opts) do
-          pid = :erlang.list_to_pid(#{test_pid_str})
-          send(pid, {:captured, opts})
-          :ok
-        end
+        #{capture_callback}
       """)
+
+      parent_pid = self()
+      Process.put(:alaja_test_pid, parent_pid)
 
       assert {:ok, _} =
                run_in_task(fn ->
-                 apply(module, :main, [["deploy", "--target", "prod"]])
+                 Process.put(:alaja_test_pid, unquote(parent_pid))
+                 apply(unquote(module), :main, [["deploy", "--target", "prod"]])
                end)
 
       assert_received {:captured, opts}
@@ -136,11 +157,9 @@ defmodule Alaja.CLI.DSLValidationTest do
     end
 
     test "typo'd flag error message includes the suggestion" do
-      # Single test that exercises the stderr render path. CaptureIO
-      # on :stderr works for non-exiting renders (the help path);
-      # here we use the proven `Process.flag(:trap_exit, true)` +
-      # `try/catch :exit` pattern from the codebase to capture the
-      # IO output.
+      # Single test that exercises the stderr render path. Process.flag
+      # :trap_exit + try/catch :exit survives the IO buffer flush and
+      # lets us read what dispatch_main wrote to stderr before exiting.
       module = compile_cli("unk1msg", """
         command "deploy", "deploy something" do
           flag :command, :string, required: true
@@ -183,7 +202,15 @@ defmodule Alaja.CLI.DSLValidationTest do
     end
 
     test "positional arguments still pass through unchanged" do
-      test_pid_str = inspect(self())
+      capture_callback = """
+        def capture(opts) do
+          case Process.get(:alaja_test_pid) do
+            nil -> :ok
+            pid -> send(pid, {:captured, opts})
+          end
+          :ok
+        end
+      """
 
       module = compile_cli("pos", """
         command "deploy", "deploy something" do
@@ -191,16 +218,15 @@ defmodule Alaja.CLI.DSLValidationTest do
           run({__MODULE__, :capture})
         end
 
-        def capture(opts) do
-          pid = :erlang.list_to_pid(#{test_pid_str})
-          send(pid, {:captured, opts})
-          :ok
-        end
+        #{capture_callback}
       """)
+
+      parent_pid = self()
 
       assert {:ok, _} =
                run_in_task(fn ->
-                 apply(module, :main, [["deploy", "production"]])
+                 Process.put(:alaja_test_pid, unquote(parent_pid))
+                 apply(unquote(module), :main, [["deploy", "production"]])
                end)
 
       assert_received {:captured, opts}
