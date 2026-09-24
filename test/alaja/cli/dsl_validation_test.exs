@@ -90,7 +90,7 @@ defmodule Alaja.CLI.DSLValidationTest do
         def noop(_opts), do: :ok
       """)
 
-      assert {:exit, {:shutdown, 1}, _} =
+      assert {:exit, {:shutdown, 1}} =
                run_in_task(self(), fn -> apply(module, :main, [["deploy"]]) end)
     end
 
@@ -114,7 +114,7 @@ defmodule Alaja.CLI.DSLValidationTest do
         #{capture_callback}
       """)
 
-      assert {:ok, _, _} =
+      assert {:ok, _} =
                run_in_task(self(), fn ->
                  apply(module, :main, [["deploy", "--target", "prod"]])
                end)
@@ -135,7 +135,7 @@ defmodule Alaja.CLI.DSLValidationTest do
         def noop(_opts), do: :ok
       """)
 
-      assert {:exit, {:shutdown, 1}, _} =
+      assert {:exit, {:shutdown, 1}} =
                run_in_task(self(), fn ->
                  apply(module, :main, [["deploy", "--comand", "x"]])
                end)
@@ -177,7 +177,7 @@ defmodule Alaja.CLI.DSLValidationTest do
         def noop(_opts), do: :ok
       """)
 
-      assert {:exit, {:shutdown, 1}, _} =
+      assert {:exit, {:shutdown, 1}} =
                run_in_task(self(), fn ->
                  apply(module, :main, [["deploy", "--totally-different-flag", "x"]])
                end)
@@ -203,7 +203,7 @@ defmodule Alaja.CLI.DSLValidationTest do
         #{capture_callback}
       """)
 
-      assert {:ok, _, _} =
+      assert {:ok, _} =
                run_in_task(self(), fn ->
                  apply(module, :main, [["deploy", "production"]])
                end)
