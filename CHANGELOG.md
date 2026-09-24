@@ -40,6 +40,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
         --row-1-bold "true;false;true;true" \\
         --row-2-italic "true;true;false;true"
 
+- **`flag name, type, required: true`** — a flag with `required: true`
+  is now validated at dispatch time. If the user omits it (or the
+  parser sees `nil`), the CLI exits with
+  `Error: missing required flags: --<name>` before the handler runs.
+  `validate_flags/2` was previously only enforcing `requires:`
+  cross-flag constraints; it now also enforces single-flag `required:`.
+- **Unknown-flag rejection with suggestions** — `parse_flags/3` no
+  longer silently drops `--foo` arguments that don't match any flag
+  in the current command. The parser now emits
+  `Error: unknown flag '--foo'` plus up to three
+  Jaro-distance-based `Did you mean? --foo, --fooz` suggestions
+  drawn from the command's declared flag names. Positional arguments
+  still pass through untouched; the gate only fires on `-` / `--`
+  prefixed strings.
+
 ### Changed
 - **`Color.parse_list/1` reverted to `|`-only.** The previous
   `;`-accepting version broke a legacy test that fed
