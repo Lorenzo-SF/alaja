@@ -5,8 +5,23 @@ defmodule Alaja.CLI.Commands.Base do
   as well as terminal width and alignment helpers.
   """
 
+  alias Alaja.CLI.Color
   alias Alaja.CLI.Parser
   alias Alaja.Helpers
+
+  # Pre-create effect atoms so `String.to_existing_atom/1` succeeds inside
+  # `parse_effects/1`. Without this the parser would silently return
+  # `[]` for every input (an unknown atom raises ArgumentError). Align
+  # atoms (`:left/:center/:right`) are pre-created for the same reason.
+  @effect_names ~w(bold italic underline dim blink reverse hidden strikethrough)
+  # credo:disable-for-next-line Credo.Check.Warning.UnsafeToAtom
+  _ = Enum.map(@effect_names, &String.to_atom/1)
+  # credo:disable-for-next-line Credo.Check.Warning.UnsafeToAtom
+  _ = String.to_atom("left")
+  # credo:disable-for-next-line Credo.Check.Warning.UnsafeToAtom
+  _ = String.to_atom("center")
+  # credo:disable-for-next-line Credo.Check.Warning.UnsafeToAtom
+  _ = String.to_atom("right")
 
   @doc "Parse a color string using :Parser."
   def parse_color(nil), do: nil
@@ -29,6 +44,26 @@ defmodule Alaja.CLI.Commands.Base do
 
   def parse_color_list(_), do: nil
 
+  @doc """
+  Parse a cellwise colour list — accepts both `|` and `;` as the
+  colour separator.
+
+  Used by `alaja table --row-N-color` (and similar call sites) where
+  the user provides one colour per cell and we want `;` to be a valid
+  separator so the syntax lines up with `--rows`'s own `;` cell
+  delimiter. Falls back to `parse_color_list/1` on nil or any failure.
+  """
+  def parse_cell_color_list(nil), do: nil
+
+  def parse_cell_color_list(s) when is_binary(s) do
+    case Color.parse_cell_list(s) do
+      {:ok, colors} -> colors
+      _ -> nil
+    end
+  end
+
+  def parse_cell_color_list(_), do: nil
+
   @doc "Parse alignment from a binary or atom. Returns an atom `:left`, `:center`, or `:right`. Defaults to `:left`."
   def parse_align(nil), do: nil
   def parse_align(a) when is_atom(a), do: a
@@ -43,7 +78,10 @@ defmodule Alaja.CLI.Commands.Base do
     |> String.split(",")
     |> Enum.map(&String.trim/1)
     |> Enum.map(&Helpers.safe_string_to_atom/1)
-    |> Enum.reject(&is_nil/1)
+    |> Enum.flat_map(fn
+      {:ok, atom} -> [atom]
+      _ -> []
+    end)
   end
 
   def parse_align_list(_), do: nil
@@ -56,7 +94,10 @@ defmodule Alaja.CLI.Commands.Base do
     |> String.split(",")
     |> Enum.map(&String.trim/1)
     |> Enum.map(&Helpers.safe_string_to_atom/1)
-    |> Enum.reject(&is_nil/1)
+    |> Enum.flat_map(fn
+      {:ok, atom} -> [atom]
+      _ -> []
+    end)
   end
 
   def parse_effects(_), do: nil

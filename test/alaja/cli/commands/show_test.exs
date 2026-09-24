@@ -90,12 +90,18 @@ defmodule ShowTest do
     output =
       capture_io(fn ->
         Message.run([
-          "--text", "AAA ",
-          "--color", "hex:#ff0000",
-          "--text", "BBB ",
-          "--color", "hex:#00ff00",
-          "--text", "CCC",
-          "--color", "hex:#0000ff"
+          "--text",
+          "AAA ",
+          "--color",
+          "hex:#ff0000",
+          "--text",
+          "BBB ",
+          "--color",
+          "hex:#00ff00",
+          "--text",
+          "CCC",
+          "--color",
+          "hex:#0000ff"
         ])
       end)
 

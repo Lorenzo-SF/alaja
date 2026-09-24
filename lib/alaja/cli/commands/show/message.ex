@@ -28,8 +28,18 @@ defmodule Alaja.CLI.Commands.Show.Message do
   presets and ANSI styling.
   """
   @type msg_type ::
-          :success | :error | :warning | :info | :debug | :notice
-          | :critical | :alert | :emergency | :happy | :sad | :message
+          :success
+          | :error
+          | :warning
+          | :info
+          | :debug
+          | :notice
+          | :critical
+          | :alert
+          | :emergency
+          | :happy
+          | :sad
+          | :message
 
   @help_data [
     title: "Alaja Message",
@@ -74,7 +84,8 @@ defmodule Alaja.CLI.Commands.Show.Message do
       {"Bold warning", "alaja warning \"Disk 92% full\" --bold"},
       {"Multi-colour composite",
        "alaja message --text \"trozo 1 \" --color \"hex:#ffca00\" --text \"trozo 2 \" --color \"theme:quaternary\" --text \"trozo 3 \" --color \"xterm:40\""},
-      {"Multi-colour with theme types", "alaja success --text \"Build: \" --color theme:primary --text \"PASS\""}
+      {"Multi-colour with theme types",
+       "alaja success --text \"Build: \" --color theme:primary --text \"PASS\""}
     ]
   ]
 
@@ -83,16 +94,17 @@ defmodule Alaja.CLI.Commands.Show.Message do
   def run(args) do
     {global, rest} = GlobalOpts.parse(args)
 
-    # Strict mode is fine with repeated switches: the parser keeps every
-    # value in the keyword list and `Keyword.get_values/2` returns the
-    # full sequence. We declare `--text` and `--color` here so they can
-    # be repeated; all other flags validate their declared types.
+    # Single strict parse. The flags that need to repeat (`text`,
+    # `color`) use `:keep` so all occurrences survive in the keyword
+    # list. `:keep` keeps the raw string value the user supplied,
+    # which is exactly what we want — we coerce colour values
+    # downstream in `Color.parse_or_nil/1`.
     {opts, positional, _} =
       OptionParser.parse(rest,
         strict: [
           type: :string,
-          text: :string,
-          color: :string,
+          text: :keep,
+          color: :keep,
           bg_color: :string,
           bold: :boolean,
           italic: :boolean,

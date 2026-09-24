@@ -7,6 +7,20 @@ defmodule Alaja.Components.Table.Renderer do
   @default_align :left
   @no_fg_change :"$no_fg_change"
 
+  # SGR code -> Alaja.Cell effect atom. Used by the ANSI parser so
+  # `--rows-effects`/`--row-N-effects` survive the round-trip through
+  # iodata when the CLI builds a Buffer for `Printer.print_raw/2`.
+  @sgr_to_effect %{
+    "1" => :bold,
+    "2" => :dim,
+    "3" => :italic,
+    "4" => :underline,
+    "5" => :blink,
+    "7" => :reverse,
+    "8" => :hidden,
+    "9" => :strikethrough
+  }
+
   @spec build_table_string(
           list(),
           list(),
@@ -86,8 +100,9 @@ defmodule Alaja.Components.Table.Renderer do
       {final, _} =
         cells
         |> Enum.with_index()
-        |> Enum.reduce({buf, 0}, fn {{char, fg}, _idx}, {b, x} ->
-          {Buffer.put(b, x, y, char, fg), x + 1}
+        |> Enum.reduce({buf, 0}, fn {{char, fg, effects}, _idx}, {b, x} ->
+          cell = %Alaja.Cell{char: char, fg: fg, bg: nil, effects: effects}
+          {Buffer.update_cell(b, x, y, cell), x + 1}
         end)
 
       final
@@ -95,47 +110,53 @@ defmodule Alaja.Components.Table.Renderer do
   end
 
   defp parse_line(line) when is_binary(line) do
-    {cells, _fg, _rest} = parse_chars(line, [], nil)
+    {cells, _fg, _effects, _rest} = parse_chars(line, [], nil, [])
     Enum.reverse(cells)
   end
 
-  defp parse_chars("", acc, fg), do: {acc, fg, ""}
+  defp parse_chars("", acc, fg, effects), do: {acc, fg, effects, ""}
 
-  defp parse_chars(<<0x1B, "[0m", rest::binary>>, acc, _fg) do
-    parse_chars(rest, acc, nil)
+  # `\e[0m` resets BOTH foreground colour AND effects.
+  defp parse_chars(<<0x1B, "[0m", rest::binary>>, acc, _fg, _effects) do
+    parse_chars(rest, acc, nil, [])
   end
 
   defp parse_chars(
          <<0x1B, "[38;2;", r::binary-8, ";", g::binary-8, ";", b::binary-8, "m", rest::binary>>,
          acc,
-         fg
+         fg,
+         effects
        ) do
     case {Integer.parse(r), Integer.parse(g), Integer.parse(b)} do
       {{ri, ""}, {gi, ""}, {bi, ""}} ->
-        parse_chars(rest, acc, {ri, gi, bi})
+        parse_chars(rest, acc, {ri, gi, bi}, effects)
 
       _ ->
-        parse_chars(rest, acc, fg)
+        parse_chars(rest, acc, fg, effects)
     end
   end
 
-  defp parse_chars(<<0x1B, "[m", rest::binary>>, acc, fg) do
-    parse_chars(rest, acc, fg)
+  defp parse_chars(<<0x1B, "[m", rest::binary>>, acc, fg, effects) do
+    parse_chars(rest, acc, fg, effects)
   end
 
-  defp parse_chars(<<0x1B, "[", rest::binary>>, acc, fg) do
+  # Catch-all for `\e[...m` runs. `skip_to_m/1` returns the params
+  # between `[` and `m`. We split on `;` so a single SGR can carry
+  # multiple codes (e.g. `\e[1;3m` = bold + italic).
+  defp parse_chars(<<0x1B, "[", rest::binary>>, acc, fg, effects) do
     {skipped, after_rest} = skip_to_m(rest)
-    parse_chars(after_rest, acc, apply_sgr(acc, fg, skipped))
+    {new_fg, new_effects} = apply_sgr(fg, effects, skipped)
+    parse_chars(after_rest, acc, new_fg, new_effects)
   end
 
-  defp parse_chars(<<0x1B, _::binary>>, acc, fg), do: {acc, fg, ""}
+  defp parse_chars(<<0x1B, _::binary>>, acc, fg, effects), do: {acc, fg, effects, ""}
 
-  defp parse_chars(<<char::utf8, rest::binary>>, acc, fg) do
-    parse_chars(rest, [{<<char::utf8>>, fg} | acc], fg)
+  defp parse_chars(<<char::utf8, rest::binary>>, acc, fg, effects) do
+    parse_chars(rest, [{<<char::utf8>>, fg, effects} | acc], fg, effects)
   end
 
-  defp parse_chars(<<_, rest::binary>>, acc, fg) do
-    parse_chars(rest, acc, fg)
+  defp parse_chars(<<_, rest::binary>>, acc, fg, effects) do
+    parse_chars(rest, acc, fg, effects)
   end
 
   defp skip_to_m(<<?m, rest::binary>>), do: {"", rest}
@@ -147,23 +168,99 @@ defmodule Alaja.Components.Table.Renderer do
 
   defp skip_to_m(""), do: {"", ""}
 
-  defp apply_sgr(_acc, fg, skipped) do
-    case parse_fg_sgr(skipped) do
-      @no_fg_change -> fg
-      nil -> nil
-      rgb -> rgb
+  # Apply an SGR parameter string (no leading `\e[` or trailing `m`).
+  # Returns `{fg_or_no_change, new_effects}`.
+  defp apply_sgr(fg, effects, skipped) do
+    {fg_change, on, off} = parse_sgr_codes(skipped)
+
+    new_fg =
+      case fg_change do
+        @no_fg_change -> fg
+        nil -> nil
+        rgb -> rgb
+      end
+
+    new_effects =
+      if on == [] and off == [], do: effects, else: (effects -- off) ++ Enum.reverse(on)
+
+    {new_fg, new_effects}
+  end
+
+  # Returns `{fg_change, on_atoms, off_atoms}`. fg_change is one of:
+  #   `@no_fg_change` — not a colour code, leave as is
+  #   `nil` — explicit reset (SGR 39)
+  #   `{r,g,b}` — colour tuple
+  defp parse_sgr_codes(skipped) do
+    parts = String.split(skipped, ";")
+
+    Enum.reduce(parts, {@no_fg_change, [], []}, fn part, acc ->
+      classify_sgr_part(part, acc)
+    end)
+  end
+
+  # Single-part SGR classifier. Returns the new accumulator tuple.
+  # `acc` is `{fg_change, on_atoms, off_atoms}` from the outer reduce.
+  # Extracted from `parse_sgr_codes/1` to keep that function under the
+  # cyclomatic complexity cap.
+  defp classify_sgr_part(part, {fg_acc, on_acc, off_acc}) do
+    {new_fg, on, off} =
+      case part do
+        "" ->
+          {:skip}
+
+        "0" ->
+          {nil, [], []}
+
+        "39" ->
+          {nil, [], []}
+
+        p when byte_size(p) == 2 ->
+          classify_short_sgr(p)
+
+        p when is_binary(p) ->
+          classify_long_sgr(p)
+      end
+
+    case new_fg do
+      :skip -> {fg_acc, on_acc, off_acc}
+      _ -> merge_sgr_change({new_fg, on, off}, {fg_acc, on_acc, off_acc})
     end
   end
 
-  defp parse_fg_sgr(skipped) do
+  defp classify_short_sgr(<<c, _::binary>> = p) when c in ?0..?7 or c in ?9..?9 do
+    {parse_standard_fg_code(p), [], []}
+  end
+
+  defp classify_short_sgr(p), do: classify_long_sgr(p)
+
+  defp classify_long_sgr(part) do
     cond do
-      String.starts_with?(skipped, "38;2;") -> parse_truecolor_skip(skipped)
-      String.starts_with?(skipped, "38;5;") -> parse_xterm256_skip(skipped)
-      skipped == "39" -> nil
-      byte_size(skipped) == 2 -> parse_standard_fg_code(skipped)
-      true -> @no_fg_change
+      String.starts_with?(part, "38;2;") ->
+        {parse_truecolor_skip(part), [], []}
+
+      String.starts_with?(part, "38;5;") ->
+        {parse_xterm256_skip(part), [], []}
+
+      Map.has_key?(@sgr_to_effect, part) ->
+        {@no_fg_change, [Map.fetch!(@sgr_to_effect, part)], []}
+
+      part =~ ~r/^2[2-5]$/ ->
+        {@no_fg_change, [], [off_atom_for(part)]}
+
+      true ->
+        {@no_fg_change, [], []}
     end
   end
+
+  defp merge_sgr_change({new_fg, on, off}, {fg_acc, on_acc, off_acc}) do
+    fg_out = if new_fg == @no_fg_change, do: fg_acc, else: new_fg
+    {fg_out, on ++ on_acc, off ++ off_acc}
+  end
+
+  defp off_atom_for("22"), do: :bold
+  defp off_atom_for("23"), do: :italic
+  defp off_atom_for("24"), do: :underline
+  defp off_atom_for("25"), do: :blink
 
   defp parse_truecolor_skip(skipped) do
     rest = String.slice(skipped, 5, byte_size(skipped) - 5)
@@ -255,7 +352,7 @@ defmodule Alaja.Components.Table.Renderer do
     rows_with_index = Enum.with_index(rows)
 
     Enum.map(rows_with_index, fn {row, row_index} ->
-      {row_color, row_effects, row_align} =
+      {row_color, row_effects, row_align, effect_masks} =
         Alaja.Components.Table.Builder.get_row_opts(
           row_index,
           row_specific_opts,
@@ -270,7 +367,7 @@ defmodule Alaja.Components.Table.Renderer do
         |> Enum.map(fn {text, idx} ->
           width = Enum.at(widths, idx, 10)
           cell_color = Theme.get_column_opts(idx, row_color, nil)
-          cell_effects = Theme.get_column_opts(idx, row_effects, [])
+          cell_effects = cell_effects_for(idx, row_effects, effect_masks)
           cell_align = Theme.get_column_opts(idx, row_align, @default_align)
           aligned = Calculator.apply_alignment(to_string(text), cell_align, width, config.padding)
           Theme.render_formatted(aligned, cell_color, cell_effects)
@@ -286,13 +383,30 @@ defmodule Alaja.Components.Table.Renderer do
     end)
   end
 
+  # Per-cell effects for `build_rows/4`: take the row-wide effect list,
+  # filter it through any per-cell mask in `effect_masks`. Extracted
+  # to keep the Enum.map closure shallow (credo nesting cap = 2).
+  #
+  # Argument order note: `Theme.get_column_opts/3` is
+  # `(column_index, column_opts, default_value)`. Without the explicit
+  # call below, the pipe would route `row_effects` (the column_opts)
+  # into the `column_index` slot, returning `nil`/the integer index
+  # and silently dropping every effect.
+  defp cell_effects_for(idx, row_effects, effect_masks) do
+    Theme.get_column_opts(idx, row_effects, [])
+    |> List.wrap()
+    |> Alaja.Components.Table.Builder.apply_effect_mask(idx, effect_masks)
+  end
+
   @spec print_header_row(list(), list(integer()), Alaja.Components.Table.Config.t(), keyword()) ::
           :ok
   def print_header_row(headers, widths, config, opts) do
     color = Keyword.get(opts, :headers_color)
     effects = Keyword.get(opts, :headers_effects, [])
     align = Keyword.get(opts, :headers_align, @default_align)
-    print_row(headers, widths, color, effects, align, config)
+    # Headers don't carry per-cell effect masks — the row-wide
+    # effects list is applied uniformly.
+    print_row_with_masks(headers, widths, color, effects, align, %{}, config)
   end
 
   @spec print_rows(list(), list(integer()), Alaja.Components.Table.Config.t(), keyword()) :: :ok
@@ -304,7 +418,7 @@ defmodule Alaja.Components.Table.Renderer do
 
     Enum.with_index(rows)
     |> Enum.each(fn {row, row_index} ->
-      {color, effects, align} =
+      {color, effects, align, effect_masks} =
         Alaja.Components.Table.Builder.get_row_opts(
           row_index,
           row_specific_opts,
@@ -313,20 +427,16 @@ defmodule Alaja.Components.Table.Renderer do
           rows_align
         )
 
-      print_row(row, widths, color, effects, align, config)
+      print_row_with_masks(row, widths, color, effects, align, effect_masks, config)
     end)
   end
 
-  @spec print_row(
-          list(),
-          list(integer()),
-          term(),
-          list(),
-          atom(),
-          Alaja.Components.Table.Config.t()
-        ) ::
-          :ok
-  def print_row(row, widths, color, effects, align, config) do
+  # Print a row with per-cell effect masking. When `masks` is empty
+  # (e.g. the header row), this is the same as a vanilla row print.
+  # When `masks` has an entry like `%{bold: [true, false, true]}`,
+  # the `bold` effect survives on cells 0 and 2 but is dropped on
+  # cell 1 of this row.
+  defp print_row_with_masks(row, widths, color, effects, align, masks, config) do
     filled_row = fill_row(row, length(widths))
 
     cells =
@@ -335,7 +445,7 @@ defmodule Alaja.Components.Table.Renderer do
       |> Enum.map(fn {cell, i} ->
         width = Enum.at(widths, i, 0)
         cell_color = Theme.get_column_opts(i, color, nil)
-        cell_effects = Theme.get_column_opts(i, effects, [])
+        cell_effects = cell_effects_for(i, effects, masks)
         cell_align = Theme.get_column_opts(i, align, @default_align)
 
         aligned_str =

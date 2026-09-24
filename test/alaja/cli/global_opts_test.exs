@@ -133,7 +133,11 @@ defmodule Alaja.CLI.GlobalOptsTest do
 
   describe "parse/1 --bg-color" do
     test "parses explicit format" do
-      {opts, _rest} = GlobalOpts.parse(["--bg-color", "rgb:51;51;51"])
+      # `;` is the cell separator inside `alaja table --rows`, not a
+      # RGB component separator. `parse_color/1` must not silently
+      # substitute `;` for `,` inside an explicit `format:code` string
+      # any more (regression — see CLI.ParserTest).
+      {opts, _rest} = GlobalOpts.parse(["--bg-color", "rgb:51,51,51"])
       assert opts.bg_color == {51, 51, 51}
     end
 

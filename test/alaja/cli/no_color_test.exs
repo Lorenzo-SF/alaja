@@ -20,6 +20,7 @@ defmodule Alaja.CLI.NoColorTest do
   setup do
     original = Application.get_env(:alaja, :no_color)
     original_loaded = Application.get_env(:alaja, :__conf_loaded__)
+    original_no_color_env = System.get_env("NO_COLOR")
     Application.delete_env(:alaja, :no_color)
     System.delete_env("NO_COLOR")
     Application.delete_env(:alaja, :__conf_loaded__)
@@ -30,6 +31,13 @@ defmodule Alaja.CLI.NoColorTest do
       # Next call to Config.color_enabled?/0 will re-load cleanly.
       Application.delete_env(:alaja, :no_color)
       Application.delete_env(:alaja, :__conf_loaded__)
+      # Also clear the system-level `NO_COLOR` env var: individual tests
+      # in this file call `System.put_env("NO_COLOR", ...)` and the
+      # shell-level value leaking out would silently flip the next
+      # test that triggers `Config.load!/1` to colour-off.
+      if original_no_color_env == nil,
+        do: System.delete_env("NO_COLOR"),
+        else: System.put_env("NO_COLOR", original_no_color_env)
 
       # Then restore the original values, if any.
       if original != nil, do: Application.put_env(:alaja, :no_color, original)

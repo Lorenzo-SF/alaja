@@ -122,7 +122,9 @@ defmodule Alaja.CLI.Picker do
     end)
 
     case IO.gets("Choice (1-#{length(items)}): ") do
-      :eof -> :cancelled
+      :eof ->
+        :cancelled
+
       input ->
         case Integer.parse(String.trim(input)) do
           {n, _} when n in 1..length(items)//1 -> {:ok, Enum.at(items, n - 1)}
@@ -199,9 +201,14 @@ defmodule Alaja.CLI.Picker do
 
   # ANSI cursor-key sequences. `[[A`=up, `[[B`=down, `[[C`=right,
   # `[[D`=left, `[[H`=home (mapped to up), `[[F`=end (mapped to down).
-  @ansi_csi_arrow_key %{?A => :arrow_up, ?B => :arrow_down,
-                       ?C => :arrow_right, ?D => :arrow_left,
-                       ?H => :arrow_up, ?F => :arrow_down}
+  @ansi_csi_arrow_key %{
+    ?A => :arrow_up,
+    ?B => :arrow_down,
+    ?C => :arrow_right,
+    ?D => :arrow_left,
+    ?H => :arrow_up,
+    ?F => :arrow_down
+  }
 
   defp read_escape do
     case IO.read(:stdio, 1) do

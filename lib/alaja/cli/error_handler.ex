@@ -73,7 +73,7 @@ defmodule Alaja.CLI.ErrorHandler do
 
   defp log_warning(msg) do
     if Alaja.Config.get(:error_handler_logger, false) do
-      Logger.warning(msg)
+      Logger.warning(fn -> msg end)
     end
   end
 

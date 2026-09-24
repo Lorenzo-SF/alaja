@@ -67,7 +67,9 @@ defmodule Alaja.Components.Header do
     size = Keyword.get(opts, :size, :medium) || width_to_size(width)
 
     title_colors = colors_or_default(Keyword.get(opts, :color), @default_color)
-    subtitle_colors = colors_or_default(Keyword.get(opts, :subtitle_color), @default_subtitle_color)
+
+    subtitle_colors =
+      colors_or_default(Keyword.get(opts, :subtitle_color), @default_subtitle_color)
 
     separator_char = Keyword.get(opts, :separator_char) || default_separator_char(size)
     separator_colors = colors_or_default_raw(Keyword.get(opts, :separator_color), title_colors)
@@ -174,6 +176,16 @@ defmodule Alaja.Components.Header do
   # `:width` is honoured for backward compatibility. Returns the integer
   # width actually used.
   defp resolve_width(opts) do
+    # An explicit `:width` always wins over `:size`. Otherwise a pinned
+    # snapshot test cannot combine `size: :large` (separator glyphs) with
+    # a deterministic width — `size` would re-read the live terminal and
+    # the golden file would only match on one machine width.
+    if w = Keyword.get(opts, :width),
+      do: w,
+      else: resolve_size_width(opts)
+  end
+
+  defp resolve_size_width(opts) do
     case Keyword.get(opts, :size) do
       n when is_integer(n) and n > 0 ->
         n

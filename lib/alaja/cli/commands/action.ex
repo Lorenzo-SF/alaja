@@ -121,14 +121,24 @@ defmodule Alaja.CLI.Commands.Action do
         {:ok, Keyword.get(opts, :data)}
 
       true ->
-        # Try stdin (pipe mode) only when interactive stdin is available.
-        # In TTY mode this would hang indefinitely waiting for EOF.
-        if io_interactive?() do
-          {:error, "no input: pass --file, --data, or pipe JSON via stdin"}
-        else
-          read_stdin()
+        # No --file/--data/--stdin. In production we auto-detect a pipe,
+        # but under ExUnit stdin is the runner's open handle: `read_stdin/0`
+        # would block on `IO.binread/2` until the 60s test timeout instead
+        # of returning `:eof`. Same pattern as `Pagination.tty?/0`, which
+        # short-circuits when `:ex_unit` is loaded. In TTY mode a blocking
+        # read would likewise hang waiting for EOF.
+        cond do
+          ex_unit_running?() -> {:error, no_input_message()}
+          io_interactive?() -> {:error, no_input_message()}
+          true -> read_stdin()
         end
     end
+  end
+
+  defp no_input_message, do: "no input: pass --file, --data, or pipe JSON via stdin"
+
+  defp ex_unit_running? do
+    Enum.any?(Application.loaded_applications(), fn {app, _, _} -> app == :ex_unit end)
   end
 
   defp io_interactive? do
