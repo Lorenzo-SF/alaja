@@ -610,13 +610,18 @@ defmodule Alaja.CLI.Definition do
 
   # Suggest similar flag names from the current command's flag set.
   # Same Jaro distance heuristic as `Alaja.CLI.ErrorHandler.suggest/2`.
+  # `names` here is a list of flag atoms, so we coerce each one to a
+  # binary before scoring against `bare`.
   defp suggest_bare(bare, names) do
+    bare_lc = String.downcase(bare)
+
     names
+    |> Enum.map(&to_string/1)
     |> Enum.filter(fn name ->
-      String.jaro_distance(String.downcase(bare), String.downcase(name)) > 0.6
+      String.jaro_distance(bare_lc, String.downcase(name)) > 0.6
     end)
     |> Enum.sort_by(fn name ->
-      -String.jaro_distance(String.downcase(bare), String.downcase(name))
+      -String.jaro_distance(bare_lc, String.downcase(name))
     end)
     |> Enum.take(3)
   end
