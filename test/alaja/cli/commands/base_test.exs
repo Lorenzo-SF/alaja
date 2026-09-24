@@ -67,10 +67,14 @@ defmodule BaseTest do
     end
 
     test "splits and maps to atoms" do
+      # parse_align_list unwraps the `{:ok, atom}` from
+      # `Helpers.safe_string_to_atom/1` so callers get a flat list of
+      # atoms (the previous shape leaked the ok-tuple out and made
+      # downstream code carry `{:ok, _}` everywhere).
       assert Base.parse_align_list("left,center,right") |> Enum.sort() == [
-               {:ok, :center},
-               {:ok, :left},
-               {:ok, :right}
+               :center,
+               :left,
+               :right
              ]
     end
   end
@@ -81,7 +85,7 @@ defmodule BaseTest do
     end
 
     test "splits and maps to atoms" do
-      assert Base.parse_effects("bold,italic") == [{:ok, :bold}, {:ok, :italic}]
+      assert Base.parse_effects("bold,italic") |> Enum.sort() == [:bold, :italic]
     end
   end
 

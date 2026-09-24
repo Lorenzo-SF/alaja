@@ -17,11 +17,32 @@ defmodule Alaja.CLI.TableEffectMaskTest do
   actually emitted escape codes (vs. a fall-through plain path).
   """
 
-  use ExUnit.Case, async: true
+  use ExUnit.Case, async: false
 
   import ExUnit.CaptureIO
 
   alias Alaja.CLI.Commands.Show.Table
+
+  # The end-to-end tests in this module assert that ANSI escape codes
+  # actually appear in the rendered output. In a non-TTY test runner
+  # `Alaja.Config.color_enabled?/0` is false (IO.ANSI disabled +
+  # :no_color unset, so Theme.render_formatted falls back to the plain
+  # string), which would silently make every assertion in this file
+  # fail. Force ANSI on for the duration of the suite so the renderer
+  # path is exercised end-to-end.
+  setup do
+    original_no_color = Application.get_env(:alaja, :no_color)
+    original_ansi = Application.get_env(:elixir, :ansi_enabled)
+    Application.put_env(:alaja, :no_color, false)
+    Application.put_env(:elixir, :ansi_enabled, true)
+
+    on_exit(fn ->
+      Application.put_env(:alaja, :no_color, original_no_color)
+      Application.put_env(:elixir, :ansi_enabled, original_ansi)
+    end)
+
+    :ok
+  end
 
   test "row-N-bold mask with one true keeps bold on that cell only" do
     output =

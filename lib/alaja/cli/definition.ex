@@ -414,9 +414,7 @@ defmodule Alaja.CLI.Definition do
 
     IO.puts("")
 
-    IO.puts(
-      "Run '#{app_name} <command> --help' for the full option list of a specific command."
-    )
+    IO.puts("Run '#{app_name} <command> --help' for the full option list of a specific command.")
 
     :ok
   end

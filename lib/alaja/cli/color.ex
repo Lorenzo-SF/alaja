@@ -82,7 +82,13 @@ defmodule Alaja.CLI.Color do
         format_down = String.downcase(format)
 
         if format_down in @formats do
-          parse_format(format_down, code |> String.trim() |> String.replace(";", ","), str)
+          # Explicit `format:code`: do NOT substitute `;` for `,`.
+          # `;` is reserved as a colour-list separator (see
+          # `parse_list/1` / `parse_cell_list/1`), so accepting it
+          # inside the value would silently mis-parse inputs like
+          # `rgb:255;0;0`. The autodetect branch below still accepts
+          # both for backward compat with bare comma/separated input.
+          parse_format(format_down, String.trim(code), str)
         else
           parse_detected(String.replace(str, ";", ","))
         end

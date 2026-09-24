@@ -36,6 +36,26 @@ defmodule Alaja.SnapshotTest do
     original = Alaja.Config.get(:theme_active)
     Alaja.Config.set(:theme_active, @pinned_theme)
     on_exit(fn -> Alaja.Config.set(:theme_active, original) end)
+
+    # Snapshot files were captured with ANSI enabled — without this,
+    # any earlier test that toggles `:no_color` or `ansi_enabled`
+    # makes the renderer emit plain text and every snapshot fails.
+    original_no_color = Application.get_env(:alaja, :no_color)
+    original_ansi = Application.get_env(:elixir, :ansi_enabled)
+    original_no_color_env = System.get_env("NO_COLOR")
+    Application.put_env(:alaja, :no_color, false)
+    Application.put_env(:elixir, :ansi_enabled, true)
+    System.delete_env("NO_COLOR")
+
+    on_exit(fn ->
+      Application.put_env(:alaja, :no_color, original_no_color)
+      Application.put_env(:elixir, :ansi_enabled, original_ansi)
+
+      if original_no_color_env == nil,
+        do: System.delete_env("NO_COLOR"),
+        else: System.put_env("NO_COLOR", original_no_color_env)
+    end)
+
     :ok
   end
 
@@ -74,7 +94,11 @@ defmodule Alaja.SnapshotTest do
 
   describe "Separator snapshots" do
     test "default" do
-      actual = Separator.render() |> to_binary()
+      # Pinned to 80: the default width follows `:io.columns()` of the
+      # machine running the suite, so an unpinned snapshot only matches
+      # on terminals that happen to be 80 cols wide. Note the `nil`
+      # first arg: `render/2` is `(text, opts)`, not `(opts)`.
+      actual = Separator.render(nil, width: 80) |> to_binary()
       assert_snapshot("separator_default", actual)
     end
 
@@ -128,17 +152,21 @@ defmodule Alaja.SnapshotTest do
 
   describe "Header snapshots" do
     test "small" do
-      actual = Header.render("Title") |> to_binary()
+      # Pinned to 80: default width follows the live terminal, so the
+      # golden file (captured at 80) only matches when pinned.
+      actual = Header.render("Title", width: 80) |> to_binary()
       assert_snapshot("header_small", actual)
     end
 
     test "medium with subtitle" do
-      actual = Header.render("Title", subtitle: "Subtitle here") |> to_binary()
+      actual = Header.render("Title", subtitle: "Subtitle here", width: 80) |> to_binary()
       assert_snapshot("header_medium", actual)
     end
 
     test "large" do
-      actual = Header.render("Title", size: :large, color: {255, 87, 51}) |> to_binary()
+      actual =
+        Header.render("Title", size: :large, color: {255, 87, 51}, width: 80) |> to_binary()
+
       assert_snapshot("header_large", actual)
     end
   end

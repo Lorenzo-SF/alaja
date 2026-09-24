@@ -72,10 +72,10 @@ defmodule Alaja.CLI.ErrorHandler do
   # ─── Private ──────────────────────────────────────────────────────
 
   defp log_warning(msg) do
-  if Alaja.Config.get(:error_handler_logger, false) do
-    Logger.warning(fn -> msg end)
+    if Alaja.Config.get(:error_handler_logger, false) do
+      Logger.warning(fn -> msg end)
+    end
   end
-end
 
   defp print_available(commands) do
     unless commands == [] do

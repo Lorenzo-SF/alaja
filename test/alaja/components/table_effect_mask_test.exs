@@ -28,15 +28,27 @@ defmodule Alaja.Components.Table.EffectMaskTest do
 
     test "mask with all-false values drops the effect" do
       assert Builder.apply_effect_mask([:bold], 0, %{bold: [false]}) == []
-      assert Builder.apply_effect_mask([:bold, :italic], 1, %{bold: [true, false], italic: [true, false]}) == []
+
+      assert Builder.apply_effect_mask([:bold, :italic], 1, %{
+               bold: [true, false],
+               italic: [true, false]
+             }) == []
     end
 
     test "mixed mask keeps the effect only on truthy cells" do
       effects = [:bold, :italic]
 
-      assert Builder.apply_effect_mask(effects, 0, %{bold: [true, false, true]}) == [:bold, :italic]
+      assert Builder.apply_effect_mask(effects, 0, %{bold: [true, false, true]}) == [
+               :bold,
+               :italic
+             ]
+
       assert Builder.apply_effect_mask(effects, 1, %{bold: [true, false, true]}) == [:italic]
-      assert Builder.apply_effect_mask(effects, 2, %{bold: [true, false, true]}) == [:bold, :italic]
+
+      assert Builder.apply_effect_mask(effects, 2, %{bold: [true, false, true]}) == [
+               :bold,
+               :italic
+             ]
     end
 
     test "mask shorter than the row keeps the effect on cells beyond the mask" do

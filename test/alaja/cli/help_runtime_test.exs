@@ -328,7 +328,8 @@ defmodule Alaja.CLI.HelpRuntimeTest do
 
   test "subcommand groups print their help on --help" do
     for {args, expected} <- [
-          {["theme", "--help"], "alaja theme [get | set <name> | list | show <theme> | show all]"},
+          {["theme", "--help"],
+           "alaja theme [get | set <name> | list | show <theme> | show all]"},
           {["action", "--help"], "Alaja Action"},
           {["color", "--help"], "Alaja Color"}
         ] do

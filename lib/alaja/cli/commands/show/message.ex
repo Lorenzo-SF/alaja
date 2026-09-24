@@ -28,8 +28,18 @@ defmodule Alaja.CLI.Commands.Show.Message do
   presets and ANSI styling.
   """
   @type msg_type ::
-          :success | :error | :warning | :info | :debug | :notice
-          | :critical | :alert | :emergency | :happy | :sad | :message
+          :success
+          | :error
+          | :warning
+          | :info
+          | :debug
+          | :notice
+          | :critical
+          | :alert
+          | :emergency
+          | :happy
+          | :sad
+          | :message
 
   @help_data [
     title: "Alaja Message",
@@ -74,7 +84,8 @@ defmodule Alaja.CLI.Commands.Show.Message do
       {"Bold warning", "alaja warning \"Disk 92% full\" --bold"},
       {"Multi-colour composite",
        "alaja message --text \"trozo 1 \" --color \"hex:#ffca00\" --text \"trozo 2 \" --color \"theme:quaternary\" --text \"trozo 3 \" --color \"xterm:40\""},
-      {"Multi-colour with theme types", "alaja success --text \"Build: \" --color theme:primary --text \"PASS\""}
+      {"Multi-colour with theme types",
+       "alaja success --text \"Build: \" --color theme:primary --text \"PASS\""}
     ]
   ]
 

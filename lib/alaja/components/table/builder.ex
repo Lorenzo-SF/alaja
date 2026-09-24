@@ -98,9 +98,9 @@ defmodule Alaja.Components.Table.Builder do
   @known_effect_names ~w(bold italic underline dim blink reverse hidden strikethrough)
 
   @known_effects Enum.map(@known_effect_names, fn name ->
-    # credo:disable-for-next-line Credo.Check.Warning.UnsafeToAtom
-    String.to_atom(name)
-  end)
+                   # credo:disable-for-next-line Credo.Check.Warning.UnsafeToAtom
+                   String.to_atom(name)
+                 end)
 
   # Make sure the opt_type discriminators exist as atoms BEFORE we
   # call `String.to_existing_atom/1` from inside the parser.
@@ -144,8 +144,21 @@ defmodule Alaja.Components.Table.Builder do
   end
 
   defp effect_name_in_key?(key_string) do
-    suffix = key_string |> String.split("_") |> List.last()
-    suffix in @known_effects
+    suffix_str = key_string |> String.split("_") |> List.last()
+
+    # `;` is already handled by the upstream filter; here we only need
+    # to recognise effect-name suffixes. `to_existing_atom/1` is safe:
+    # every effect atom was pre-created in `@known_effects` at module
+    # load time, so a misspelt suffix raises and falls through.
+    if Enum.any?(@known_effects, &(Atom.to_string(&1) == suffix_str)) do
+      true
+    else
+      try do
+        String.to_existing_atom(suffix_str) in @known_effects
+      rescue
+        ArgumentError -> false
+      end
+    end
   end
 
   @spec get_row_opts(integer(), map(), term(), list(), atom()) :: {term(), list(), atom(), map()}

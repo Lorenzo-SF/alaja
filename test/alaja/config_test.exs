@@ -191,9 +191,18 @@ defmodule Alaja.ConfigTest do
   describe "NO_COLOR convention (https://no-color.org/)" do
     setup do
       wipe_load_state!()
+      original_no_color = System.get_env("NO_COLOR")
+      System.delete_env("NO_COLOR")
 
       on_exit(fn ->
-        System.delete_env("NO_COLOR")
+        # Restore the original shell value (or leave it deleted if there
+        # wasn't one). Forgetting to do this leaked `NO_COLOR=1` to
+        # every later test in the suite, which silently turned ANSI off
+        # and broke unrelated snapshot/print tests downstream.
+        if original_no_color == nil,
+          do: System.delete_env("NO_COLOR"),
+          else: System.put_env("NO_COLOR", original_no_color)
+
         Application.delete_env(:alaja, :no_color)
         Application.delete_env(:alaja, :__conf_loaded__)
       end)

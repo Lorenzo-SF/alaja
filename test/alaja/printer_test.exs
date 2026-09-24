@@ -4,6 +4,27 @@ defmodule Alaja.PrinterTest do
 
   alias Alaja.Printer
 
+  # These tests assert the rendered output contains ANSI escape
+  # sequences (`output =~ "\e["`). In a non-TTY test runner
+  # `Alaja.Config.color_enabled?/0` is false unless we pin both
+  # `:no_color` and `:ansi_enabled`. Without this, any earlier test
+  # that flips the global Application env (the no_color/config
+  # suites in particular) silently turns ANSI off and every assertion
+  # in this file fails.
+  setup do
+    original_no_color = Application.get_env(:alaja, :no_color)
+    original_ansi = Application.get_env(:elixir, :ansi_enabled)
+    Application.put_env(:alaja, :no_color, false)
+    Application.put_env(:elixir, :ansi_enabled, true)
+
+    on_exit(fn ->
+      Application.put_env(:alaja, :no_color, original_no_color)
+      Application.put_env(:elixir, :ansi_enabled, original_ansi)
+    end)
+
+    :ok
+  end
+
   describe "semantic print functions" do
     test "print_success/1 outputs with success gliphicons and message" do
       output = capture_io(fn -> Printer.print_success("Done") end)

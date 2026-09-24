@@ -4,16 +4,20 @@ defmodule Alaja.CLI.ColorTest do
   alias Alaja.CLI.Color
 
   describe "parse accepts uppercase formats" do
-    test "CMYK:10;40;60;8" do
-      assert {:ok, _} = Color.parse("CMYK:10;40;60;8")
+    # `parse/1` only substitutes `;` for `,` in the autodetect path
+    # (no `format:` prefix). Explicit `format:code` strings always
+    # require the standard `,` separator because `;` is reserved for
+    # the cellwise colour-list path (see parse_cell_list/1).
+    test "CMYK:10,40,60,8" do
+      assert {:ok, _} = Color.parse("CMYK:10,40,60,8")
     end
 
     test "HEX:ff3940" do
       assert {:ok, _} = Color.parse("HEX:ff3940")
     end
 
-    test "Argb:44;141;255;10" do
-      assert {:ok, _} = Color.parse("Argb:44;141;255;10")
+    test "Argb:44,141,255,10" do
+      assert {:ok, _} = Color.parse("Argb:44,141,255,10")
     end
   end
 
@@ -24,10 +28,6 @@ defmodule Alaja.CLI.ColorTest do
   end
 
   describe "parse/1 — formato estricto <formato>:<codigo>" do
-    test "rgb con separador ;" do
-      assert {:ok, {255, 0, 0}} = Color.parse("rgb:255;0;0")
-    end
-
     test "rgb con separador ," do
       assert {:ok, {255, 0, 0}} = Color.parse("rgb:255,0,0")
     end
@@ -40,20 +40,20 @@ defmodule Alaja.CLI.ColorTest do
       assert {:ok, {0, 128, 255}} = Color.parse("hex:0080ff")
     end
 
-    test "cmyk con ;" do
-      assert {:ok, {255, 0, 0}} = Color.parse("cmyk:0;100;100;0")
+    test "cmyk con ," do
+      assert {:ok, {255, 0, 0}} = Color.parse("cmyk:0,100,100,0")
     end
 
     test "argb" do
-      assert {:ok, {0, 255, 0}} = Color.parse("argb:255;0;255;0")
+      assert {:ok, {0, 255, 0}} = Color.parse("argb:255,0,255,0")
     end
 
     test "hsl" do
-      assert {:ok, {255, 0, 0}} = Color.parse("hsl:0;100;50")
+      assert {:ok, {255, 0, 0}} = Color.parse("hsl:0,100,50")
     end
 
     test "hsv" do
-      assert {:ok, {255, 0, 0}} = Color.parse("hsv:0;100;100")
+      assert {:ok, {255, 0, 0}} = Color.parse("hsv:0,100,100")
     end
 
     test "xterm" do
@@ -86,13 +86,22 @@ defmodule Alaja.CLI.ColorTest do
     end
 
     test "formato desconocido → error" do
-      assert {:error, msg} = Color.parse("foobar:1;2;3")
+      assert {:error, msg} = Color.parse("foobar:1,2,3")
       assert msg =~ "foobar"
     end
 
     test "rgb fuera de rango → error" do
-      assert {:error, msg} = Color.parse("rgb:999;0;0")
-      assert msg =~ "rgb:999;0;0"
+      assert {:error, msg} = Color.parse("rgb:999,0,0")
+      assert msg =~ "rgb:999,0,0"
+    end
+
+    test "explicit format:code with `;` is rejected (regression — ; is the cell separator)" do
+      # `;` was wrongly substituted for `,` inside explicit format
+      # codes, masking malformed `rgb:255;0;0` legacy inputs. The
+      # new contract: explicit `format:code` requires `,`. Use
+      # `parse_cell_list/1` if `;` is the desired separator.
+      assert {:error, _} = Color.parse("rgb:255;0;0")
+      assert {:error, _} = Color.parse("hsl:0;100;50")
     end
   end
 
