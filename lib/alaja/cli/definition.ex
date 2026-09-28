@@ -52,14 +52,17 @@ defmodule Alaja.CLI.Definition do
   @spec __using__(Keyword.t()) :: Macro.t()
   defmacro __using__(opts) do
     otp_app = Keyword.get(opts, :otp_app)
+    allow_unknown_flags = Keyword.get(opts, :allow_unknown_flags, false)
 
     quote do
       import Alaja.CLI.Definition, only: [command: 3, subcommand: 3, flag: 3, argument: 3, run: 1]
       Module.register_attribute(__MODULE__, :commands, accumulate: true)
       Module.register_attribute(__MODULE__, :otp_app, accumulate: false)
+      Module.register_attribute(__MODULE__, :allow_unknown_flags, accumulate: false)
       @subcommand_children []
       @subcommand_depth 0
       @otp_app unquote(otp_app)
+      @allow_unknown_flags unquote(allow_unknown_flags)
       @halt_on_error Keyword.get(unquote(opts), :halt_on_error, false)
       @before_compile Alaja.CLI.Definition
     end
@@ -232,6 +235,11 @@ defmodule Alaja.CLI.Definition do
         @otp_app
       end
 
+      @doc false
+      def __allow_unknown_flags__() do
+        @allow_unknown_flags
+      end
+
       @doc "Runs the CLI with the given arguments."
       def main(args) do
         dispatch_main(args)
@@ -278,7 +286,12 @@ defmodule Alaja.CLI.Definition do
         # Elixir crash dump — confusing for end users.
         result =
           try do
-            Alaja.CLI.Definition.run_dispatch(__commands__(), args, __otp_app__())
+            Alaja.CLI.Definition.run_dispatch(
+              __commands__(),
+              args,
+              __otp_app__(),
+              __allow_unknown_flags__()
+            )
           rescue
             e in Alaja.CLI.ActionError ->
               IO.puts(:stderr, "Error: #{Exception.message(e)}")
@@ -311,8 +324,8 @@ defmodule Alaja.CLI.Definition do
   alias Alaja.CLI.Parser
 
   @doc false
-  @spec run_dispatch([map()], [String.t()], atom()) :: term()
-  def run_dispatch(commands, args, otp_app) do
+  @spec run_dispatch([map()], [String.t()], atom(), boolean()) :: term()
+  def run_dispatch(commands, args, otp_app, allow_unknown_flags \\ false) do
     case args do
       # Top-level help: `alaja`, `alaja --help`, `alaja -h`, and `alaja
       # help` all render the full help instead of trying to dispatch to a
@@ -337,7 +350,7 @@ defmodule Alaja.CLI.Definition do
         render_version(otp_app)
 
       _ ->
-        dispatch(commands, args)
+        dispatch(commands, args, allow_unknown_flags)
     end
   end
 
@@ -435,21 +448,21 @@ defmodule Alaja.CLI.Definition do
   end
 
   @doc false
-  @spec dispatch([map()], [String.t()]) :: {:error, atom()} | term()
-  def dispatch(commands, args) do
-    dispatch(commands, args, [])
+  @spec dispatch([map()], [String.t()], boolean()) :: {:error, atom()} | term()
+  def dispatch(commands, args, allow_unknown_flags \\ false) do
+    dispatch(commands, args, [], allow_unknown_flags)
   end
 
-  defp dispatch(commands, [name | rest], parent_flags) do
+  defp dispatch(commands, [name | rest], parent_flags, allow_unknown_flags) do
     case find_command(commands, name) do
       nil ->
         ErrorHandler.unknown_command(name, commands)
 
       %{subcommands: subs} = cmd when map_size(subs) > 0 ->
-        dispatch_with_subcommands(cmd, rest, parent_flags)
+        dispatch_with_subcommands(cmd, rest, parent_flags, allow_unknown_flags)
 
       cmd ->
-        case parse_flags(cmd.flags, rest) do
+        case parse_flags(cmd.flags, rest, allow_unknown_flags) do
           {:ok, flags, remaining} ->
             execute(cmd, flags, remaining, parent_flags)
 
@@ -460,7 +473,7 @@ defmodule Alaja.CLI.Definition do
     end
   end
 
-  defp dispatch(commands, [], _parent_flags) do
+  defp dispatch(commands, [], _parent_flags, _allow_unknown_flags) do
     ErrorHandler.no_command(commands)
   end
 
@@ -479,10 +492,15 @@ defmodule Alaja.CLI.Definition do
     end
   end
 
-  defp dispatch_with_subcommands(%{subcommands: subs} = cmd, rest, parent_flags) do
-    case parse_flags(cmd.flags, rest) do
+  defp dispatch_with_subcommands(
+         %{subcommands: subs} = cmd,
+         rest,
+         parent_flags,
+         allow_unknown_flags
+       ) do
+    case parse_flags(cmd.flags, rest, allow_unknown_flags) do
       {:ok, flags, remaining} ->
-        handle_remaining(subs, cmd, flags, remaining, parent_flags)
+        handle_remaining(subs, cmd, flags, remaining, parent_flags, allow_unknown_flags)
 
       {:error, msg} ->
         IO.puts(:stderr, msg)
@@ -490,13 +508,13 @@ defmodule Alaja.CLI.Definition do
     end
   end
 
-  defp handle_remaining(_subs, cmd, flags, [], parent_flags) do
+  defp handle_remaining(_subs, cmd, flags, [], parent_flags, _allow_unknown_flags) do
     execute(cmd, flags, [], parent_flags)
   end
 
-  defp handle_remaining(subs, cmd, flags, [sub | rest], parent_flags) do
+  defp handle_remaining(subs, cmd, flags, [sub | rest], parent_flags, allow_unknown_flags) do
     if subcommand_exists?(subs, sub) do
-      dispatch(Map.values(subs), [sub | rest], parent_flags ++ flags)
+      dispatch(Map.values(subs), [sub | rest], parent_flags ++ flags, allow_unknown_flags)
     else
       execute(cmd, flags, [sub | rest], parent_flags)
     end
@@ -507,12 +525,12 @@ defmodule Alaja.CLI.Definition do
 
   # ─── Flag parsing ─────────────────────────────────────────────────────
 
-  defp parse_flags(flags, args, acc \\ [])
-  defp parse_flags([], args, acc), do: {:ok, acc, args}
+  defp parse_flags(flags, args, allow_unknown_flags, acc \\ [])
+  defp parse_flags([], args, _allow_unknown_flags, acc), do: {:ok, acc, args}
 
-  defp parse_flags(flags, args, acc) do
+  defp parse_flags(flags, args, allow_unknown_flags, acc) do
     matched = match_flag(flags, args)
-    parse_matched_flag(matched, flags, args, acc)
+    parse_matched_flag(matched, flags, args, allow_unknown_flags, acc)
   end
 
   # When `match_flag/2` returns nil, the next arg is either a known
@@ -523,46 +541,59 @@ defmodule Alaja.CLI.Definition do
   # would parse the typo as positional, miss the real `--command`,
   # and crash deep inside the runner instead of saying "did you
   # mean --command?".
-  defp parse_matched_flag(nil, flags, [arg | _] = args, acc) when is_binary(arg) do
-    case reject_unknown_flag(flags, arg) do
+  defp parse_matched_flag(nil, flags, [arg | _] = args, allow_unknown_flags, acc)
+       when is_binary(arg) do
+    case reject_unknown_flag(flags, arg, allow_unknown_flags) do
       :ok -> {:ok, acc, args}
       {:error, _} = err -> err
     end
   end
 
-  defp parse_matched_flag(nil, _flags, args, acc), do: {:ok, acc, args}
+  defp parse_matched_flag(nil, _flags, args, _allow_unknown_flags, acc), do: {:ok, acc, args}
 
-  defp parse_matched_flag(%{type: :boolean, repeatable: true} = flag, flags, [arg | rest], acc) do
+  defp parse_matched_flag(
+         %{type: :boolean, repeatable: true} = flag,
+         flags,
+         [arg | rest],
+         allow_unknown_flags,
+         acc
+       ) do
     value_already = arg =~ "=true" or arg =~ "=false"
     value = if value_already, do: String.contains?(arg, "=true"), else: true
     next = if value_already, do: rest, else: rest
-    parse_flags(flags -- [flag], next, [{flag.name, value} | acc])
+    parse_flags(flags -- [flag], next, allow_unknown_flags, [{flag.name, value} | acc])
   end
 
-  defp parse_matched_flag(%{type: :boolean} = flag, flags, [arg | rest], acc) do
+  defp parse_matched_flag(%{type: :boolean} = flag, flags, [arg | rest], allow_unknown_flags, acc) do
     value_already = arg =~ "=true" or arg =~ "=false"
     value = if value_already, do: String.contains?(arg, "=true"), else: true
     next = if value_already, do: rest, else: rest
-    parse_flags(flags -- [flag], next, [{flag.name, value} | acc])
+    parse_flags(flags -- [flag], next, allow_unknown_flags, [{flag.name, value} | acc])
   end
 
-  defp parse_matched_flag(%{type: :boolean} = flag, _flags, [], acc) do
-    parse_flags([flag], [], [{flag.name, true} | acc])
+  defp parse_matched_flag(%{type: :boolean} = flag, _flags, [], allow_unknown_flags, acc) do
+    parse_flags([flag], [], allow_unknown_flags, [{flag.name, true} | acc])
   end
 
-  defp parse_matched_flag(%{repeatable: true} = flag, flags, [arg | rest], acc) do
+  defp parse_matched_flag(
+         %{repeatable: true} = flag,
+         flags,
+         [arg | rest],
+         allow_unknown_flags,
+         acc
+       ) do
     {value, remaining} = parse_flag_value(arg, rest)
     parsed = cast_flag_value(flag.type, value, flag.default)
-    parse_flags(flags, remaining, [{flag.name, parsed} | acc])
+    parse_flags(flags, remaining, allow_unknown_flags, [{flag.name, parsed} | acc])
   end
 
-  defp parse_matched_flag(%{} = flag, flags, [arg | rest], acc) do
+  defp parse_matched_flag(%{} = flag, flags, [arg | rest], allow_unknown_flags, acc) do
     {value, remaining} = parse_flag_value(arg, rest)
     parsed = cast_flag_value(flag.type, value, flag.default)
-    parse_flags(flags -- [flag], remaining, [{flag.name, parsed} | acc])
+    parse_flags(flags -- [flag], remaining, allow_unknown_flags, [{flag.name, parsed} | acc])
   end
 
-  defp parse_matched_flag(%{} = _flag, _flags, [], acc) do
+  defp parse_matched_flag(%{} = _flag, _flags, [], _allow_unknown_flags, acc) do
     {:ok, acc, []}
   end
 
@@ -582,7 +613,14 @@ defmodule Alaja.CLI.Definition do
   # only flag strings that look like flags (`-x`, `--xxx`, with or
   # without `=value`). Anything else is a positional and passes
   # through to `parse_arguments` as before.
-  defp reject_unknown_flag(flags, arg) do
+  #
+  # When `allow_unknown_flags` is true, unknown flags are passed
+  # through to `opts[:_args]` instead of being rejected. This is
+  # useful for CLIs that accept dynamic flags (e.g. `acho new-env
+  # --url=... --user=...`).
+  defp reject_unknown_flag(_flags, _arg, true), do: :ok
+
+  defp reject_unknown_flag(flags, arg, _allow_unknown_flags) do
     cond do
       arg in ["--", "-"] ->
         :ok
@@ -860,8 +898,9 @@ defmodule Alaja.CLI.Definition do
         end
 
       direct_required =
-        if f.required and (not Map.has_key?(flag_values, f.name) or
-                             Map.get(flag_values, f.name) == nil) do
+        if f.required and
+             (not Map.has_key?(flag_values, f.name) or
+                Map.get(flag_values, f.name) == nil) do
           [f.name]
         else
           []
