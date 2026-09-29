@@ -429,7 +429,7 @@ defmodule Alaja.CLI.Definition do
   defp help_exit_block do
     quote do
       help_exit =
-        if @command_help do
+        if __command_help__() do
           Alaja.CLI.Definition.help_requested_and_rendered?(
             __commands__(),
             __otp_app__(),
