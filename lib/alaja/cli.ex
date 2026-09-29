@@ -17,7 +17,7 @@ defmodule Alaja.CLI do
   Run `alaja --help` for the full list.
   """
 
-  use Alaja.CLI.Definition, otp_app: :alaja, halt_on_error: true
+  use Alaja.CLI.Definition, otp_app: :alaja, halt_on_error: true, command_help: false
 
   alias Alaja.CLI.Dispatch
 

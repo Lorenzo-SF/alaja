@@ -53,16 +53,31 @@ defmodule Alaja.CLI.Definition do
   defmacro __using__(opts) do
     otp_app = Keyword.get(opts, :otp_app)
     allow_unknown_flags = Keyword.get(opts, :allow_unknown_flags, false)
+    global_opts = Keyword.get(opts, :global_opts, true)
+    catch_all = Keyword.get(opts, :catch_all)
+    command_help = Keyword.get(opts, :command_help, true)
 
     quote do
-      import Alaja.CLI.Definition, only: [command: 3, subcommand: 3, flag: 3, argument: 3, run: 1]
+      # Both arities are imported: `flag/3` and `argument/3` carry a
+      # default for their options, but `import only:` does not make a
+      # shorter call site legal, so `flag :name, :string` would not
+      # resolve without listing `flag: 2` as well.
+      import Alaja.CLI.Definition,
+        only: [command: 3, subcommand: 3, flag: 3, flag: 2, argument: 3, argument: 2, run: 1]
+
       Module.register_attribute(__MODULE__, :commands, accumulate: true)
       Module.register_attribute(__MODULE__, :otp_app, accumulate: false)
       Module.register_attribute(__MODULE__, :allow_unknown_flags, accumulate: false)
+      Module.register_attribute(__MODULE__, :global_opts, accumulate: false)
+      Module.register_attribute(__MODULE__, :catch_all, accumulate: false)
+      Module.register_attribute(__MODULE__, :command_help, accumulate: false)
       @subcommand_children []
       @subcommand_depth 0
       @otp_app unquote(otp_app)
       @allow_unknown_flags unquote(allow_unknown_flags)
+      @global_opts unquote(global_opts)
+      @catch_all unquote(catch_all)
+      @command_help unquote(command_help)
       @halt_on_error Keyword.get(unquote(opts), :halt_on_error, false)
       @before_compile Alaja.CLI.Definition
     end
@@ -137,7 +152,35 @@ defmodule Alaja.CLI.Definition do
     end
   end
 
-  @doc "Defines a CLI flag within a command."
+  @doc """
+  Defines a CLI flag within a command.
+
+  ## Matching
+
+  A flag matches on its **exact** long name or its exact short letter,
+  never on a prefix: `--out` must not satisfy a declared `:output`, or
+  `-e` a declared `:env`. Whatever follows `=` is not part of the name,
+  so `--name=value` matches `--name`.
+
+  A flag declared as `:auth_type` answers to both `--auth_type` and
+  `--auth-type`. CLI convention is dashed, DSL identifiers are
+  underscored, and a host should not have to spell both.
+
+  ## Options
+
+    * `:default` - valor por defecto
+    * `:required` - obliga a pasarlo
+    * `:values` - valores permitidos
+    * `:short` - letra corta
+    * `:repeatable` - acumula en lista
+    * `:env` - variable de entorno de fallback
+    * `:min` / `:max` - rango numerico
+    * `:conflicts_with` - flags excluyentes
+    * `:requires` - flags obligatorios si este se pasa
+    * `:dashed` - `false` desactiva la variante con guiones
+    * `:aliases` - nombres largos adicionales, sin `--`
+    * `:help` - texto de ayuda para el help del comando
+  """
   @spec flag(atom(), flag_type(), Keyword.t()) :: Macro.t()
   defmacro flag(name, type, opts \\ []) do
     unless type in @valid_flag_types do
@@ -163,7 +206,10 @@ defmodule Alaja.CLI.Definition do
                                min: unquote(Keyword.get(opts, :min)),
                                max: unquote(Keyword.get(opts, :max)),
                                conflicts_with: unquote(Keyword.get(opts, :conflicts_with, [])),
-                               requires: unquote(Keyword.get(opts, :requires, []))
+                               requires: unquote(Keyword.get(opts, :requires, [])),
+                               dashed: unquote(Keyword.get(opts, :dashed, true)),
+                               aliases: unquote(Keyword.get(opts, :aliases, [])),
+                               help: unquote(Keyword.get(opts, :help))
                              }
                            ]
                        end)
@@ -222,23 +268,15 @@ defmodule Alaja.CLI.Definition do
   @spec __before_compile__(Macro.Env.t()) :: Macro.t()
   defmacro __before_compile__(env) do
     halt_on_error = Module.get_attribute(env.module, :halt_on_error) || false
-    halt_block = halt_block(halt_on_error)
 
+    generated_code(halt_block(halt_on_error))
+  end
+
+  @doc false
+  @spec generated_code(Macro.t()) :: Macro.t()
+  def generated_code(halt_block) do
     quote do
-      @doc false
-      def __commands__ do
-        @commands |> Enum.reverse()
-      end
-
-      @doc false
-      def __otp_app__ do
-        @otp_app
-      end
-
-      @doc false
-      def __allow_unknown_flags__() do
-        @allow_unknown_flags
-      end
+      unquote(accessors_block())
 
       @doc "Runs the CLI with the given arguments."
       def main(args) do
@@ -259,7 +297,12 @@ defmodule Alaja.CLI.Definition do
       """
       @spec exec([String.t()]) :: term()
       def exec(args) do
-        Alaja.CLI.Definition.dispatch(@commands |> Enum.reverse(), args)
+        Alaja.CLI.Definition.dispatch(
+          @commands |> Enum.reverse(),
+          args,
+          @allow_unknown_flags,
+          @catch_all
+        )
       end
 
       defp dispatch_main(args) do
@@ -269,30 +312,84 @@ defmodule Alaja.CLI.Definition do
         # this, releases that ship with `include_erts: false`
         # report "could not lookup Ecto repo" or similar because their
         # supervisor tree never started.
-        Application.ensure_all_started(:alaja)
-        Application.ensure_all_started(__otp_app__())
-
-        # Sync the CLI flag --no-color into the Application env BEFORE
-        # any command (or help renderer) asks Alaja.Config.color_enabled?/0.
-        # Without this the flag would only reach the printer level and
-        # leave Alaja.Config (and therefore Alaja.Theme.color/1) reporting
-        # colour as enabled. Priority stays: CLI flag > NO_COLOR env > IO.ANSI.
-        Alaja.CLI.NoColor.sync(args)
+        unquote(startup_block())
 
         # Top-level commands that have been migrated to raise
         # `Alaja.CLI.ActionError` (and any future typed exceptions) need
         # their error rendered to stderr and the process exited with
         # status 1. Without this, the exception would propagate as an
         # Elixir crash dump — confusing for end users.
+        # `<command> --help` prints that one command's help. Handled here,
+        # before global extraction, because `GlobalOpts.parse/1` would
+        # strip `--help` and the command would then run without it -
+        # usually failing on a missing required flag.
+        #
+        # `command_help: false` is for hosts whose commands render their
+        # own richer help from inside their handler (Alaja's own CLI does
+        # exactly that, with per-command examples and descriptions).
+        unquote(help_exit_block())
+
+        dispatch_args(args)
+      end
+
+      unquote(dispatch_block(halt_block))
+    end
+  end
+
+  # Read-only accessors for the `use` options, so a host can branch on how
+  # the DSL was configured instead of hardcoding the assumptions.
+  defp accessors_block do
+    quote do
+      @doc false
+      def __commands__ do
+        @commands |> Enum.reverse()
+      end
+
+      @doc false
+      def __otp_app__, do: @otp_app
+
+      @doc false
+      def __allow_unknown_flags__, do: @allow_unknown_flags
+
+      @doc false
+      def __global_opts__, do: @global_opts
+
+      @doc false
+      def __catch_all__, do: @catch_all
+
+      @doc false
+      def __command_help__, do: @command_help
+    end
+  end
+
+  # The actual dispatch, with the host's error translation.
+  #
+  # `Alaja.CLI.Exit` carries the host's own exit code, so a host that
+  # distinguishes failure kinds (Acho: 10 unresolved variable, 20
+  # network, 40 assertion) gets them out of the box. `ActionError` keeps
+  # its historical meaning: exit 1.
+  #
+  # Global options are deliberately NOT stripped here: every handler
+  # reads the ones it wants from the raw args, so a host that declares
+  # `--box` for its own purpose can set `global_opts: false` and keep the
+  # token for itself. See `__global_opts__/0`.
+  defp dispatch_block(halt_block) do
+    quote do
+      defp dispatch_args(args) do
         result =
           try do
             Alaja.CLI.Definition.run_dispatch(
               __commands__(),
               args,
               __otp_app__(),
-              __allow_unknown_flags__()
+              __allow_unknown_flags__(),
+              __catch_all__()
             )
           rescue
+            e in Alaja.CLI.Exit ->
+              IO.puts(:stderr, "Error: #{Exception.message(e)}")
+              exit({:shutdown, e.exit_code})
+
             e in Alaja.CLI.ActionError ->
               IO.puts(:stderr, "Error: #{Exception.message(e)}")
               exit({:shutdown, 1})
@@ -302,6 +399,47 @@ defmodule Alaja.CLI.Definition do
 
         result
       end
+    end
+  end
+
+  # Ensures the rendering stack and the host application are up, and syncs
+  # the `--no-color` flag into the Application env BEFORE any command (or
+  # help renderer) asks `Alaja.Config.color_enabled?/0`. Without the sync
+  # the flag would only reach the printer level and leave `Alaja.Theme`
+  # reporting colour as enabled. Priority: CLI flag > NO_COLOR env > IO.ANSI.
+  defp startup_block do
+    quote do
+      Application.ensure_all_started(:alaja)
+      Application.ensure_all_started(__otp_app__())
+      Alaja.CLI.NoColor.sync(args)
+    end
+  end
+
+  # `<command> --help` prints that one command's help and returns without
+  # running it.
+  #
+  # `:error` from `render_command_help_for/3` means the first token names
+  # no declared command, so the host's `catch_all` handler may still own
+  # it: a stored entity name, or a hot call that starts straight with
+  # flags. That case falls through to the normal dispatch.
+  #
+  # `command_help: false` is for hosts whose commands render their own
+  # richer help from inside their handler (Alaja's own CLI does exactly
+  # that, with per-command examples and descriptions).
+  defp help_exit_block do
+    quote do
+      help_exit =
+        if @command_help do
+          Alaja.CLI.Definition.help_requested_and_rendered?(
+            __commands__(),
+            __otp_app__(),
+            args
+          )
+        else
+          false
+        end
+
+      if help_exit, do: :ok
     end
   end
 
@@ -324,8 +462,8 @@ defmodule Alaja.CLI.Definition do
   alias Alaja.CLI.Parser
 
   @doc false
-  @spec run_dispatch([map()], [String.t()], atom(), boolean()) :: term()
-  def run_dispatch(commands, args, otp_app, allow_unknown_flags \\ false) do
+  @spec run_dispatch([map()], [String.t()], atom(), boolean(), {module(), atom()} | nil) :: term()
+  def run_dispatch(commands, args, otp_app, allow_unknown_flags \\ false, catch_all \\ nil) do
     case args do
       # Top-level help: `alaja`, `alaja --help`, `alaja -h`, and `alaja
       # help` all render the full help instead of trying to dispatch to a
@@ -350,9 +488,188 @@ defmodule Alaja.CLI.Definition do
         render_version(otp_app)
 
       _ ->
-        dispatch(commands, args, allow_unknown_flags)
+        dispatch(commands, args, [], allow_unknown_flags, catch_all)
     end
   end
+
+  # `["cmd", "--help"]` asks for the help of that single command;
+  # `["--help"]` alone is the top-level help, handled above.
+  @doc false
+  @spec command_help([String.t()]) :: :ok | {:help, [String.t()]}
+  def command_help([first | _] = args) do
+    if String.starts_with?(first, "-") do
+      :ok
+    else
+      if command_help_requested?(args), do: {:help, args}, else: :ok
+    end
+  end
+
+  def command_help(_args), do: :ok
+
+  @doc """
+  Devuelve `true` cuando los args piden el help de un comando concreto y
+  ese help se ha renderizado. `false` cuando el comando no existe (para
+  que un host con `catch_all` siga su camino) o cuando no se pidió help.
+  """
+  @spec help_requested_and_rendered?([map()], atom(), [String.t()]) :: boolean()
+  def help_requested_and_rendered?(commands, otp_app, args) do
+    case command_help(args) do
+      :ok -> false
+      {:help, help_args} -> render_command_help_for(commands, otp_app, help_args) == :ok
+    end
+  end
+
+  @doc """
+  `alaja <command> --help` renders the help of that command instead of
+  failing with "missing required flag".
+  """
+  @spec command_help_requested?([String.t()]) :: boolean()
+  def command_help_requested?(args), do: Enum.any?(args, &(&1 in ["--help", "-h"]))
+
+  @doc "Elimina `--help` / `-h` de una lista de argumentos."
+  @spec strip_help_flag([String.t()]) :: [String.t()]
+  def strip_help_flag(args), do: Enum.reject(args, &(&1 in ["--help", "-h"]))
+
+  @doc """
+  Renders the help of the command named by the first element of `args`,
+  descending into subcommand groups when needed.
+
+  Returns `{:error, :unknown_command}` when the first element names no
+  declared command, so the caller can fall back to its own dispatch -
+  which is how a host with a `catch_all` handler claims a token that is
+  not a command at all.
+  """
+  @spec render_command_help_for([map()], atom(), [String.t()]) :: :ok | {:error, :unknown_command}
+  def render_command_help_for(commands, otp_app, [name | rest]) do
+    if String.starts_with?(name, "-") do
+      :ok
+    else
+      render_named_help(commands, otp_app, name, rest)
+    end
+  end
+
+  def render_command_help_for(_commands, _otp_app, _args), do: :ok
+
+  defp render_named_help(commands, otp_app, name, rest) do
+    case find_command(commands, name) do
+      nil -> {:error, :unknown_command}
+      cmd -> render_found_help(cmd, otp_app, rest)
+    end
+  end
+
+  defp render_found_help(%{subcommands: subs} = cmd, otp_app, rest) when map_size(subs) > 0 do
+    case rest do
+      [sub | tail] -> render_sub_help(subs, cmd, sub, tail, otp_app)
+      _ -> render_group_help(cmd)
+    end
+  end
+
+  defp render_found_help(cmd, otp_app, _rest), do: render_command_help(cmd, otp_app)
+
+  defp render_sub_help(subs, cmd, sub, tail, otp_app) do
+    case Map.get(subs, sub) do
+      nil -> render_group_help(cmd)
+      sub_cmd -> maybe_render_command_help(sub_cmd, tail, otp_app)
+    end
+  end
+
+  # A command that also has a handler: the help flag has already been
+  # stripped before its flags are parsed.
+  defp maybe_render_command_help(cmd, rest, otp_app) do
+    if command_help_requested?(rest) do
+      render_command_help(cmd, otp_app)
+      true
+    else
+      false
+    end
+  end
+
+  defp render_group_help(%{subcommands: subs} = cmd) do
+    names = subs |> Map.keys() |> Enum.sort()
+
+    Alaja.CLI.HelpFormatter.render(
+      title: cmd.name,
+      subtitle: cmd.description,
+      usage: ["#{cmd.name} [#{Enum.join(names, " | ")}]"],
+      options: [],
+      globals: false,
+      global_opts: %Alaja.CLI.GlobalOpts{}
+    )
+
+    :ok
+  end
+
+  defp render_command_help(cmd, otp_app) do
+    Alaja.CLI.HelpFormatter.render(
+      title: "#{otp_app} #{cmd.name}",
+      subtitle: cmd.description,
+      usage: usage_lines(otp_app, cmd),
+      options: option_rows(cmd),
+      globals: false,
+      global_opts: %Alaja.CLI.GlobalOpts{}
+    )
+
+    :ok
+  end
+
+  defp usage_lines(otp_app, cmd) do
+    ["#{otp_app} #{cmd.name}"]
+    |> Kernel.++(Enum.map(cmd.flags, &flag_token/1))
+    |> Kernel.++(Enum.map(cmd.arguments, &argument_token/1))
+  end
+
+  defp flag_token(%{type: :boolean} = flag) do
+    if flag.short, do: "  --#{flag.name}/-#{flag.short}", else: "  --#{flag.name}"
+  end
+
+  defp flag_token(%{required: true, short: short} = flag) when not is_nil(short) do
+    "  --#{flag.name}/-#{short} <#{type_label(flag.type)}>"
+  end
+
+  defp flag_token(%{required: true} = flag) do
+    "  --#{flag.name} <#{type_label(flag.type)}>"
+  end
+
+  defp flag_token(%{short: short} = flag) when not is_nil(short) do
+    "  [--#{flag.name}/-#{short} <#{type_label(flag.type)}>]"
+  end
+
+  defp flag_token(flag), do: "  [--#{flag.name} <#{type_label(flag.type)}>]"
+
+  defp argument_token(%{name: name, required: true}), do: "  <#{name}>"
+  defp argument_token(%{name: name}), do: "  [<#{name}>]"
+
+  defp option_rows(cmd) do
+    Enum.map(cmd.flags, fn flag ->
+      name = if flag.short, do: "#{display_name(flag)}/-#{flag.short}", else: display_name(flag)
+      {name, option_type(flag), flag.default, flag.help || ""}
+    end) ++
+      Enum.map(cmd.arguments, fn arg ->
+        {"<#{arg.name}>", to_string(arg.type), arg.default, ""}
+      end)
+  end
+
+  # `--auth-type` rather than `--auth_type`, plus any alias.
+  defp display_name(flag) do
+    case accepted_long_names(flag) do
+      [] -> "--#{flag.name}"
+      [first | rest] -> Enum.join([first | rest], ", ")
+    end
+  end
+
+  defp option_type(%{type: :boolean}), do: :flag
+  defp option_type(%{required: true} = flag), do: "#{type_label(flag.type)} (required)"
+  defp option_type(flag), do: type_label(flag.type)
+
+  defp type_label(:string), do: "value"
+  defp type_label(:integer), do: "N"
+  defp type_label(:float), do: "N"
+  defp type_label(:atom), do: "atom"
+  defp type_label(:path), do: "path"
+  defp type_label(:url), do: "url"
+  defp type_label(:color_list), do: "color"
+  defp type_label(:keep), do: "value"
+  defp type_label(type), do: to_string(type)
 
   defp dispatch_empty(commands, otp_app) do
     # The alaja welcome showcase (pulsar animation + interactive prompt)
@@ -450,13 +767,23 @@ defmodule Alaja.CLI.Definition do
   @doc false
   @spec dispatch([map()], [String.t()], boolean()) :: {:error, atom()} | term()
   def dispatch(commands, args, allow_unknown_flags \\ false) do
-    dispatch(commands, args, [], allow_unknown_flags)
+    dispatch(commands, args, [], allow_unknown_flags, nil)
   end
 
-  defp dispatch(commands, [name | rest], parent_flags, allow_unknown_flags) do
+  @doc """
+  Dispatch with an explicit `catch_all` handler, for hosts and tests that
+  drive the dispatcher directly.
+  """
+  @spec dispatch([map()], [String.t()], boolean(), {module(), atom()} | nil) ::
+          {:error, atom()} | term()
+  def dispatch(commands, args, allow_unknown_flags, catch_all) do
+    dispatch(commands, args, [], allow_unknown_flags, catch_all)
+  end
+
+  defp dispatch(commands, [name | rest], parent_flags, allow_unknown_flags, catch_all) do
     case find_command(commands, name) do
       nil ->
-        ErrorHandler.unknown_command(name, commands)
+        run_catch_all(catch_all, name, rest, commands)
 
       %{subcommands: subs} = cmd when map_size(subs) > 0 ->
         dispatch_with_subcommands(cmd, rest, parent_flags, allow_unknown_flags)
@@ -473,8 +800,24 @@ defmodule Alaja.CLI.Definition do
     end
   end
 
-  defp dispatch(commands, [], _parent_flags, _allow_unknown_flags) do
-    ErrorHandler.no_command(commands)
+  defp dispatch(commands, [], _parent_flags, _allow_unknown_flags, catch_all) do
+    case catch_all do
+      nil -> ErrorHandler.no_command(commands)
+      {mod, fun} -> apply(mod, fun, [%{name: nil, _args: []}])
+    end
+  end
+
+  # A host with a `catch_all` handler owns the "no such command" path. A
+  # first token that is not a declared command may still be a valid
+  # target: the name of a stored entity, or nothing at all when the
+  # invocation starts straight with flags (a hot call). The handler
+  # receives `%{name: token | nil, _args: [token | rest]}` and decides.
+  defp run_catch_all(nil, name, _rest, commands) do
+    ErrorHandler.unknown_command(name, commands)
+  end
+
+  defp run_catch_all({mod, fun}, name, rest, _commands) do
+    apply(mod, fun, [%{name: name, _args: [name | rest]}])
   end
 
   defp find_command(commands, name) when is_list(commands) do
@@ -500,7 +843,11 @@ defmodule Alaja.CLI.Definition do
        ) do
     case parse_flags(cmd.flags, rest, allow_unknown_flags) do
       {:ok, flags, remaining} ->
-        handle_remaining(subs, cmd, flags, remaining, parent_flags, allow_unknown_flags)
+        if command_help_requested?(remaining) and remaining == [] do
+          render_group_help(cmd)
+        else
+          handle_remaining(subs, cmd, flags, remaining, parent_flags, allow_unknown_flags)
+        end
 
       {:error, msg} ->
         IO.puts(:stderr, msg)
@@ -514,7 +861,7 @@ defmodule Alaja.CLI.Definition do
 
   defp handle_remaining(subs, cmd, flags, [sub | rest], parent_flags, allow_unknown_flags) do
     if subcommand_exists?(subs, sub) do
-      dispatch(Map.values(subs), [sub | rest], parent_flags ++ flags, allow_unknown_flags)
+      dispatch(Map.values(subs), [sub | rest], parent_flags ++ flags, allow_unknown_flags, nil)
     else
       execute(cmd, flags, [sub | rest], parent_flags)
     end
@@ -600,13 +947,52 @@ defmodule Alaja.CLI.Definition do
   defp match_flag(_flags, []), do: nil
 
   defp match_flag(flags, [arg | _]) do
-    Enum.find(flags, fn flag ->
-      full = "--#{flag.name}"
-      short = flag.short && "-#{flag.short}"
+    Enum.find(flags, &flag_matches?(&1, arg))
+  end
 
-      String.starts_with?(arg, full) or
-        (short && String.starts_with?(arg, short))
-    end)
+  # A flag matches on its **exact** name, never on a prefix, and whatever
+  # follows `=` is not part of the name. A prefix match would let `--out`
+  # satisfy a declared `:output`, and `-e` a declared `:env`, silently
+  # stealing the value from the flag the user actually meant.
+  defp flag_matches?(flag, arg) do
+    {bare, _value} = split_value(arg)
+
+    long_matches?(flag, bare) or short_matches?(flag, arg)
+  end
+
+  defp long_matches?(flag, bare) do
+    String.starts_with?(bare, "--") and bare in accepted_long_names(flag)
+  end
+
+  defp short_matches?(%{short: nil}, _arg), do: false
+
+  defp short_matches?(flag, arg) do
+    not String.starts_with?(arg, "--") and
+      String.starts_with?(arg, "-") and
+      String.contains?(arg, "-#{flag.short}")
+  end
+
+  @doc """
+  Los nombres largos, con `--`, con los que responde un flag.
+  """
+  @spec accepted_long_names(map()) :: [String.t()]
+  def accepted_long_names(flag) do
+    dashed? = Map.get(flag, :dashed, true)
+    aliases = Map.get(flag, :aliases, []) || []
+    underscored = Atom.to_string(flag.name)
+    dashed = String.replace(underscored, "_", "-")
+
+    base = if underscored == dashed, do: [underscored], else: [underscored, dashed]
+    base = if dashed?, do: base, else: Enum.reject(base, &(&1 == dashed))
+
+    Enum.map(base ++ aliases, &("--" <> &1))
+  end
+
+  defp split_value(arg) do
+    case String.split(arg, "=", parts: 2) do
+      [name] -> {name, nil}
+      [name, value] -> {name, value}
+    end
   end
 
   # Detect a flag-like argument that no known flag matches. We
