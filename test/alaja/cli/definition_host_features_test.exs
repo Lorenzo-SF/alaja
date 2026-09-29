@@ -55,6 +55,29 @@ defmodule Alaja.CLI.DefinitionHostFeaturesTest do
     end
   end
 
+  describe "per-command --help" do
+    import ExUnit.CaptureIO
+
+    test "`<command> --help` renders the help and does NOT run the command" do
+      out = capture_io(fn -> HostCLI.exec(["greet", "--help"]) end)
+
+      assert out =~ "greet"
+      # `greet` exige `--name`. Si el comando se ejecutara, esto seria
+      # "missing required flags: --name" en vez de la ayuda.
+      refute out =~ "missing required flags"
+    end
+
+    test "sin `--help` el comando sí se ejecuta" do
+      assert {:ran, %{name: "ana"}} = HostCLI.exec(["greet", "--name=ana"])
+    end
+
+    test "`--help` antes del comando también corta" do
+      out = capture_io(fn -> HostCLI.exec(["--help"]) end)
+
+      refute out =~ "missing required flags"
+    end
+  end
+
   describe "catch_all/1" do
     test "an unknown first token is handed to the catch-all handler" do
       assert HostCLI.exec(["stored_call", "--payload=x"]) == :catch_all_took

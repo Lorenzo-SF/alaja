@@ -296,13 +296,14 @@ defmodule Alaja.CLI.Definition do
           Alaja.CLI.exec(["message", "--text", "Hello"])
       """
       @spec exec([String.t()]) :: term()
-      def exec(args) do
-        Alaja.CLI.Definition.dispatch(
-          @commands |> Enum.reverse(),
-          args,
-          @allow_unknown_flags,
-          @catch_all
-        )
+      def exec(args), do: dispatch_with_help(args)
+
+      # El corte por `--help` vive aquí y no en `dispatch_main/1` para
+      # que `exec/1` y `main/1` se comporten igual. Con la comprobación
+      # sólo en la entrada de escript, `exec(["cmd", "--help"])` ejecutaba
+      # el comando y reventaba con "missing required flags".
+      defp dispatch_with_help(args) do
+        unquote(help_exit_block())
       end
 
       defp dispatch_main(args) do
@@ -327,9 +328,7 @@ defmodule Alaja.CLI.Definition do
         # `command_help: false` is for hosts whose commands render their
         # own richer help from inside their handler (Alaja's own CLI does
         # exactly that, with per-command examples and descriptions).
-        unquote(help_exit_block())
-
-        dispatch_args(args)
+        dispatch_with_help(args)
       end
 
       unquote(dispatch_block(halt_block))
@@ -426,6 +425,10 @@ defmodule Alaja.CLI.Definition do
   # `command_help: false` is for hosts whose commands render their own
   # richer help from inside their handler (Alaja's own CLI does exactly
   # that, with per-command examples and descriptions).
+  # `<comando> --help` imprime la ayuda de ese comando y **no** ejecuta
+  # el comando. El `case` es lo que corta de verdad: calcular el booleano
+  # y seguir adelante dejaba que el comando se ejecutara igual y fallara
+  # con "missing required flags", que es justo lo que se quería evitar.
   defp help_exit_block do
     quote do
       help_exit =
@@ -439,7 +442,10 @@ defmodule Alaja.CLI.Definition do
           false
         end
 
-      if help_exit, do: :ok
+      case help_exit do
+        true -> :ok
+        false -> dispatch_args(args)
+      end
     end
   end
 
