@@ -878,7 +878,11 @@ defmodule Alaja.CLI.Definition do
   # ningún flag y no parece un flag se apila como posicional y el
   # parseo **sigue**.
   defp parse_flags(flags, args, allow_unknown_flags, acc \\ [], loose \\ [])
-  defp parse_flags([], args, _allow_unknown_flags, acc, loose), do: {:ok, acc, args ++ loose}
+  # `loose` se acumula por delante, así que se invierte al volver a
+  # pegarlo: `secrets list t` tiene que llegar como ["list", "t"] y no
+  # al revés, que es como se asignan a los `argument` declarados.
+  defp parse_flags([], args, _allow_unknown_flags, acc, loose),
+    do: {:ok, acc, args ++ Enum.reverse(loose)}
 
   defp parse_flags(flags, args, allow_unknown_flags, acc, loose) do
     matched = match_flag(flags, args)
@@ -907,7 +911,7 @@ defmodule Alaja.CLI.Definition do
   end
 
   defp parse_matched_flag(nil, _flags, args, _allow_unknown_flags, acc, loose),
-    do: {:ok, acc, args ++ loose}
+    do: {:ok, acc, args ++ Enum.reverse(loose)}
 
   defp parse_matched_flag(
          %{type: :boolean, repeatable: true} = flag,
@@ -966,7 +970,7 @@ defmodule Alaja.CLI.Definition do
   end
 
   defp parse_matched_flag(%{} = _flag, _flags, [], _allow_unknown_flags, acc, loose),
-    do: {:ok, acc, loose}
+    do: {:ok, acc, Enum.reverse(loose)}
 
   defp match_flag(_flags, []), do: nil
 

@@ -26,6 +26,17 @@ defmodule Alaja.CLI.DefinitionHostFeaturesTest do
     end
   end
 
+  defmodule PositionalCLI do
+    @moduledoc false
+    use Alaja.CLI.Definition, otp_app: :alaja
+
+    command "alpha", "Dos positionals" do
+      argument(:hash, :string, required: true)
+      argument(:name, :string, required: false)
+      run({Handler, :run})
+    end
+  end
+
   defmodule HostCLI do
     @moduledoc false
     use Alaja.CLI.Definition,
@@ -193,6 +204,11 @@ defmodule Alaja.CLI.DefinitionHostFeaturesTest do
 
     test "positionals keep their order" do
       assert {:ran, %{_args: ["a", "b"]}} = HostCLI.exec(["plain", "a", "b"])
+    end
+
+    test "los posicionales llegan en el orden en que se escribieron" do
+      assert {:ran, %{_args: ["primero", "segundo"], hash: "primero", name: "segundo"}} =
+               PositionalCLI.exec(["alpha", "primero", "segundo"])
     end
 
     test "a flag before the positional is unaffected" do
