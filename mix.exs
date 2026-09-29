@@ -204,7 +204,10 @@ defmodule Alaja.MixProject do
 
   defp deps do
     [
-      {:pote, "~> 3.0", override: true},
+      # Sibling deps point straight at GitHub: no version bumps to track, no
+      # publish ordering between packages. `MIX_ENV=prod mix hex.publish`
+      # still works if a Hex release is ever needed again.
+      {:pote, github: "Lorenzo-SF/pote", override: true},
       {:jason, "~> 1.4"},
       {:credo, "~> 1.7", only: [:dev, :test], runtime: false},
       {:dialyxir, "~> 1.4", only: [:dev, :test], runtime: false},
