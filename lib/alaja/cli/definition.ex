@@ -269,13 +269,15 @@ defmodule Alaja.CLI.Definition do
   @spec __before_compile__(Macro.Env.t()) :: Macro.t()
   defmacro __before_compile__(env) do
     halt_on_error = Module.get_attribute(env.module, :halt_on_error) || false
+    command_help = Module.get_attribute(env.module, :command_help)
+    command_help = if is_nil(command_help), do: true, else: command_help
 
-    generated_code(halt_block(halt_on_error))
+    generated_code(halt_block(halt_on_error), command_help)
   end
 
   @doc false
-  @spec generated_code(Macro.t()) :: Macro.t()
-  def generated_code(halt_block) do
+  @spec generated_code(Macro.t(), boolean()) :: Macro.t()
+  def generated_code(halt_block, command_help \\ true) do
     quote do
       unquote(accessors_block())
 
@@ -304,7 +306,7 @@ defmodule Alaja.CLI.Definition do
       # sólo en la entrada de escript, `exec(["cmd", "--help"])` ejecutaba
       # el comando y reventaba con "missing required flags".
       defp dispatch_with_help(args) do
-        unquote(help_exit_block())
+        unquote(help_exit_block(command_help))
       end
 
       defp dispatch_main(args) do
@@ -442,30 +444,28 @@ defmodule Alaja.CLI.Definition do
   # el comando. El `case` es lo que corta de verdad: calcular el booleano
   # y seguir adelante dejaba que el comando se ejecutara igual y fallara
   # con "missing required flags", que es justo lo que se quería evitar.
-  defp help_exit_block do
+  defp help_exit_block(true) do
     quote do
-      # Un `case` y no un `if`: el `if` se compila a una guarda
-      # `X === false orelse X === nil` sobre el valor de
-      # `__command_help__/0`, que en el host es siempre `true`. La
-      # guarda queda muerta y dialyzer la reporta en el módulo del host,
-      # blaming a código generado que no puede arreglar.
-      help_exit =
-        case __command_help__() do
-          true ->
-            Alaja.CLI.Definition.help_requested_and_rendered?(
-              __commands__(),
-              __otp_app__(),
-              args
-            )
-
-          _other ->
-            false
-        end
-
-      case help_exit do
+      case Alaja.CLI.Definition.help_requested_and_rendered?(
+             __commands__(),
+             __otp_app__(),
+             args
+           ) do
         true -> :ok
         false -> dispatch_args(args)
       end
+    end
+  end
+
+  # `command_help: false` no genera comprobación alguna. Ramificar sobre
+  # `__command_help__/0` en el código generado no vale: devuelve un
+  # literal de compilación, así que la rama contraria queda muerta y
+  # dialyzer la reporta sobre el módulo del host —culpando a código
+  # generado que desde allí no se puede arreglar. La decisión se toma
+  # aquí, con el valor que el host ya eligió al declarar `use`.
+  defp help_exit_block(false) do
+    quote do
+      dispatch_args(args)
     end
   end
 
