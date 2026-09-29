@@ -78,6 +78,7 @@ defmodule Alaja.CLI.Definition do
       @global_opts unquote(global_opts)
       @catch_all unquote(catch_all)
       @command_help unquote(command_help)
+      @usage_exit_code Keyword.get(unquote(opts), :usage_exit_code, 1)
       @halt_on_error Keyword.get(unquote(opts), :halt_on_error, false)
       @before_compile Alaja.CLI.Definition
     end
@@ -358,6 +359,17 @@ defmodule Alaja.CLI.Definition do
 
       @doc false
       def __command_help__, do: @command_help
+
+      @doc """
+      El código de salida para un uso incorrecto: flag obligatorio que
+      falta, argumento que falta, flags en conflicto.
+
+      Por defecto 1, que es lo que espera un CLI genérico. Un host con
+      una tabla de códigos propia (Acho reserva el 2 para uso) lo declara
+      con `use Alaja.CLI.Definition, usage_exit_code: 2`.
+      """
+      @doc false
+      def __usage_exit_code__, do: @usage_exit_code
     end
   end
 
@@ -382,7 +394,8 @@ defmodule Alaja.CLI.Definition do
               args,
               __otp_app__(),
               __allow_unknown_flags__(),
-              __catch_all__()
+              __catch_all__(),
+              __usage_exit_code__()
             )
           rescue
             e in Alaja.CLI.Exit ->
@@ -468,8 +481,23 @@ defmodule Alaja.CLI.Definition do
   alias Alaja.CLI.Parser
 
   @doc false
-  @spec run_dispatch([map()], [String.t()], atom(), boolean(), {module(), atom()} | nil) :: term()
-  def run_dispatch(commands, args, otp_app, allow_unknown_flags \\ false, catch_all \\ nil) do
+  @spec run_dispatch(
+          [map()],
+          [String.t()],
+          atom(),
+          boolean(),
+          {module(), atom()} | nil,
+          pos_integer()
+        ) ::
+          term()
+  def run_dispatch(
+        commands,
+        args,
+        otp_app,
+        allow_unknown_flags \\ false,
+        catch_all \\ nil,
+        usage_exit_code \\ 1
+      ) do
     case args do
       # Top-level help: `alaja`, `alaja --help`, `alaja -h`, and `alaja
       # help` all render the full help instead of trying to dispatch to a
@@ -494,7 +522,7 @@ defmodule Alaja.CLI.Definition do
         render_version(otp_app)
 
       _ ->
-        dispatch(commands, args, [], allow_unknown_flags, catch_all)
+        dispatch(commands, args, [], allow_unknown_flags, catch_all, usage_exit_code)
     end
   end
 
@@ -782,31 +810,48 @@ defmodule Alaja.CLI.Definition do
   """
   @spec dispatch([map()], [String.t()], boolean(), {module(), atom()} | nil) ::
           {:error, atom()} | term()
-  def dispatch(commands, args, allow_unknown_flags, catch_all) do
-    dispatch(commands, args, [], allow_unknown_flags, catch_all)
+  @spec dispatch([map()], [String.t()], boolean(), {module(), atom()} | nil, pos_integer()) ::
+          {:error, atom()} | term()
+  def dispatch(commands, args, allow_unknown_flags, catch_all, usage_exit_code \\ 1) do
+    dispatch(commands, args, [], allow_unknown_flags, catch_all, usage_exit_code)
   end
 
-  defp dispatch(commands, [name | rest], parent_flags, allow_unknown_flags, catch_all) do
+  defp dispatch(commands, args, parent_flags, allow_unknown_flags, catch_all, usage_exit_code) do
+    do_dispatch(commands, args, parent_flags, allow_unknown_flags, catch_all, usage_exit_code)
+  end
+
+  # El valor por defecto vive en la cabecera de `dispatch/5`, y la
+  # lógica en `do_dispatch/6`: un `defp` multi-cláusula con `\\ 1` en una
+  # cláusula no compila, y el nombre público de 5 argumentos choca con
+  # el privado de 6.
+  defp do_dispatch(
+         commands,
+         [name | rest],
+         parent_flags,
+         allow_unknown_flags,
+         catch_all,
+         usage_exit_code
+       ) do
     case find_command(commands, name) do
       nil ->
         run_catch_all(catch_all, name, rest, commands)
 
       %{subcommands: subs} = cmd when map_size(subs) > 0 ->
-        dispatch_with_subcommands(cmd, rest, parent_flags, allow_unknown_flags)
+        dispatch_with_subcommands(cmd, rest, parent_flags, allow_unknown_flags, usage_exit_code)
 
       cmd ->
         case parse_flags(cmd.flags, rest, allow_unknown_flags) do
           {:ok, flags, remaining} ->
-            execute(cmd, flags, remaining, parent_flags)
+            execute(cmd, flags, remaining, parent_flags, usage_exit_code)
 
           {:error, msg} ->
             IO.puts(:stderr, msg)
-            exit({:shutdown, 1})
+            exit({:shutdown, usage_exit_code})
         end
     end
   end
 
-  defp dispatch(commands, [], _parent_flags, _allow_unknown_flags, catch_all) do
+  defp do_dispatch(commands, [], _parent_flags, _allow_unknown_flags, catch_all, _usage_exit_code) do
     case catch_all do
       nil -> ErrorHandler.no_command(commands)
       {mod, fun} -> apply(mod, fun, [%{name: nil, _args: []}])
@@ -845,31 +890,63 @@ defmodule Alaja.CLI.Definition do
          %{subcommands: subs} = cmd,
          rest,
          parent_flags,
-         allow_unknown_flags
+         allow_unknown_flags,
+         usage_exit_code
        ) do
     case parse_flags(cmd.flags, rest, allow_unknown_flags) do
       {:ok, flags, remaining} ->
         if command_help_requested?(remaining) and remaining == [] do
           render_group_help(cmd)
         else
-          handle_remaining(subs, cmd, flags, remaining, parent_flags, allow_unknown_flags)
+          handle_remaining(
+            subs,
+            cmd,
+            flags,
+            remaining,
+            parent_flags,
+            allow_unknown_flags,
+            usage_exit_code
+          )
         end
 
       {:error, msg} ->
         IO.puts(:stderr, msg)
-        exit({:shutdown, 1})
+        exit({:shutdown, usage_exit_code})
     end
   end
 
-  defp handle_remaining(_subs, cmd, flags, [], parent_flags, _allow_unknown_flags) do
-    execute(cmd, flags, [], parent_flags)
+  defp handle_remaining(
+         _subs,
+         cmd,
+         flags,
+         [],
+         parent_flags,
+         _allow_unknown_flags,
+         usage_exit_code
+       ) do
+    execute(cmd, flags, [], parent_flags, usage_exit_code)
   end
 
-  defp handle_remaining(subs, cmd, flags, [sub | rest], parent_flags, allow_unknown_flags) do
+  defp handle_remaining(
+         subs,
+         cmd,
+         flags,
+         [sub | rest],
+         parent_flags,
+         allow_unknown_flags,
+         usage_exit_code
+       ) do
     if subcommand_exists?(subs, sub) do
-      dispatch(Map.values(subs), [sub | rest], parent_flags ++ flags, allow_unknown_flags, nil)
+      dispatch(
+        Map.values(subs),
+        [sub | rest],
+        parent_flags ++ flags,
+        allow_unknown_flags,
+        nil,
+        usage_exit_code
+      )
     else
-      execute(cmd, flags, [sub | rest], parent_flags)
+      execute(cmd, flags, [sub | rest], parent_flags, usage_exit_code)
     end
   end
 
@@ -1166,7 +1243,7 @@ defmodule Alaja.CLI.Definition do
 
   # ─── Execution ────────────────────────────────────────────────────────
 
-  defp execute(cmd, flags, positional, parent_flags) do
+  defp execute(cmd, flags, positional, parent_flags, usage_exit_code) do
     all_flags = parent_flags ++ flags
     flag_values = build_flag_values(cmd.flags, all_flags)
 
@@ -1176,7 +1253,7 @@ defmodule Alaja.CLI.Definition do
         ErrorHandler.missing_args(cmd.name, missing)
 
       :ok ->
-        validate_and_run(cmd, flag_values, positional)
+        validate_and_run(cmd, flag_values, positional, usage_exit_code)
     end
   end
 
@@ -1215,12 +1292,12 @@ defmodule Alaja.CLI.Definition do
     validate_range(f, value)
   end
 
-  defp validate_and_run(cmd, flag_values, positional) do
+  defp validate_and_run(cmd, flag_values, positional, usage_exit_code) do
     # Validate mutual exclusion and requirements between flags.
     case validate_flags(cmd, flag_values) do
       {:error, msg} ->
         IO.puts(:stderr, msg)
-        exit({:shutdown, 1})
+        exit({:shutdown, usage_exit_code})
 
       :ok ->
         opts =
