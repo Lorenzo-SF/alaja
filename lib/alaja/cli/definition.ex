@@ -444,15 +444,22 @@ defmodule Alaja.CLI.Definition do
   # con "missing required flags", que es justo lo que se quería evitar.
   defp help_exit_block do
     quote do
+      # Un `case` y no un `if`: el `if` se compila a una guarda
+      # `X === false orelse X === nil` sobre el valor de
+      # `__command_help__/0`, que en el host es siempre `true`. La
+      # guarda queda muerta y dialyzer la reporta en el módulo del host,
+      # blaming a código generado que no puede arreglar.
       help_exit =
-        if __command_help__() do
-          Alaja.CLI.Definition.help_requested_and_rendered?(
-            __commands__(),
-            __otp_app__(),
-            args
-          )
-        else
-          false
+        case __command_help__() do
+          true ->
+            Alaja.CLI.Definition.help_requested_and_rendered?(
+              __commands__(),
+              __otp_app__(),
+              args
+            )
+
+          _other ->
+            false
         end
 
       case help_exit do
