@@ -11,7 +11,7 @@ defmodule Alaja.Components.Header do
 
   ## Cell engine
 
-  As of v0.3.0, `render/2` returns an `Alaja.Buffer.t/0` (height 3 or 4
+  As of v0.3.0, `render/2` returns an `t:Alaja.Buffer.t/0` (height 3 or 4
   depending on subtitle presence).
 
   ## Customisation
@@ -52,7 +52,7 @@ defmodule Alaja.Components.Header do
   end
 
   @doc """
-  Renders a header to an `Alaja.Buffer.t/0`.
+  Renders a header to an `t:Alaja.Buffer.t/0`.
 
   `:size` accepts either a named atom (`:tiny`, `:small`, `:medium`,
   `:large`) or a positive integer (exact column width). Named sizes are

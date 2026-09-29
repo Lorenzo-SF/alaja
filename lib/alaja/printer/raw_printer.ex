@@ -17,6 +17,7 @@ defmodule Alaja.Printer.RawPrinter do
   def print_at_raw(output, {x, y}, add_line) do
     cursor_move = "\e[#{y + 1};#{x + 1}H"
     clear_line = "\e[K"
+    output = Alaja.Printer.append_terminal_reset(output, [])
 
     case add_line do
       :before ->
@@ -38,14 +39,21 @@ defmodule Alaja.Printer.RawPrinter do
   @doc """
   Prints text with optional newlines before/after, with no cursor
   positioning.
+
+  Appends an ANSI attribute reset after the content. Without it a
+  payload that leaves a colour or effect open hands that state to the
+  next thing written to the same terminal, which is why running several
+  commands in a row made each one inherit the previous one's colour.
   """
   @spec print_with_lines(String.t(), MessageInfo.add_line()) :: :ok
   def print_with_lines(output, add_line) do
+    output = Alaja.Printer.append_terminal_reset(output, [])
+
     case add_line do
       :before -> IO.puts("")
       :after -> IO.puts(output)
       :both -> IO.puts(["", output, ""])
-      :none -> IO.write(output <> "\n")
+      :none -> IO.write([output, "\n"])
     end
 
     :ok

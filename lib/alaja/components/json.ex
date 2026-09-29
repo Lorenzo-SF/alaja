@@ -10,7 +10,7 @@ defmodule Alaja.Components.Json do
 
   ## Cell engine
 
-  As of v0.3.0, `render/2` returns an `Alaja.Buffer.t/0`. Each line
+  As of v0.3.0, `render/2` returns an `t:Alaja.Buffer.t/0`. Each line
   becomes one row; multi-line JSON (objects, arrays) become multi-row
   buffers. Each character is placed with the colour matching its
   JSON token type.
@@ -47,7 +47,7 @@ defmodule Alaja.Components.Json do
   end
 
   @doc """
-  Renders JSON to an `Alaja.Buffer.t/0`.
+  Renders JSON to an `t:Alaja.Buffer.t/0`.
   """
   @spec render(term(), keyword()) :: Buffer.t()
   def render(data, opts \\ []) do

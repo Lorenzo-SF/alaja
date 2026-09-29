@@ -642,11 +642,14 @@ defmodule Alaja.Components.Pulsar do
 
     cond do
       is_nil(image_path) or image_path == "" ->
-        IO.puts(:stderr, "Error: --image-path is required when using --content-type image")
+        Alaja.Output.write_error(
+          "Error: --image-path is required when using --content-type image"
+        )
+
         exit({:shutdown, 1})
 
       not File.exists?(image_path) ->
-        IO.puts(:stderr, "Error: Image file not found: #{image_path}")
+        Alaja.Output.write_error("Error: Image file not found: #{image_path}")
         exit({:shutdown, 1})
 
       true ->
@@ -674,7 +677,7 @@ defmodule Alaja.Components.Pulsar do
           animate_image_loop(text, opts, global, image_path, speed, duration, frame + 1)
 
         {:error, reason} ->
-          IO.puts(:stderr, "Error rendering image: #{reason}")
+          Alaja.Output.write_error("Error rendering image: #{reason}")
       end
     end
   end

@@ -6,8 +6,8 @@ defmodule Alaja.App do
   (via `use Alaja.App`). The runtime is a `GenServer` that:
 
     1. Calls `c:init/1` to obtain the initial state.
-    2. Receives `Alaja.Msg.t/0` events, calls `c:update/2`, applies the
-       new state, and runs any returned `Alaja.Cmd.t/0` list.
+    2. Receives `t:Alaja.Msg.t/0` events, calls `c:update/2`, applies the
+       new state, and runs any returned `t:Alaja.Cmd.t/0` list.
     3. On each successful update, calls `c:view/1` to produce a
        `View.Node.t/0` and renders it through the configured backend.
     4. Manages subscriptions via `c:subscriptions/1`.

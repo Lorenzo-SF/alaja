@@ -401,17 +401,43 @@ defmodule Alaja.CLI.Definition do
             )
           rescue
             e in Alaja.CLI.Exit ->
-              IO.puts(:stderr, "Error: #{Exception.message(e)}")
+              __emit_dispatch_error__("Error: #{Exception.message(e)}")
               exit({:shutdown, e.exit_code})
 
             e in Alaja.CLI.ActionError ->
-              IO.puts(:stderr, "Error: #{Exception.message(e)}")
+              __emit_dispatch_error__("Error: #{Exception.message(e)}")
               exit({:shutdown, 1})
           end
 
         unquote(halt_block)
 
         result
+      end
+
+      # Writes a dispatch error to the real stderr, or — inside a
+      # `Batamanta` warm daemon — to that request's stderr sink.
+      #
+      # `Alaja.Output.write_error(...)` resolves `:stderr` from the NODE's boot
+      # arguments, so in the daemon it goes to the daemon's own stderr and
+      # the client never sees it. The sink is the pid the daemon publishes
+      # per request, and the reply carries it back on the stderr channel,
+      # so the message still arrives on stderr where it belongs.
+      defp __emit_dispatch_error__(message) do
+        case batamanta_daemon_stderr() do
+          nil -> Alaja.Output.write_error(message)
+          pid -> IO.puts(pid, message)
+        end
+      end
+
+      defp batamanta_daemon_stderr do
+        Application.get_env(__otp_app__(), :batamanta_daemon_stderr)
+      end
+
+      # True when this VM is a `Batamanta` warm daemon serving a request,
+      # rather than a one-shot invocation. Defined in the CONSUMER module
+      # because it needs `__otp_app__/0`, which only exists there.
+      defp batamanta_daemon? do
+        Application.get_env(__otp_app__(), :batamanta_daemon, false) == true
       end
     end
   end
@@ -472,9 +498,17 @@ defmodule Alaja.CLI.Definition do
   # Builds the optional halt-on-error block for `halt_on_error: true`
   # releases. Extracted from `__before_compile__/1` to keep its
   # cyclomatic complexity within the credo limit.
+  #
+  # `System.halt/1` is uncatchable, so inside a `Batamanta` BEAM daemon it
+  # would kill the whole warm VM — the client would see the connection
+  # drop mid-request, print `daemon dispatch failed (read response)`, and
+  # re-run the command in the foreground. Correct output, but a stderr
+  # warning on every error and the daemon gone every time. The daemon
+  # marks itself in the user app's env, so the error can be returned
+  # normally and reported as an exit code instead.
   defp halt_block(true) do
     quote do
-      if match?({:error, _}, result) do
+      if match?({:error, _}, result) and not batamanta_daemon?() do
         System.halt(1)
       end
     end
@@ -852,7 +886,7 @@ defmodule Alaja.CLI.Definition do
             execute(cmd, flags, remaining, parent_flags, usage_exit_code)
 
           {:error, msg} ->
-            IO.puts(:stderr, msg)
+            Alaja.Output.write_error(msg)
             exit({:shutdown, usage_exit_code})
         end
     end
@@ -917,7 +951,7 @@ defmodule Alaja.CLI.Definition do
         end
 
       {:error, msg} ->
-        IO.puts(:stderr, msg)
+        Alaja.Output.write_error(msg)
         exit({:shutdown, usage_exit_code})
     end
   end
@@ -1310,7 +1344,7 @@ defmodule Alaja.CLI.Definition do
     # Validate mutual exclusion and requirements between flags.
     case validate_flags(cmd, flag_values) do
       {:error, msg} ->
-        IO.puts(:stderr, msg)
+        Alaja.Output.write_error(msg)
         exit({:shutdown, usage_exit_code})
 
       :ok ->

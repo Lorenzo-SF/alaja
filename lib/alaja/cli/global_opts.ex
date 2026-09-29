@@ -71,7 +71,7 @@ defmodule Alaja.CLI.GlobalOpts do
         extract_globals(rest, %{acc | pos_x: n})
 
       :error ->
-        IO.puts(:stderr, "Error: --pos-x requires an integer, got '#{val}'")
+        Alaja.Output.write_error("Error: --pos-x requires an integer, got '#{val}'")
         throw(:invalid_global)
     end
   end
@@ -82,7 +82,7 @@ defmodule Alaja.CLI.GlobalOpts do
         extract_globals(rest, %{acc | pos_y: n})
 
       :error ->
-        IO.puts(:stderr, "Error: --pos-y requires an integer, got '#{val}'")
+        Alaja.Output.write_error("Error: --pos-y requires an integer, got '#{val}'")
         throw(:invalid_global)
     end
   end
@@ -177,7 +177,7 @@ defmodule Alaja.CLI.GlobalOpts do
         rgb
 
       {:error, msg} ->
-        IO.puts(:stderr, msg)
+        Alaja.Output.write_error(msg)
         nil
 
       nil ->

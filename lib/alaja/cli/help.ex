@@ -248,7 +248,7 @@ defmodule Alaja.CLI.Help do
         if cmd == "theme" do
           Alaja.CLI.Commands.Theme.help(%Alaja.CLI.GlobalOpts{})
         else
-          IO.puts(:stderr, "Unknown command: '#{cmd}'")
+          Alaja.Output.write_error("Unknown command: '#{cmd}'")
           {:error, :not_found}
         end
     end

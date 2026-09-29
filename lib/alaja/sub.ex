@@ -5,7 +5,7 @@ defmodule Alaja.Sub do
 
   A subscription is plain data describing what should be attached.
   The runtime manages the lifecycle: `attach/2` spawns a process
-  (via `c:attach/2`) and `detach/1` stops it (via `c:detach/2`).
+  (via `attach/2`) and `detach/1` stops it (via `detach/2`).
 
   ## Built-in subs
 

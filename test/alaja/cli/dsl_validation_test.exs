@@ -94,7 +94,7 @@ defmodule Alaja.CLI.DSLValidationTest do
         """)
 
       assert {:exit, {:shutdown, 1}} =
-               run_in_task(self(), fn -> apply(module, :main, [["deploy"]]) end)
+               run_in_task(self(), fn -> module.main(["deploy"]) end)
     end
 
     test "supplied required flag dispatches to the handler" do
@@ -120,7 +120,7 @@ defmodule Alaja.CLI.DSLValidationTest do
 
       assert {:ok, _} =
                run_in_task(self(), fn ->
-                 apply(module, :main, [["deploy", "--target", "prod"]])
+                 module.main(["deploy", "--target", "prod"])
                end)
 
       assert_received {:captured, opts}
@@ -142,7 +142,7 @@ defmodule Alaja.CLI.DSLValidationTest do
 
       assert {:exit, {:shutdown, 1}} =
                run_in_task(self(), fn ->
-                 apply(module, :main, [["deploy", "--comand", "x"]])
+                 module.main(["deploy", "--comand", "x"])
                end)
     end
 
@@ -162,7 +162,7 @@ defmodule Alaja.CLI.DSLValidationTest do
           Process.flag(:trap_exit, true)
 
           try do
-            apply(module, :main, [["deploy", "--comand", "x"]])
+            module.main(["deploy", "--comand", "x"])
           catch
             :exit, _ -> :caught
           end
@@ -186,7 +186,7 @@ defmodule Alaja.CLI.DSLValidationTest do
 
       assert {:exit, {:shutdown, 1}} =
                run_in_task(self(), fn ->
-                 apply(module, :main, [["deploy", "--totally-different-flag", "x"]])
+                 module.main(["deploy", "--totally-different-flag", "x"])
                end)
     end
 
@@ -213,7 +213,7 @@ defmodule Alaja.CLI.DSLValidationTest do
 
       assert {:ok, _} =
                run_in_task(self(), fn ->
-                 apply(module, :main, [["deploy", "production"]])
+                 module.main(["deploy", "production"])
                end)
 
       assert_received {:captured, opts}

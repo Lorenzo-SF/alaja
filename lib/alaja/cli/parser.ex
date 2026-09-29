@@ -151,7 +151,7 @@ defmodule Alaja.CLI.Parser do
         rgb
 
       {:error, msg} ->
-        IO.puts(:stderr, msg)
+        Alaja.Output.write_error(msg)
         nil
 
       nil ->

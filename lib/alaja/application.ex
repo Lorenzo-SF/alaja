@@ -1,5 +1,35 @@
 defmodule Alaja.Application do
-  @moduledoc false
+  @moduledoc """
+  La aplicación OTP de Alaja.
+
+  No aporta procesos: el arranque se limita a dejar el tema y la
+  configuración en un estado conocido antes de que corra nada, porque
+  varias piezas los leen en cuanto se las llama.
+
+  ## Qué hace al arrancar
+
+  1. `Alaja.Theme.Bootstrap.ensure_installed/0` — instala el directorio de
+     temas si no existe. Es idempotente: sólo toca un `~/.config/alaja/`
+     limpio.
+  2. `Alaja.Config.ensure_loaded/0` — carga `alaja.conf` en el env de la
+     aplicación. Va **antes** de registrar el resolutor de temas, que lee
+     `:theme_active` de ahí; sin este orden, cada release arrancaría con
+     el tema por defecto e ignoraría el que eligió el usuario con
+     `alaja theme set`.
+  3. `Alaja.Theme.register_with_pote/0` — conecta la búsqueda de tema de
+     Pote con el tema activo de Alaja. Sin esto, un color escrito como
+     `theme:<clave>` cae en la paleta fija de Pote.
+
+  Después arranca un supervisor vacío, porque el estado vive en el
+  proceso del cliente: los componentes son funciones puras que/devuelven
+  nodios de vista.
+
+  ## Por qué se documenta
+
+  Estaba marcada `@moduledoc false` y desde fuera sólo se veía que
+  `start/2` existía sin saber qué préparaba. Para un host como Acho, que
+  arranca Alaja antes de nada, es parte de su arranque.
+  """
 
   use Application
 

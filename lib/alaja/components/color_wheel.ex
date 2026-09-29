@@ -18,7 +18,7 @@ defmodule Alaja.Components.ColorWheel do
     vertical cell. This is the Buffer-first canonical rendering.
 
   The canonical entry point is `render/2`, which returns an
-  `Alaja.Buffer.t/0`. Callers that want native-image output should
+  `t:Alaja.Buffer.t/0`. Callers that want native-image output should
   use `render_for_terminal/2` (returns a tagged value so the caller
   decides whether to embed the bytes directly or feed a Buffer to
   the printer).
@@ -53,7 +53,7 @@ defmodule Alaja.Components.ColorWheel do
   @doc """
   Canonical Buffer-first render entry point.
 
-  Returns an `Alaja.Buffer.t/0` containing the colour wheel drawn with
+  Returns an `t:Alaja.Buffer.t/0` containing the colour wheel drawn with
   Unicode half-block characters (▀/▄) at the requested harmony colours'
   hue positions. The buffer is sized `4*radius+1` cells wide by `radius`
   cells tall, where the x-scale of 2.0 makes the wheel appear circular

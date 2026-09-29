@@ -110,7 +110,7 @@ defmodule Alaja.Syntax do
   end
 
   @doc """
-  Highlights source code and returns an `Alaja.Buffer.t/0`.
+  Highlights source code and returns an `t:Alaja.Buffer.t/0`.
 
   This is the Buffer-first canonical render. Each token becomes one
   cell per visible character with the resolved fg colour from the

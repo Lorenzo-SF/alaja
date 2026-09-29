@@ -85,8 +85,11 @@ defmodule Mix.Tasks.Alaja.Demo do
         if Map.has_key?(@components, name) do
           render_one(Map.fetch!(@components, name))
         else
-          IO.puts(:stderr, "Unknown demo: #{name}")
-          IO.puts(:stderr, "Available: #{Enum.join(Map.keys(@components) |> Enum.sort(), ", ")}")
+          Alaja.Output.write_error("Unknown demo: #{name}")
+
+          Alaja.Output.write_error(
+            "Available: #{Enum.join(Map.keys(@components) |> Enum.sort(), ", ")}"
+          )
         end
     end
   end

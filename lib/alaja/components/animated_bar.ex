@@ -25,7 +25,7 @@ defmodule Alaja.Components.AnimatedBar do
   @wave_frames ["░", "▒", "▓", "█", "▓", "▒"]
 
   @doc """
-  Renders a single frame of the animated bar as an `Alaja.Buffer.t/0`.
+  Renders a single frame of the animated bar as an `t:Alaja.Buffer.t/0`.
 
   ## Options
 
