@@ -198,7 +198,19 @@ defmodule Alaja.MixProject do
       execution_mode: :cli,
       compression: 19,
       binary_name: "alaja",
-      show_banner: true
+      show_banner: true,
+      # BEAM-keeps-alive. The wrapper dispatches to a warm Erlang VM over a
+      # Unix-domain socket instead of booting one per invocation. The socket
+      # is namespaced by (app, version, target), so this daemon is Alaja's
+      # own — it is not shared with the other packaged CLIs.
+      #   ALAJA_BEAM_ALIVE=<ms>  override the TTL for one shell (max 86_400_000)
+      #   ALAJA_BEAM_ALIVE=0     force the legacy cold-start path
+      daemon: [
+        enabled: true,
+        var: "ALAJA_BEAM_ALIVE",
+        default_ms: 300_000,
+        request_timeout_ms: 60_000
+      ]
     ]
   end
 
