@@ -185,6 +185,30 @@ defmodule Alaja.CLI.DefinitionHostFeaturesTest do
     end
   end
 
+  describe "positionals do not stop flag parsing" do
+    test "a flag after a positional is still parsed" do
+      assert {:ran, %{name: "ana", _args: ["abc123"]}} =
+               HostCLI.exec(["greet", "abc123", "--name=ana"])
+    end
+
+    test "positionals keep their order" do
+      assert {:ran, %{_args: ["a", "b"]}} = HostCLI.exec(["plain", "a", "b"])
+    end
+
+    test "a flag before the positional is unaffected" do
+      assert {:ran, %{name: "ana", _args: ["abc"]}} = HostCLI.exec(["greet", "--name=ana", "abc"])
+    end
+
+    test "an unknown flag still stops and is reported" do
+      import ExUnit.CaptureIO
+
+      stderr =
+        capture_io(:stderr, fn -> catch_exit(StrictCLI.exec(["plain", "x", "--auth-typ=1"])) end)
+
+      assert stderr =~ "unknown flag"
+    end
+  end
+
   describe "Alaja.CLI.Exit" do
     test "carries a message and an exit code" do
       error = Alaja.CLI.Exit.new("env 'prod' no encontrado", 11)

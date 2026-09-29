@@ -872,54 +872,71 @@ defmodule Alaja.CLI.Definition do
 
   # ─── Flag parsing ─────────────────────────────────────────────────────
 
-  defp parse_flags(flags, args, allow_unknown_flags, acc \\ [])
-  defp parse_flags([], args, _allow_unknown_flags, acc), do: {:ok, acc, args}
+  # Los posicionales no cortan el parseo: `promote <hash> --name=x` es
+  # tan válido como `promote --name=x <hash>`, que es como lo escribe
+  # cualquiera cuando el hash va primero. Un token que no casa con
+  # ningún flag y no parece un flag se apila como posicional y el
+  # parseo **sigue**.
+  defp parse_flags(flags, args, allow_unknown_flags, acc \\ [], loose \\ [])
+  defp parse_flags([], args, _allow_unknown_flags, acc, loose), do: {:ok, acc, args ++ loose}
 
-  defp parse_flags(flags, args, allow_unknown_flags, acc) do
+  defp parse_flags(flags, args, allow_unknown_flags, acc, loose) do
     matched = match_flag(flags, args)
-    parse_matched_flag(matched, flags, args, allow_unknown_flags, acc)
+    parse_matched_flag(matched, flags, args, allow_unknown_flags, acc, loose)
   end
 
-  # When `match_flag/2` returns nil, the next arg is either a known
-  # global flag (handled outside this code path), a positional, or an
-  # unknown flag (a typo or a flag from another tool). We refuse to
-  # silently drop unknown `--xxx` flags because that turns typos
-  # into silent "nothing happened" failures — `arrea run --comand "x"`
-  # would parse the typo as positional, miss the real `--command`,
-  # and crash deep inside the runner instead of saying "did you
-  # mean --command?".
-  defp parse_matched_flag(nil, flags, [arg | _] = args, allow_unknown_flags, acc)
+  # Cuando `match_flag/2` devuelve nil, el token es un posicional, un
+  # flag global (que los handlers leen de los args crudos) o un flag
+  # desconocido.
+  #
+  # Un posicional se apila y el parseo sigue: `acho <call> --payload=x`
+  # es la forma más escrita del mundo. Un flag desconocido **sí** corta,
+  # porque tragárselo convertiría un error de tipeo en un "no pasó nada"
+  # silencioso: `arrea run --comand "x"` dejaría de decir "quiso decir
+  # --command?".
+  defp parse_matched_flag(nil, flags, [arg | rest] = args, allow_unknown_flags, acc, loose)
        when is_binary(arg) do
-    case reject_unknown_flag(flags, arg, allow_unknown_flags) do
-      :ok -> {:ok, acc, args}
-      {:error, _} = err -> err
+    if String.starts_with?(arg, "-") do
+      case reject_unknown_flag(flags, arg, allow_unknown_flags) do
+        :ok -> {:ok, acc, args}
+        {:error, _} = err -> err
+      end
+    else
+      parse_flags(flags, rest, allow_unknown_flags, acc, [arg | loose])
     end
   end
 
-  defp parse_matched_flag(nil, _flags, args, _allow_unknown_flags, acc), do: {:ok, acc, args}
+  defp parse_matched_flag(nil, _flags, args, _allow_unknown_flags, acc, loose),
+    do: {:ok, acc, args ++ loose}
 
   defp parse_matched_flag(
          %{type: :boolean, repeatable: true} = flag,
          flags,
          [arg | rest],
          allow_unknown_flags,
-         acc
+         acc,
+         loose
        ) do
     value_already = arg =~ "=true" or arg =~ "=false"
     value = if value_already, do: String.contains?(arg, "=true"), else: true
-    next = if value_already, do: rest, else: rest
-    parse_flags(flags -- [flag], next, allow_unknown_flags, [{flag.name, value} | acc])
+    parse_flags(flags -- [flag], rest, allow_unknown_flags, [{flag.name, value} | acc], loose)
   end
 
-  defp parse_matched_flag(%{type: :boolean} = flag, flags, [arg | rest], allow_unknown_flags, acc) do
+  defp parse_matched_flag(
+         %{type: :boolean} = flag,
+         flags,
+         [arg | rest],
+         allow_unknown_flags,
+         acc,
+         loose
+       ) do
     value_already = arg =~ "=true" or arg =~ "=false"
     value = if value_already, do: String.contains?(arg, "=true"), else: true
-    next = if value_already, do: rest, else: rest
-    parse_flags(flags -- [flag], next, allow_unknown_flags, [{flag.name, value} | acc])
+    parse_flags(flags -- [flag], rest, allow_unknown_flags, [{flag.name, value} | acc], loose)
   end
 
-  defp parse_matched_flag(%{type: :boolean} = flag, _flags, [], allow_unknown_flags, acc) do
-    parse_flags([flag], [], allow_unknown_flags, [{flag.name, true} | acc])
+  defp parse_matched_flag(%{type: :boolean} = flag, _flags, [], allow_unknown_flags, acc, loose) do
+    parse_flags([flag], [], allow_unknown_flags, [{flag.name, true} | acc], loose)
   end
 
   defp parse_matched_flag(
@@ -927,22 +944,29 @@ defmodule Alaja.CLI.Definition do
          flags,
          [arg | rest],
          allow_unknown_flags,
-         acc
+         acc,
+         loose
        ) do
     {value, remaining} = parse_flag_value(arg, rest)
     parsed = cast_flag_value(flag.type, value, flag.default)
-    parse_flags(flags, remaining, allow_unknown_flags, [{flag.name, parsed} | acc])
+    parse_flags(flags, remaining, allow_unknown_flags, [{flag.name, parsed} | acc], loose)
   end
 
-  defp parse_matched_flag(%{} = flag, flags, [arg | rest], allow_unknown_flags, acc) do
+  defp parse_matched_flag(%{} = flag, flags, [arg | rest], allow_unknown_flags, acc, loose) do
     {value, remaining} = parse_flag_value(arg, rest)
     parsed = cast_flag_value(flag.type, value, flag.default)
-    parse_flags(flags -- [flag], remaining, allow_unknown_flags, [{flag.name, parsed} | acc])
+
+    parse_flags(
+      flags -- [flag],
+      remaining,
+      allow_unknown_flags,
+      [{flag.name, parsed} | acc],
+      loose
+    )
   end
 
-  defp parse_matched_flag(%{} = _flag, _flags, [], _allow_unknown_flags, acc) do
-    {:ok, acc, []}
-  end
+  defp parse_matched_flag(%{} = _flag, _flags, [], _allow_unknown_flags, acc, loose),
+    do: {:ok, acc, loose}
 
   defp match_flag(_flags, []), do: nil
 
