@@ -1250,7 +1250,14 @@ defmodule Alaja.CLI.Definition do
     # Validate required arguments
     case validate_required_args(cmd.arguments, parse_arguments(cmd.arguments, positional)) do
       {:error, missing} ->
-        ErrorHandler.missing_args(cmd.name, missing)
+        # Un argumento que falta es uso incorrecto, así que sale con el
+        # código que declare el host y no con 1 a pelo.
+        IO.puts(
+          :stderr,
+          "Error: command '#{cmd.name}' requires: #{Enum.map_join(missing, ", ", &"<#{&1}>")}"
+        )
+
+        exit({:shutdown, usage_exit_code})
 
       :ok ->
         validate_and_run(cmd, flag_values, positional, usage_exit_code)
