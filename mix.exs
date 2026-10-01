@@ -273,14 +273,7 @@ defmodule Alaja.MixProject do
       {:credo, "~> 1.7", only: [:dev, :test], runtime: false},
       {:dialyxir, "~> 1.4", only: [:dev, :test], runtime: false},
       {:ex_doc, "~> 0.34", only: :dev, runtime: false},
-      # Packaging primitive. Only needed to run `mix batamanta`; it is
-      # never loaded at runtime, which is why it is optional.
-      #
-      # This points at the published repo rather than a local `path:`
-      # because CI runs `mix deps.get`, and a relative path dep does not
-      # exist on a fresh clone or on the Actions runner.
-      {:batamanta,
-       github: "Lorenzo-SF/Batamanta", optional: true, runtime: false, override: true},
+      {:batamanta, github: "Lorenzo-SF/Batamanta", optional: true, runtime: false},
       {:excoveralls, "~> 0.18", only: :test, runtime: false},
       {:benchee, "~> 1.3", only: :dev}
     ]
@@ -298,7 +291,7 @@ defmodule Alaja.MixProject do
     [
       gen: ["deps.get", "compile", "batamanta", "install"],
       install: fn _ ->
-        dest_dir = Path.expand("~/bin")
+        dest_dir = Path.expand("~/.local/bin")
         File.mkdir_p!(dest_dir)
         config = Mix.Project.config()
         app_name = Atom.to_string(config[:app])
