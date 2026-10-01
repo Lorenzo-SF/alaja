@@ -172,7 +172,7 @@ defmodule Alaja.Components.Table do
 
     The function receives `:page_size` (rows per page), `:page` (the
     requested page, 0-based) and `:search` (the current search text, or
-    `""`) and must return an `Alaja.Components.Table.Page.t/0` with the
+    `""`) and must return an `t:Alaja.Components.Table.Page.t/0` with the
     page of rows, the page actually shown and the totals. Impossible
     requests are clamped: if the requested page cannot exist with the
     given page size (e.g. 40 rows total and page 3 with page size 45),
@@ -201,7 +201,7 @@ defmodule Alaja.Components.Table do
   end
 
   @doc """
-  Renders a table to an `Alaja.Buffer.t/0` without printing.
+  Renders a table to an `t:Alaja.Buffer.t/0` without printing.
 
   This is the Cell-engine render. Returns a composable `Buffer` that
   can be overlaid on other buffers or passed to `Alaja.Components.Box`.
@@ -228,7 +228,7 @@ defmodule Alaja.Components.Table do
   end
 
   @doc """
-  Renders a table into an `Alaja.Buffer.t/0` (Cell engine, v0.3.0).
+  Renders a table into an `t:Alaja.Buffer.t/0` (Cell engine, v0.3.0).
 
   Supports column widths, alignment, header/row colors, and the same
   border styles as `render/2`. Pagination is NOT supported here — for

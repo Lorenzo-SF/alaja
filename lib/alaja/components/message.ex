@@ -2,7 +2,7 @@ defmodule Alaja.Components.Message do
   @moduledoc """
   Canonical renderer for `Alaja.Structures.MessageInfo`.
 
-  Returns an `Alaja.Buffer.t/0` so the result can be composed with
+  Returns an `t:Alaja.Buffer.t/0` so the result can be composed with
   `Alaja.Components.Box`, `Alaja.Components.Header`, or any other
   Cell-engine component.
 
@@ -37,7 +37,7 @@ defmodule Alaja.Components.Message do
   alias Alaja.Structures.{ChunkText, MessageInfo}
 
   @doc """
-  Renders a `MessageInfo` into an `Alaja.Buffer.t/0`.
+  Renders a `MessageInfo` into an `t:Alaja.Buffer.t/0`.
 
   Returns an empty Buffer (0x1) when given an empty chunks list.
   """
@@ -69,7 +69,7 @@ defmodule Alaja.Components.Message do
   @doc """
   Convenience renderer for the CLI command. Takes a text string, a
   type (`:success | :error | :warning | :info | ...`), and a style
-  map or keyword list. Returns an `Alaja.Buffer.t/0` ready to be
+  map or keyword list. Returns an `t:Alaja.Buffer.t/0` ready to be
   converted to iolist or written to the terminal.
 
   Recognised style opts (all optional):

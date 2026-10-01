@@ -84,11 +84,11 @@ defmodule Alaja.CLI.Commands.Theme do
   defp dispatch([action | _], _global), do: unknown_action(action)
 
   defp usage_error(hint) do
-    IO.puts(:stderr, "  Usage: alaja theme #{hint}")
+    Alaja.Output.write_error("  Usage: alaja theme #{hint}")
   end
 
   defp unknown_action(action) do
-    IO.puts(:stderr, "  alaja theme: unknown action '#{action}'")
+    Alaja.Output.write_error("  alaja theme: unknown action '#{action}'")
 
     IO.puts(
       :stderr,
@@ -101,7 +101,7 @@ defmodule Alaja.CLI.Commands.Theme do
   defp run_get(_global) do
     case current_name() do
       nil ->
-        IO.puts(:stderr, "  No active theme. Run `alaja theme list` to see installed.")
+        Alaja.Output.write_error("  No active theme. Run `alaja theme list` to see installed.")
 
       name ->
         IO.puts("  #{name}")
@@ -113,7 +113,7 @@ defmodule Alaja.CLI.Commands.Theme do
   defp run_set(name, _global) do
     case Theme.list() do
       [] ->
-        IO.puts(:stderr, "  No themes found. Run `alaja theme init` first.")
+        Alaja.Output.write_error("  No themes found. Run `alaja theme init` first.")
 
       installed ->
         if name in installed do
@@ -121,9 +121,9 @@ defmodule Alaja.CLI.Commands.Theme do
           Config.set(:theme_active, name)
           IO.puts("  \e[38;2;72;187;120m✓\e[0m Theme set to '#{name}'")
         else
-          IO.puts(:stderr, "  Theme '#{name}' not found.")
-          IO.puts(:stderr, "  Available themes (run `alaja theme list` for full output):")
-          Enum.each(installed, &IO.puts(:stderr, "    • #{&1}"))
+          Alaja.Output.write_error("  Theme '#{name}' not found.")
+          Alaja.Output.write_error("  Available themes (run `alaja theme list` for full output):")
+          Enum.each(installed, &Alaja.Output.write_error("    • #{&1}"))
         end
     end
   end
@@ -133,7 +133,7 @@ defmodule Alaja.CLI.Commands.Theme do
   defp run_list(_global) do
     case Theme.list() do
       [] ->
-        IO.puts(:stderr, "  No themes found. Run `alaja theme init` first.")
+        Alaja.Output.write_error("  No themes found. Run `alaja theme init` first.")
 
       themes ->
         IO.puts("")
@@ -154,7 +154,10 @@ defmodule Alaja.CLI.Commands.Theme do
   defp run_show(name, _global) do
     case load_theme(name) do
       :not_found ->
-        IO.puts(:stderr, "  Theme '#{name}' not found. Run `alaja theme list` to see available.")
+        Alaja.Output.write_error(
+          "  Theme '#{name}' not found. Run `alaja theme list` to see available."
+        )
+
         print_suggestion(name)
 
       colors ->
@@ -167,7 +170,7 @@ defmodule Alaja.CLI.Commands.Theme do
   defp run_show_all(_global) do
     case load_theme(current_name()) do
       :not_found ->
-        IO.puts(:stderr, "  No active theme to display.")
+        Alaja.Output.write_error("  No active theme to display.")
 
       :missing ->
         IO.puts(
@@ -270,7 +273,7 @@ defmodule Alaja.CLI.Commands.Theme do
       end)
 
     if suggestion do
-      IO.puts(:stderr, "  Did you mean `alaja theme show #{suggestion}`?")
+      Alaja.Output.write_error("  Did you mean `alaja theme show #{suggestion}`?")
     end
   end
 
@@ -357,7 +360,7 @@ defmodule Alaja.CLI.Commands.Theme do
   defp run_set_picker do
     case Theme.list() do
       [] ->
-        IO.puts(:stderr, "✗ No themes found. Run `alaja theme init` first.")
+        Alaja.Output.write_error("✗ No themes found. Run `alaja theme init` first.")
         :error
 
       themes ->

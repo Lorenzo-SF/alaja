@@ -37,7 +37,7 @@ defmodule Alaja.CLI.Commands.Base do
         colors
 
       {:error, msg} ->
-        IO.puts(:stderr, msg)
+        Alaja.Output.write_error(msg)
         nil
     end
   end

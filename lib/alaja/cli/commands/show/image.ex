@@ -72,11 +72,11 @@ defmodule Alaja.CLI.Commands.Show.Image do
         help()
 
       not File.exists?(path) ->
-        IO.puts(:stderr, "Error: File not found: #{path}")
+        Alaja.Output.write_error("Error: File not found: #{path}")
         :ok
 
       global.raw and (global.pos_x == 0 and global.pos_y == 0) ->
-        IO.puts(:stderr, "Error: --raw requires both --pos-x and --pos-y")
+        Alaja.Output.write_error("Error: --raw requires both --pos-x and --pos-y")
         :ok
 
       Keyword.get(opts, :to_ascii_art, false) ->
@@ -102,8 +102,11 @@ defmodule Alaja.CLI.Commands.Show.Image do
     ]
 
     case ImageRenderer.render_ascii_art(path, render_opts) do
-      :ok -> :ok
-      :unsupported -> IO.puts(:stderr, "Could not render ASCII art (install python3 + Pillow)")
+      :ok ->
+        :ok
+
+      :unsupported ->
+        Alaja.Output.write_error("Could not render ASCII art (install python3 + Pillow)")
     end
   end
 
@@ -130,8 +133,8 @@ defmodule Alaja.CLI.Commands.Show.Image do
 
     case ImageRenderer.render_file(path, render_opts) do
       :ok -> :ok
-      :unsupported -> IO.puts(:stderr, "Terminal does not support image rendering")
-      {:error, reason} -> IO.puts(:stderr, "Error: #{inspect(reason)}")
+      :unsupported -> Alaja.Output.write_error("Terminal does not support image rendering")
+      {:error, reason} -> Alaja.Output.write_error("Error: #{inspect(reason)}")
     end
   end
 

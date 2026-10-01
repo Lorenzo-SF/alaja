@@ -2,8 +2,8 @@ defmodule Alaja.Wizard.Renderers do
   @moduledoc """
   Internal renderer implementations for `Alaja.Wizard`.
 
-  Each renderer takes an `Alaja.Wizard.t/0` and returns an
-  `Alaja.Buffer.t/0`. Renderers are pure: same input produces the
+  Each renderer takes an `t:Alaja.Wizard.t/0` and returns an
+  `t:Alaja.Buffer.t/0`. Renderers are pure: same input produces the
   same output.
 
   The five renderer names are deliberately neutral and reusable:

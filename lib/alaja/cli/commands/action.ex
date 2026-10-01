@@ -266,7 +266,7 @@ defmodule Alaja.CLI.Commands.Action do
           if stop_on_error do
             {:halt, count}
           else
-            IO.puts(:stderr, "Warning: action exited: #{inspect(reason)}")
+            Alaja.Output.write_error("Warning: action exited: #{inspect(reason)}")
             {:cont, count + 1}
           end
       end)
@@ -300,20 +300,20 @@ defmodule Alaja.CLI.Commands.Action do
 
   defp handle_stream_error(action, error, stop_on_error, count) do
     if stop_on_error do
-      IO.puts(:stderr, "Error in action #{inspect(action)}: #{inspect(error)}")
+      Alaja.Output.write_error("Error in action #{inspect(action)}: #{inspect(error)}")
       {:halt, count}
     else
-      IO.puts(:stderr, "Warning: action #{inspect(action)} failed: #{inspect(error)}")
+      Alaja.Output.write_error("Warning: action #{inspect(action)} failed: #{inspect(error)}")
       {:cont, count + 1}
     end
   end
 
   defp handle_action_error(action, reason, stop_on_error, count) do
     if stop_on_error do
-      IO.puts(:stderr, "Error in action #{inspect(action)}: #{inspect(reason)}")
+      Alaja.Output.write_error("Error in action #{inspect(action)}: #{inspect(reason)}")
       {:halt, count}
     else
-      IO.puts(:stderr, "Warning: action #{inspect(action)} failed: #{inspect(reason)}")
+      Alaja.Output.write_error("Warning: action #{inspect(action)} failed: #{inspect(reason)}")
       {:cont, count + 1}
     end
   end

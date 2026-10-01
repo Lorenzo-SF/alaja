@@ -351,7 +351,18 @@ defmodule Alaja.Buffer do
     Writer.write_string(buffer, x, y, string)
   end
 
-  @doc false
+  @doc """
+  Devuelve el buffer como iodata, listo para `IO.write/1` o para
+  cualquiera de los writers de la librería.
+
+  Estaba marcada como oculta y `separator.ex` y `docs/ARCHITECTURE.md` la
+  nombran: una referencia a algo documentado como invisible avisa al
+  generar los docs.
+
+      iex> buffer = Alaja.Buffer.put(Alaja.Buffer.new("hi"), "a")
+      iex> Alaja.Buffer.to_iodata(buffer) |> IO.iodata_to_binary() =~ "hi"
+      true
+  """
   @spec to_iodata(t()) :: iodata()
   def to_iodata(%__MODULE__{} = buffer), do: Renderer.to_iodata(buffer)
 

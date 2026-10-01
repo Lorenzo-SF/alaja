@@ -23,7 +23,13 @@ defmodule Alaja.Components do
   # ── List ──────────────────────────────────────────────────────────────────
 
   defmodule ListState do
-    @moduledoc false
+    @moduledoc """
+    Estado de una lista seleccionable: los elementos, cuál está
+    seleccionado, el desplazamiento y si tiene el foco.
+
+    Aparece en los specs de los componentes públicos que la usan, así que
+    ex_doc la necesita visible para poder enlazarla.
+    """
     defstruct items: [], selected: 0, offset: 0, focused: false, max_visible: 10
 
     @type t :: %__MODULE__{
@@ -93,7 +99,12 @@ defmodule Alaja.Components do
   # ── Tabs ──────────────────────────────────────────────────────────────────
 
   defmodule TabsState do
-    @moduledoc false
+    @moduledoc """
+    Estado de un grupo de pestañas: las etiquetas y cuál está activa.
+
+    Aparece en los specs de los componentes públicos que la usan, así que
+    ex_doc la necesita visible para poder enlazarla.
+    """
     defstruct labels: [], active: 0
     @type t :: %__MODULE__{labels: [String.t()], active: non_neg_integer()}
   end
@@ -132,7 +143,12 @@ defmodule Alaja.Components do
   # ── Log ───────────────────────────────────────────────────────────────────
 
   defmodule LogState do
-    @moduledoc false
+    @moduledoc """
+    Estado de un panel de log: las líneas que se muestran y el tope.
+
+    Aparece en los specs de los componentes públicos que la usan, así que
+    ex_doc la necesita visible para poder enlazarla.
+    """
     defstruct lines: [], max_lines: 1000
     @type t :: %__MODULE__{lines: [String.t()], max_lines: pos_integer()}
   end
@@ -158,7 +174,12 @@ defmodule Alaja.Components do
   # ── Progress ──────────────────────────────────────────────────────────────
 
   defmodule ProgressState do
-    @moduledoc false
+    @moduledoc """
+    Estado de una barra de progreso: el porcentaje actual y el rango.
+
+    Aparece en los specs de los componentes públicos que la usan, así que
+    ex_doc la necesita visible para poder enlazarla.
+    """
     defstruct current: 0, total: 100, width: 20, label: ""
 
     @type t :: %__MODULE__{

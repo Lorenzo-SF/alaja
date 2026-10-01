@@ -11,7 +11,7 @@ defmodule Alaja.Components.Breadcrumbs do
 
   ## Cell engine
 
-  As of v0.3.0, `render/2` returns an `Alaja.Buffer.t/0` (or an empty
+  As of v0.3.0, `render/2` returns an `t:Alaja.Buffer.t/0` (or an empty
   list when given `[]`). Each item gets its own colour, with the last
   item rendered in `:current_color`.
   """
@@ -37,7 +37,7 @@ defmodule Alaja.Components.Breadcrumbs do
   end
 
   @doc """
-  Renders breadcrumbs to an `Alaja.Buffer.t/0` (single row, height 1).
+  Renders breadcrumbs to an `t:Alaja.Buffer.t/0` (single row, height 1).
 
   Returns `[]` for an empty list (legacy compat with the iodata API).
   """

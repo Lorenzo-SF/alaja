@@ -21,7 +21,7 @@ defmodule Alaja.Components.Box do
 
   ## Cell engine
 
-  `render/2` returns an `Alaja.Buffer.t/0`. The width is determined
+  `render/2` returns an `t:Alaja.Buffer.t/0`. The width is determined
   by the content's width plus padding. If the content is a Buffer,
   width is taken from `buffer.width + padding * 2`.
   """
@@ -55,7 +55,7 @@ defmodule Alaja.Components.Box do
   end
 
   @doc """
-  Renders a box around `content` and returns an `Alaja.Buffer.t/0`.
+  Renders a box around `content` and returns an `t:Alaja.Buffer.t/0`.
 
   ## Options
 
