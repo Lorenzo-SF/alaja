@@ -17,7 +17,7 @@ defmodule Alaja.Components.ColorWheel.Renderer do
   @doc """
   Canonical Buffer-first render entry point.
 
-  Returns an `Alaja.Buffer.t/0` containing the colour wheel drawn with
+  Returns an `t:Alaja.Buffer.t/0` containing the colour wheel drawn with
   Unicode half-block characters (▀/▄) at the requested harmony colours'
   hue positions. The buffer is sized `4*radius+1` cells wide by `radius`
   cells tall, where the x-scale of 2.0 makes the wheel appear circular

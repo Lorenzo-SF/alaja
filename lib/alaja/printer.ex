@@ -252,6 +252,8 @@ defmodule Alaja.Printer do
         output
       end
 
+    output = append_terminal_reset(output, opts)
+
     if verbose do
       text = IO.iodata_to_binary(output)
       IO.puts(inspect(text))
@@ -261,4 +263,97 @@ defmodule Alaja.Printer do
       :ok
     end
   end
+
+  @doc """
+  Appends an ANSI attribute reset, but only when one is actually needed.
+
+  Output that leaves a colour or effect open hands that state to whatever
+  runs next on the same terminal, so launching several commands in a row
+  made each inherit the previous one's colour until it happened to set
+  its own:
+
+      alaja success "x"   #  ...\\e[38;2;166;227;161m x\\n   <- never reset
+      alaja warning "y"   #  inherits the green until IT sets a colour
+
+  The reset is deliberately conditional. A payload that already closes
+  its own attributes is returned byte-for-byte unchanged, which keeps
+  rendered output stable for anything that compares it (snapshots, the
+  test suite) and avoids sprinkling no-op `\\e[0m` around the codebase.
+
+  Pass `reset: false` to opt out — for a fragment of a larger composition
+  (an animated frame redrawn in place) where the caller emits its own
+  terminator.
+  """
+  @spec append_terminal_reset(iodata(), keyword()) :: iodata()
+  def append_terminal_reset(output, opts) when is_list(opts) do
+    if Keyword.get(opts, :reset, true) and attributes_left_open?(output) do
+      [output, Alaja.ANSI.reset_attributes()]
+    else
+      output
+    end
+  end
+
+  # True when the payload sets at least one SGR attribute and does not
+  # end on a full reset.
+  #
+  # "Full reset" is deliberately strict: only `ESC[0m` (and the bare
+  # `ESC[m`) clears every attribute. A selective off like `ESC[22m`
+  # (bold off) or `ESC[39m` (default fg) leaves whatever else was set
+  # still open — `\e[1;31mx\e[22m` is still red. Tracking the full SGR
+  # state machine would be the precise answer, but the only cost of
+  # guessing wrong here is four invisible bytes, while guessing wrong the
+  # other way is the leak this function exists to prevent.
+  @spec attributes_left_open?(iodata()) :: boolean()
+  def attributes_left_open?(output) do
+    case output |> IO.iodata_to_binary() |> last_sgr() do
+      nil -> false
+      params -> not full_reset?(params)
+    end
+  end
+
+  defp full_reset?(""), do: true
+
+  defp full_reset?(params) do
+    params
+    |> String.split(";", trim: true)
+    |> Enum.any?(&(&1 == "0"))
+  end
+
+  # Parameters of the final SGR ("...m") escape in the payload, or nil if
+  # there is none.
+  defp last_sgr(binary) do
+    case :binary.matches(binary, "\e[") do
+      [] ->
+        nil
+
+      matches ->
+        # Later matches win: take the last one that is actually an SGR.
+        matches
+        |> Enum.reverse()
+        |> Enum.find_value(fn {pos, _len} -> sgr_at(binary, pos) end)
+    end
+  end
+
+  # An SGR is ESC '[' followed by digits and ';' and closed by the final
+  # byte 'm'. The parameters end at the first byte that is neither a
+  # digit nor a separator — so the trailing text after the escape is not
+  # part of the parameters, and an escape with a different final byte
+  # (ESC[2J and friends) is not an SGR at all.
+  defp sgr_at(binary, pos) do
+    rest = binary_part(binary, pos + 2, byte_size(binary) - pos - 2)
+
+    case split_sgr_params(rest, []) do
+      {params, ?m} -> params
+      _ -> nil
+    end
+  end
+
+  defp split_sgr_params(<<c, rest::binary>>, acc) when c in ?0..?9 or c == ?; do
+    split_sgr_params(rest, [c | acc])
+  end
+
+  defp split_sgr_params(<<>>, _acc), do: {<<>>, nil}
+
+  defp split_sgr_params(<<c, _rest::binary>>, acc),
+    do: {acc |> :lists.reverse() |> IO.iodata_to_binary(), c}
 end

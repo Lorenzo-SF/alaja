@@ -2,7 +2,7 @@
 
 [![Hex version](https://img.shields.io/badge/hex-2.4.0-blue.svg)](https://hex.pm/packages/alaja)
 [![Version](https://img.shields.io/badge/version-2.4.0-blue.svg)](https://github.com/Lorenzo-SF/alaja)
-[![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
+[![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE.md)
 
 <p align="center">
   <img src="https://raw.githubusercontent.com/Lorenzo-SF/alaja/main/docs/batamantaman_alaja.png" width="400" alt="Alaja" />
@@ -368,6 +368,35 @@ apuntando a `alaja theme` (ver `lib/alaja/cli/commands/config.ex`).
 
 ---
 
+## Formularios multi-campo (`Alaja.Wizard`, v2.0.0+)
+
+`Alaja.Wizard` es un renderizador declarativo de formularios de varios
+campos. Son datos puros —sin E/S— y se renderizan a un
+`t:Alaja.Buffer.t/0` con uno de cinco renderizadores **neutrales**:
+
+  :inline           una línea, separado por comas
+  :compact          tabla de dos columnas (etiqueta | valor)
+  :stacked          etiqueta encima del valor, línea en blanco entre campos
+  :wizard           formulario con caja y marcador de progreso arriba
+  :compact_wizard   con caja, en una sola línea
+
+```elixir
+w =
+  Alaja.Wizard.new(title: "Perfil")
+  |> Alaja.Wizard.field(:nombre, :string, label: "Nombre", default: "alice")
+  |> Alaja.Wizard.field(:edad, :integer, label: "Edad", default: 30)
+  |> Alaja.Wizard.field(:boletin, :boolean, label: "Suscribirse", default: true)
+
+Alaja.Wizard.render(w, :compact) |> Alaja.Printer.print_raw()
+```
+
+Los identificadores de renderizador son deliberadamente genéricos y
+reutilizables. Ninguno lleva el nombre de un producto, una marca o un
+asistente de IA — así quien los consume puede confiar en los mismos
+cinco nombres independientemente de la funcionalidad que incruste.
+
+---
+
 ## Componentes visuales
 
 | Módulo                         | Descripción                                         |
@@ -560,6 +589,49 @@ Claves configurables: `color_depth`, `theme_active`, `refresh_rate`,
 
 ---
 
+### Variables de entorno `ALAJAX_*` (v2.0.0+)
+
+Las variables de entorno ganan al fichero en disco, así que un shell de
+CI o un script de un solo uso pueden pisar la configuración guardada sin
+reescribir el fichero JSON:
+
+  `ALAJAX_COLOR_DEPTH`     pisa `:color_depth`    (truecolor|xterm256|ansi16)
+  `ALAJAX_THEME_ACTIVE`    pisa `:theme_active`   (cadena)
+
+Claves configurables: `color_depth`, `theme_active`, `refresh_rate`,
+`double_buffer`, `max_workers`, `default_policy`.
+
+### `Alaja.Theme` — la fachada de temas
+
+El sistema de temas lo genera `use Pote.Theme`, que produce un módulo
+fachada completo con todo el contrato de `Pote.Theme`. Los temas son
+ficheros JSON bajo `~/.config/alaja/themes` por defecto; cambia el
+directorio con la variable de entorno `ALAJA_THEMES_PATH`.
+
+```elixir
+Alaja.Theme.list()              # => ["default", "dracula", ...]
+Alaja.Theme.activate("dracula")
+Alaja.Theme.color("primary")    # => {189, 147, 249}
+Alaja.Theme.colors()            # => %{"primary" => {189, 147, 249}, ...}
+
+# Instala una paleta incluida a disco
+Alaja.Theme.install_template("monokai")
+
+# Las cinco plantillas vienen de serie:
+# default, dracula, monokai, nord, light
+```
+
+`Alaja.Theme.register_with_pote/0` se llama automáticamente al arrancar
+(via **Alaja.Application.start/2**), y eso pone el resolutor de temas de
+Alaja en la pila de resolutores de Pote. A partir de ahí,
+`Pote.parse("theme:primary")` —y cualquier otra cadena `"theme:<clave>"`—
+consulta el tema activo de Alaja en vez de la paleta fija de Pote.
+Varias aplicaciones pueden registrar su propio resolutor en la misma
+pila: Alaja convive limpio con Flotilla, Delfos y cualquier otro
+consumidor de `use Pote.Theme`.
+
+---
+
 ## Dependencias
 
 | Paquete   | Propósito                                                      |
@@ -631,13 +703,13 @@ compatibilidad con consumidores anteriores.
 
 ## Instalación
 
-Agrega `alaja` y `pote` a tu `mix.exs`:
+Agrega `alaja` a tu `mix.exs`. Su única dependencia en runtime, `pote`,
+se trae ella:
 
 ```elixir
 def deps do
   [
-    {:alaja, "~> 2.0"},
-    {:pote, github: "Lorenzo-SF/pote", branch: "main"}
+    {:alaja, "~> 3.1"}
   ]
 end
 ```
@@ -660,4 +732,4 @@ Luego ejecuta `mix deps.get`.
 
 ## Licencia
 
-MIT — consulta [LICENSE](https://github.com/lorenzo-sf/alaja) para más detalles.
+MIT — consulta [LICENSE](LICENSE.md) para más detalles.

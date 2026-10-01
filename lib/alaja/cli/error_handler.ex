@@ -12,13 +12,13 @@ defmodule Alaja.CLI.ErrorHandler do
   @spec unknown_command(String.t(), [map()]) :: {:error, :unknown_command}
   def unknown_command(command, commands) do
     log_warning("unknown command '#{command}'")
-    IO.puts(:stderr, "Error: unknown command '#{command}'")
+    Alaja.Output.write_error("Error: unknown command '#{command}'")
 
     suggestions = suggest(command, available_names(commands))
 
     unless suggestions == [] do
-      IO.puts(:stderr, "\nDid you mean?")
-      Enum.each(suggestions, fn s -> IO.puts(:stderr, "  #{s}") end)
+      Alaja.Output.write_error("\nDid you mean?")
+      Enum.each(suggestions, fn s -> Alaja.Output.write_error("  #{s}") end)
     end
 
     print_available(commands)
@@ -29,7 +29,7 @@ defmodule Alaja.CLI.ErrorHandler do
   @spec no_command([map()]) :: {:error, :no_command}
   def no_command(commands) do
     log_warning("no command specified")
-    IO.puts(:stderr, "Error: no command specified")
+    Alaja.Output.write_error("Error: no command specified")
     print_available(commands)
     {:error, :no_command}
   end
@@ -38,7 +38,7 @@ defmodule Alaja.CLI.ErrorHandler do
   @spec no_handler(String.t()) :: {:error, :no_handler}
   def no_handler(name) do
     log_warning("command '#{name}' has no handler defined")
-    IO.puts(:stderr, "Error: command '#{name}' has no handler defined")
+    Alaja.Output.write_error("Error: command '#{name}' has no handler defined")
     {:error, :no_handler}
   end
 
@@ -46,8 +46,8 @@ defmodule Alaja.CLI.ErrorHandler do
   @spec flag_errors([String.t()]) :: {:error, atom()}
   def flag_errors(errors) do
     log_warning("invalid options")
-    IO.puts(:stderr, "Error: invalid options")
-    Enum.each(errors, fn e -> IO.puts(:stderr, "  #{e}") end)
+    Alaja.Output.write_error("Error: invalid options")
+    Enum.each(errors, fn e -> Alaja.Output.write_error("  #{e}") end)
     {:error, :handler}
   end
 
@@ -56,7 +56,7 @@ defmodule Alaja.CLI.ErrorHandler do
   def missing_args(command_name, missing_names) do
     args = Enum.map_join(missing_names, ", ", &"<#{&1}>")
     log_warning("command '#{command_name}' requires: #{args}")
-    IO.puts(:stderr, "Error: command '#{command_name}' requires: #{args}")
+    Alaja.Output.write_error("Error: command '#{command_name}' requires: #{args}")
     {:error, :handler}
   end
 
@@ -64,8 +64,8 @@ defmodule Alaja.CLI.ErrorHandler do
   @spec format_error(String.t(), String.t()) :: {:error, atom()}
   def format_error(title, detail) do
     log_warning("#{title}: #{detail}")
-    IO.puts(:stderr, "Error: #{title}")
-    unless detail == "", do: IO.puts(:stderr, "  #{detail}")
+    Alaja.Output.write_error("Error: #{title}")
+    unless detail == "", do: Alaja.Output.write_error("  #{detail}")
     {:error, :handler}
   end
 
@@ -79,13 +79,13 @@ defmodule Alaja.CLI.ErrorHandler do
 
   defp print_available(commands) do
     unless commands == [] do
-      IO.puts(:stderr, "\nAvailable commands:")
+      Alaja.Output.write_error("\nAvailable commands:")
       Enum.each(commands, fn cmd -> print_cmd(cmd, "  ") end)
     end
   end
 
   defp print_cmd(%{name: name, description: desc, subcommands: subs}, prefix) do
-    IO.puts(:stderr, "#{prefix}#{String.pad_trailing(name, 20)} #{desc}")
+    Alaja.Output.write_error("#{prefix}#{String.pad_trailing(name, 20)} #{desc}")
 
     unless subs == %{} or (is_list(subs) and subs == []) do
       sub_list = if is_map(subs), do: Map.values(subs), else: subs
@@ -97,7 +97,7 @@ defmodule Alaja.CLI.ErrorHandler do
     {name, sub} = cmd
 
     if is_map(sub) do
-      IO.puts(:stderr, "#{prefix}#{String.pad_trailing(name, 18)} #{sub.description}")
+      Alaja.Output.write_error("#{prefix}#{String.pad_trailing(name, 18)} #{sub.description}")
     end
   end
 

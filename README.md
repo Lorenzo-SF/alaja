@@ -365,7 +365,7 @@ pointing at `alaja theme` (see `lib/alaja/cli/commands/config.ex`).
 ## Multi-field forms (`Alaja.Wizard`, v2.0.0+)
 
 `Alaja.Wizard` is a declarative, multi-field form renderer. It is
-pure data — no I/O — and renders to an `Alaja.Buffer.t/0` via one
+pure data — no I/O — and renders to an `t:Alaja.Buffer.t/0` via one
 of five **neutral** renderers:
 
   :inline           single line, comma-separated
@@ -619,7 +619,7 @@ Alaja.Theme.install_template("monokai")
 ```
 
 `Alaja.Theme.register_with_pote/0` is called automatically at boot
-(via `Alaja.Application.start/2`), which puts the theme resolver onto
+(via **Alaja.Application.start/2**), which puts the theme resolver onto
 Pote's resolver stack. After that, `Pote.parse("theme:primary")` (and
 any other `"theme:<key>"` string) consults the active Alaja theme
 instead of Pote's hardcoded `@default_colors` palette. Multiple apps
@@ -699,13 +699,13 @@ compatibility with downstream callers.
 
 ## Installation
 
-Add `alaja` and `pote` to your `mix.exs`:
+Add `alaja` to your `mix.exs`. Its only runtime dependency, `pote`, is
+pulled in for you:
 
 ```elixir
 def deps do
   [
-    {:alaja, "~> 3.1"},
-    {:pote, "~> 3.0"}
+    {:alaja, "~> 3.1"}
   ]
 end
 ```
@@ -726,8 +726,8 @@ Then run `mix deps.get`.
 > preserved is, by the maintainer's choice, no longer part of the
 > canonical development line.
 
-A Spanish version of this README is available at [`docs/README.es.md`](./docs/README.es.md).
+A Spanish version of this README is available at [`docs/README_ES.md`](./docs/README_ES.md).
 
 ## License
 
-MIT — see [LICENSE](https://github.com/lorenzo-sf/alaja) for details.
+MIT — see [LICENSE](LICENSE.md) for details.

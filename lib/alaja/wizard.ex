@@ -4,7 +4,7 @@ defmodule Alaja.Wizard do
 
   A Wizard holds an ordered list of fields (name, label, type, value,
   default, hint). It does NOT run interactively — it renders to an
-  `Alaja.Buffer.t/0` via one of the five neutral renderers:
+  `t:Alaja.Buffer.t/0` via one of the five neutral renderers:
 
       :inline           — all fields on one line, comma-separated
       :compact          — two-column table (label | value)
@@ -118,7 +118,7 @@ defmodule Alaja.Wizard do
   # ─── Render dispatcher ──────────────────────────────────────────────
 
   @doc """
-  Renders the wizard to an `Alaja.Buffer.t/0` using the named renderer.
+  Renders the wizard to an `t:Alaja.Buffer.t/0` using the named renderer.
 
   Recognised renderers: `:inline, :compact, :stacked, :wizard,
   :compact_wizard`. Any other atom raises `ArgumentError`.

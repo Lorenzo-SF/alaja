@@ -12,7 +12,7 @@ defmodule Alaja.Components.Separator do
 
   ## Cell engine
 
-  As of v0.3.0, `render/2` returns an `Alaja.Buffer.t/0`. Use
+  As of v0.3.0, `render/2` returns an `t:Alaja.Buffer.t/0`. Use
   `Alaja.Buffer.to_iodata/1` or `Alaja.Printer.print_buffer/2` to
   emit it; `print/2` does that for you.
 
@@ -54,7 +54,7 @@ defmodule Alaja.Components.Separator do
   end
 
   @doc """
-  Renders a separator to an `Alaja.Buffer.t/0`.
+  Renders a separator to an `t:Alaja.Buffer.t/0`.
 
   The buffer has height 1 and width matching `:width`. The optional
   centered text breaks the line into three segments (left fill, label,

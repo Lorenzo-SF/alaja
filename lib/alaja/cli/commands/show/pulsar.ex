@@ -129,7 +129,7 @@ defmodule Alaja.CLI.Commands.Show.Pulsar do
         end
 
       {:error, error_msg} ->
-        IO.puts(:stderr, "Error: #{error_msg}")
+        Alaja.Output.write_error("Error: #{error_msg}")
         exit({:shutdown, 1})
     end
   end
@@ -178,7 +178,7 @@ defmodule Alaja.CLI.Commands.Show.Pulsar do
   defp parse_direction("out"), do: :in
 
   defp parse_direction(other) do
-    IO.puts(:stderr, "Error: --direction must be 'in' or 'out', got '#{other}'")
+    Alaja.Output.write_error("Error: --direction must be 'in' or 'out', got '#{other}'")
     exit({:shutdown, 1})
   end
 
@@ -186,7 +186,7 @@ defmodule Alaja.CLI.Commands.Show.Pulsar do
   defp parse_content_type("image"), do: :image
 
   defp parse_content_type(other) do
-    IO.puts(:stderr, "Error: --content-type must be 'text' or 'image', got '#{other}'")
+    Alaja.Output.write_error("Error: --content-type must be 'text' or 'image', got '#{other}'")
     exit({:shutdown, 1})
   end
 

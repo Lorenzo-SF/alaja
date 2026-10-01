@@ -110,7 +110,7 @@ defmodule Alaja.Cmd do
   """
   @spec run(t(), pid()) :: :ok | {:error, term()}
   def run(%None{}, _app), do: :ok
-  def run(%Log{message: msg}, _app), do: IO.puts(:stderr, msg) && :ok
+  def run(%Log{message: msg}, _app), do: Alaja.Output.write_error(msg) && :ok
 
   def run(%SendMsg{target: target, msg: msg}, _app)
       when (is_pid(target) or is_atom(target)) and is_map(msg) do

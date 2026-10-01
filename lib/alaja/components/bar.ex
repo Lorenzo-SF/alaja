@@ -14,7 +14,7 @@ defmodule Alaja.Components.Bar do
 
   ## Cell engine
 
-  As of v0.3.0, `render/3` returns an `Alaja.Buffer.t/0`. The label and
+  As of v0.3.0, `render/3` returns an `t:Alaja.Buffer.t/0`. The label and
   percent text are placed on the same row as the bar (left-aligned label,
   right-aligned percent).
   """
@@ -40,7 +40,7 @@ defmodule Alaja.Components.Bar do
   end
 
   @doc """
-  Renders a progress bar to an `Alaja.Buffer.t/0`.
+  Renders a progress bar to an `t:Alaja.Buffer.t/0`.
 
   Layout (single row, total width = label_w + 1 + width + 1 + percent_w):
     [label ] [bar] [percent]
