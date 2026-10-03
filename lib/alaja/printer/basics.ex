@@ -38,7 +38,7 @@ defmodule Alaja.Printer.Basics do
       print_sad       -> theme:sad
 
   And the inverted-background variants print the gliphicons + message
-  in `theme:background` on a `theme:warning` (alert) or `theme:error`
+  in black on a `theme:warning` (alert) or `theme:error`
   (critical, emergency) background.
   """
 
@@ -88,8 +88,7 @@ defmodule Alaja.Printer.Basics do
   @doc """
   Prints an alert message (inverted warning).
 
-  Gliphicons: `[!]` — text in theme:background on theme:warning
-  background, bold.
+  Gliphicons: `[!]` — black text on theme:warning background, bold.
   """
   @spec print_alert(String.t(), keyword()) :: :ok | String.t()
   def print_alert(text, opts \\ []) do
@@ -99,8 +98,7 @@ defmodule Alaja.Printer.Basics do
   @doc """
   Prints a critical message (inverted error).
 
-  Gliphicons: `[!!]` — text in theme:background on theme:error
-  background, bold.
+  Gliphicons: `[!!]` — black text on theme:error background, bold.
   """
   @spec print_critical(String.t(), keyword()) :: :ok | String.t()
   def print_critical(text, opts \\ []) do
@@ -150,8 +148,8 @@ defmodule Alaja.Printer.Basics do
   @doc """
   Prints an emergency message.
 
-  Gliphicons: `[SOS]` — text in theme:background on theme:error
-  background, bold and blinking.
+  Gliphicons: `[SOS]` — black text on theme:error background, bold and
+  blinking.
   """
   @spec print_emergency(String.t(), keyword()) :: :ok | String.t()
   def print_emergency(text, opts \\ []) do
@@ -176,17 +174,19 @@ defmodule Alaja.Printer.Basics do
     Printer.print(MessageInfo.new(chunks, Keyword.put_new(opts, :add_line, :after)), opts)
   end
 
-  # Inverted-background message: gliphicons + message share the
-  # `theme:background` foreground colour over a `bg_color` background.
-  # Used for alert / critical / emergency.
+  # Inverted-background message: gliphicons + message share a black
+  # foreground over a `bg_color` background. Used for alert / critical /
+  # emergency. Black (not `theme:background`) so the text stays readable
+  # on light themes too, where the theme background would be near-white
+  # on a warning/error fill.
   defp emit_inverted(gliph, text, bg_color, opts, effects) do
     chunks = [
       ChunkText.new(" " <> gliph <> " ",
-        color: :background,
+        color: {0, 0, 0},
         bg_color: bg_color,
         effects: effects
       ),
-      ChunkText.new(" " <> text, color: :background, bg_color: bg_color, effects: effects)
+      ChunkText.new(" " <> text, color: {0, 0, 0}, bg_color: bg_color, effects: effects)
     ]
 
     Printer.print(MessageInfo.new(chunks, Keyword.put_new(opts, :add_line, :after)), opts)
