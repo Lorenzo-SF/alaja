@@ -6,6 +6,13 @@ defmodule Alaja.CLI.Commands.Show.Message do
   critical, alert, emergency, happy, sad) all delegate to the
   generic `message` command with a `:type` flag.
 
+  A plain typed invocation (`alaja success "Done"`, no `--text` /
+  `--color` / style flags) renders through `Alaja.Printer.Basics` so it
+  gets the gliphicon, the theme colour and — for alert / critical /
+  emergency — the inverted background. Anything composed (`--text`,
+  `--color`, `--bold`, ...) keeps the multi-chunk `Components.Message`
+  path.
+
   The message can be composed of multiple coloured chunks by repeating
   `--text` and `--color`:
 
@@ -20,6 +27,7 @@ defmodule Alaja.CLI.Commands.Show.Message do
   alias Alaja.CLI.HelpFormatter
   alias Alaja.Components.Message, as: MessageComp
   alias Alaja.Printer
+  alias Alaja.Printer.Basics
   alias Alaja.Structures.ChunkText
   alias Alaja.Structures.MessageInfo
 
@@ -145,6 +153,51 @@ defmodule Alaja.CLI.Commands.Show.Message do
   defp do_run(opts, positional, text_list, color_list, global) do
     type = parse_type(opts[:type] || List.first(positional))
 
+    if plain_typed_message?(opts, text_list, color_list, type) do
+      print_typed(type, List.first(positional) || "", GlobalOpts.to_printer_opts(global))
+    else
+      do_run_composed(opts, positional, text_list, color_list, global, type)
+    end
+  end
+
+  # Plain `alaja success "msg"`: no `--text` / `--color` / style flags.
+  # Goes through `Printer.Basics` (gliphicon + theme colour + inverted
+  # backgrounds). Requires an explicit `--type` (i.e. came via
+  # `run_typed/2` or `--type`) so that `alaja message "warning"` — where
+  # "warning" is the *text*, not the category — keeps the generic path.
+  defp plain_typed_message?(opts, text_list, color_list, type) do
+    type != :message and not is_nil(opts[:type]) and text_list == [] and
+      color_list == [] and is_nil(opts[:bg_color]) and
+      (opts[:padding] || 0) == 0 and is_nil(opts[:addline]) and
+      not Enum.any?(
+        [:bold, :italic, :underline, :dim, :blink, :reverse, :hidden, :strikethrough],
+        fn flag -> opts[flag] end
+      )
+  end
+
+  # Typed command → Basics printer. A `case` with 11 branches trips
+  # credo's complexity cap, so the mapping lives in a table instead.
+  # `plain_typed_message?/4` already guarantees `type` is one of these.
+  @typed_printers %{
+    success: :print_success,
+    error: :print_error,
+    warning: :print_warning,
+    info: :print_info,
+    debug: :print_debug,
+    notice: :print_notice,
+    critical: :print_critical,
+    alert: :print_alert,
+    emergency: :print_emergency,
+    happy: :print_happy,
+    sad: :print_sad
+  }
+
+  defp print_typed(type, text, printer_opts) do
+    apply(Basics, Map.fetch!(@typed_printers, type), [text, printer_opts])
+    :ok
+  end
+
+  defp do_run_composed(opts, positional, text_list, color_list, global, type) do
     chunks = build_chunks(text_list, color_list, positional, opts, type)
     effects = build_effects(opts)
 

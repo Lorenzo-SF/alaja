@@ -84,6 +84,24 @@ defmodule ShowTest do
   test "message command renders a typed success message" do
     output = capture_io(fn -> Message.run_typed("success", ["Done!"]) end)
     assert String.contains?(output, "Done!")
+    assert String.contains?(output, "[✓]")
+  end
+
+  test "typed alert renders inverted warning background with black text" do
+    output = capture_io(fn -> Message.run_typed("alert", ["Heads up"]) end)
+    assert String.contains?(output, "Heads up")
+    assert String.contains?(output, "[!]")
+    # Background SGR (48;2;…) + black foreground (38;2;0;0;0m).
+    assert String.contains?(output, "\x1b[48;2;")
+    assert String.contains?(output, "\x1b[38;2;0;0;0m")
+  end
+
+  test "typed critical renders inverted error background with black text" do
+    output = capture_io(fn -> Message.run_typed("critical", ["Severe"]) end)
+    assert String.contains?(output, "Severe")
+    assert String.contains?(output, "[!!]")
+    assert String.contains?(output, "\x1b[48;2;")
+    assert String.contains?(output, "\x1b[38;2;0;0;0m")
   end
 
   test "message command renders multi-chunk text with paired colors" do
@@ -134,6 +152,15 @@ defmodule ShowTest do
   test "message command respects positional fallback when no --text given" do
     output = capture_io(fn -> Message.run_typed("error", ["boom!"]) end)
     assert String.contains?(output, "boom!")
+    assert String.contains?(output, "[✗]")
+  end
+
+  test "generic message with a severity word as text keeps the plain path" do
+    # `alaja message "warning"`: "warning" is the text, not the category
+    # (no `--type`), so no gliphicon is added.
+    output = capture_io(fn -> Message.run(["warning"]) end)
+    assert String.contains?(output, "warning")
+    refute String.contains?(output, "[!]")
   end
 
   test "json command renders a JSON object" do
