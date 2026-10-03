@@ -57,7 +57,7 @@ defmodule Alaja.CLI.Commands.Show.Json do
       json_str = Enum.join(positional, " ")
 
       if json_str == "" do
-        IO.puts(:stderr, "Usage: alaja json '<json_string>'")
+        Alaja.Output.write_error("Usage: alaja json '<json_string>'")
       else
         Code.ensure_compiled(Jason)
         decode_and_render(json_str, opts, global)
@@ -68,7 +68,7 @@ defmodule Alaja.CLI.Commands.Show.Json do
   defp decode_and_render(json_str, opts, global) do
     case Jason.decode(json_str) do
       {:ok, data} -> render_json(data, opts, global)
-      {:error, _} -> IO.puts(:stderr, "Invalid JSON: #{json_str}")
+      {:error, _} -> Alaja.Output.write_error("Invalid JSON: #{json_str}")
     end
   end
 

@@ -34,10 +34,24 @@ defmodule Alaja.Config do
     "ALAJAX_THEME_ACTIVE" => :theme_active
   }
 
-  @doc "Returns whether ANSI colour output is enabled."
+  @doc """
+  Returns whether ANSI colour output is enabled.
+
+  Normally this is `no_color` from `alaja.conf` combined with whether
+  the current device is a terminal. A `Batamanta` BEAM daemon breaks
+  that second half: it captures output through its own io_server, so
+  `IO.ANSI.enabled?/0` inside a warm daemon is always `false` and every
+  command came out colourless. The wrapper knows what the real stdout
+  is, so it sets `Application.put_env(:alaja, :color, :always | :never)`
+  per request and that wins here.
+  """
   @spec color_enabled?() :: boolean()
   def color_enabled? do
-    get(:no_color, false) == false and IO.ANSI.enabled?()
+    case Application.get_env(:alaja, :color) do
+      :always -> true
+      :never -> false
+      _ -> get(:no_color, false) == false and IO.ANSI.enabled?()
+    end
   end
 
   @doc "Gets a configuration value with fallback."
@@ -162,7 +176,17 @@ defmodule Alaja.Config do
   # Public so Alaja.Application can call it at startup before registering
   # the theme resolver (so :theme_active is already in app env when the
   # resolver reads it).
-  @doc false
+  @doc """
+  Carga `alaja.conf` en el env de la aplicación y devuelve `:ok`.
+
+  Idempotente. La llama el arranque de Alaja antes de registrar el
+  resolutor de temas, que lee `:theme_active` de ahí: sin ese orden cada
+  release arrancaría con el tema por defecto e ignoraría el que eligió el
+  usuario.
+
+  Estaba marcada como oculta y su propio arranque la nombraba, así que
+  ex_doc no podía enlazarla.
+  """
   @spec ensure_loaded() :: :ok
   def ensure_loaded do
     unless Application.get_env(:alaja, :__conf_loaded__) do
@@ -271,7 +295,10 @@ defmodule Alaja.Config do
       :ok
     else
       {:error, reason} ->
-        IO.puts(:stderr, "Warning: could not persist config to #{path}: #{inspect(reason)}")
+        Alaja.Output.write_error(
+          "Warning: could not persist config to #{path}: #{inspect(reason)}"
+        )
+
         :ok
     end
   end

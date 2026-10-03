@@ -56,7 +56,14 @@ defmodule Alaja.MixProject do
       homepage_url: "https://github.com/Lorenzo-SF/alaja",
       extras: ["README.md", "docs/README_ES.md", "LICENSE.md"],
       groups_for_modules: [
-        "Core API": [Alaja, Alaja.App, Alaja.Cmd, Alaja.Sub, Alaja.Msg],
+        "Core API": [
+          Alaja,
+          Alaja.Application,
+          Alaja.App,
+          Alaja.Cmd,
+          Alaja.Sub,
+          Alaja.Msg
+        ],
         CLI: [
           Alaja.CLI,
           Alaja.CLI.Definition,
@@ -68,6 +75,7 @@ defmodule Alaja.MixProject do
           Alaja.CLI.Validator,
           Alaja.CLI.GlobalOpts,
           Alaja.CLI.ErrorHandler,
+          Alaja.CLI.Exit,
           Alaja.CLI.ActionError,
           Alaja.CLI.Color,
           Alaja.CLI.NoColor,
@@ -78,7 +86,6 @@ defmodule Alaja.MixProject do
         ],
         "CLI Commands": [
           Alaja.CLI.Commands.Base,
-          Alaja.CLI.Commands.Config,
           Alaja.CLI.Commands.Action,
           Alaja.CLI.Commands.Color,
           Alaja.CLI.Commands.Theme,
@@ -144,7 +151,7 @@ defmodule Alaja.MixProject do
           Alaja.Layout
         ],
         "Syntax & Effects": [
-          Alaja.Ansi,
+          Alaja.ANSI,
           Alaja.Syntax,
           Alaja.Syntax.Builtin,
           Alaja.Syntax.Engine,
@@ -198,18 +205,75 @@ defmodule Alaja.MixProject do
       execution_mode: :cli,
       compression: 19,
       binary_name: "alaja",
-      show_banner: true
+      show_banner: true,
+      # The warm-BEAM daemon is OFF, deliberately.
+      #
+      # It is a big win in a loop — measured on this machine, 50 commands
+      # cost 77ms through the daemon against 17.6s booting a VM per
+      # command, 230x — but the shape alaja is actually used in is one
+      # command at a time:
+      #
+      #     alaja success "..."
+      #     alaja warning "..."
+      #     alaja error "..."
+      #
+      # and at ~0.35s per invocation the pause is visible on every single
+      # line. The daemon also costs ~94MB of resident BEAM held open
+      # between calls, and it is hostile to any stateful OTP app (a
+      # shared warm VM is the opposite of what a GenServer holding
+      # cluster state wants).
+      #
+      # So the default is off, and the whole block is kept as a worked
+      # example for projects that DO want it. Flip `enabled: true` (or
+      # export `ALAJA_BEAM_ALIVE=<ms>` once the daemon is built into the
+      # binary) if you decide the loop case outweighs the interactive one.
+      daemon: [
+        enabled: false,
+        var: "ALAJA_BEAM_ALIVE",
+        default_ms: 300_000,
+        request_timeout_ms: 60_000,
+        # Commands that must own the terminal, so they run in the
+        # foreground and never go through the warm BEAM.
+        #
+        # A daemon buffers the command's output and returns it as a single
+        # blob at the end, and it has no stdin. That breaks these three
+        # categories outright, with no way to recover inside the daemon:
+        #
+        #   * animated — every spinner frame arrives at once,
+        #   * interactive — the prompt waits on a stdin nobody reads, so
+        #     the terminal hangs,
+        #   * help — the tab navigator needs arrow keys and would get its
+        #     redraws out of order.
+        #
+        # `--help`, `-h` and a bare `alaja` are always foreground; the
+        # wrapper handles those itself, whatever is listed here.
+        foreground: [
+          # animated
+          "animate",
+          "pulsar",
+          "animated-bar",
+          # interactive
+          "ask",
+          "menu",
+          "yesno",
+          "picker",
+          "showcase"
+        ]
+      ]
     ]
   end
 
   defp deps do
     [
-      {:pote, "~> 3.0", override: true},
+      # Sibling deps point straight at GitHub: no version bumps to track, no
+      # publish ordering between packages. `MIX_ENV=prod mix hex.publish`
+      # still works if a Hex release is ever needed again.
+      {:pote, github: "Lorenzo-SF/pote", override: true},
       {:jason, "~> 1.4"},
       {:credo, "~> 1.7", only: [:dev, :test], runtime: false},
       {:dialyxir, "~> 1.4", only: [:dev, :test], runtime: false},
       {:ex_doc, "~> 0.34", only: :dev, runtime: false},
-      {:batamanta, "~> 3.0.0", optional: true, runtime: false},
+      {:batamanta, github: "Lorenzo-SF/Batamanta", optional: true, runtime: false},
       {:excoveralls, "~> 0.18", only: :test, runtime: false},
       {:benchee, "~> 1.3", only: :dev}
     ]
@@ -227,7 +291,7 @@ defmodule Alaja.MixProject do
     [
       gen: ["deps.get", "compile", "batamanta", "install"],
       install: fn _ ->
-        dest_dir = Path.expand("~/bin")
+        dest_dir = Path.expand("~/.local/bin")
         File.mkdir_p!(dest_dir)
         config = Mix.Project.config()
         app_name = Atom.to_string(config[:app])
@@ -236,14 +300,7 @@ defmodule Alaja.MixProject do
         dest_path = Path.join(dest_dir, app_name)
 
         if File.exists?(source_path) do
-          case File.cp(source_path, dest_path) do
-            :ok ->
-              File.chmod!(dest_path, 0o755)
-              Mix.shell().info("  Batamanta instalado en #{dest_path}")
-
-            {:error, reason} ->
-              Mix.shell().error("[ERROR] No se pudo copiar alaja: #{inspect(reason)}")
-          end
+          install_binary(source_path, dest_path)
         else
           Mix.shell().error("[ERROR] No se encontro el binario: #{source_path}")
           Mix.shell().info("   Ejecutaste 'mix batamanta' primero?")
@@ -257,5 +314,53 @@ defmodule Alaja.MixProject do
         "cmd sh -c 'alaja json \"$(mix credo --strict --format=json)\"'"
       ]
     ]
+  end
+
+  # Copia el binario empaquetado a `~/bin`, sustituyendo lo que haya ahí.
+  #
+  # Esto sobrevive a los dos modos de fallo que dejaron un `alaja` de
+  # 0 bytes — es decir, un CLI que salía sin imprimir nada y con exit 0,
+  # indistinguible de un CLI sano:
+  #
+  #   1. Un symlink en el destino. `File.cp/2` lo sigue, así que copiar
+  #      el binario recién construido sobre un enlace que apunta *de
+  #      vuelta* a la salida del build trunca el origen antes de
+  #      leerlo, devuelve `:ok` y deja el CLI muerto. Por eso
+  #      `~/bin/alaja` terminó siendo un symlink a `./alaja` y cada
+  #      `mix gen` posterior se autodestruía. Desenlazamos primero.
+  #   2. Una salida de build vacía. Si `mix batamanta` falla a medias
+  #      (cargo/zstd) puede dejar un `alaja` de 0 bytes; copiarlo
+  #      instalaría un binario que sale con 0 sin hacer nada. Lo
+  #      verificamos en el destino en vez de dar por buena la copia.
+  defp install_binary(source_path, dest_path) do
+    unlink_if_symlink(dest_path)
+
+    case File.cp(source_path, dest_path) do
+      :ok ->
+        File.chmod!(dest_path, 0o755)
+        size = File.stat!(dest_path).size
+
+        if size == 0 do
+          Mix.raise("[ERROR] El binario instalado en #{dest_path} quedo vacio (0 bytes)")
+        end
+
+        Mix.shell().info("  Batamanta instalado en #{dest_path} (#{size} bytes)")
+
+      {:error, reason} ->
+        Mix.shell().error("[ERROR] No se pudo copiar alaja: #{inspect(reason)}")
+    end
+  end
+
+  # Sustituye un symlink del destino por un fichero real. `File.cp/2`
+  # escribe *a través* de un symlink, así que sin esto el destino
+  # heredado puede seguir apuntando al build (o a cualquier otro sitio)
+  # en vez de contener la copia recién instalada.
+  defp unlink_if_symlink(path) do
+    case File.lstat(path) do
+      {:ok, %File.Stat{type: :symlink}} -> File.rm(path)
+      {:ok, _stat} -> :ok
+      {:error, :enoent} -> :ok
+      {:error, reason} -> Mix.raise("[ERROR] No se pudo inspeccionar #{path}: #{inspect(reason)}")
+    end
   end
 end

@@ -115,7 +115,7 @@ defmodule Alaja.CLI.Commands.Color do
         end
 
       {:error, msg} ->
-        IO.puts(:stderr, "Error: #{msg}")
+        Alaja.Output.write_error("Error: #{msg}")
         exit({:shutdown, 1})
     end
   end
@@ -345,7 +345,7 @@ defmodule Alaja.CLI.Commands.Color do
               ]
 
           {:error, msg} ->
-            IO.puts(:stderr, "  Error parsing contrast color: #{msg}")
+            Alaja.Output.write_error("  Error parsing contrast color: #{msg}")
             acc
         end
     end

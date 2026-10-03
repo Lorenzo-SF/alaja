@@ -226,9 +226,28 @@ defmodule Alaja.CLI.HelpFormatter do
 
   defp fg_color({r, g, b}), do: "\e[38;2;#{r};#{g};#{b}m"
 
+  # Cada alias lleva su propio prefijo: `flag :auth_type` se muestra como
+  # `--auth_type, --auth-type`. Prefijar la cadena entera producía
+  # `----auth_type, --auth-type`, con cuatro guiones en el primero.
   defp format_option(name, type) do
-    "--#{name}" <> format_type(type)
+    name |> to_display() |> Kernel.<>(format_type(type))
   end
+
+  # No todo llamante pasa el nombre ya normalizado: los subcomandos
+  # anidados llegan con el átomo crudo, así que se acepta cualquiera de
+  # las tres formas en vez de suponer que es un binario.
+  defp to_display(name) when is_binary(name) do
+    name
+    |> String.split(",")
+    |> Enum.map_join(", ", fn part -> with_dashes(String.trim(part)) end)
+  end
+
+  defp to_display(name) when is_atom(name), do: with_dashes(Atom.to_string(name))
+  defp to_display(name), do: inspect(name)
+
+  defp with_dashes(""), do: ""
+  defp with_dashes("-" <> _ = already), do: already
+  defp with_dashes(name), do: "--" <> name
 
   defp format_type(nil), do: ""
   defp format_type(:boolean), do: ""

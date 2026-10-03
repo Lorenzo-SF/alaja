@@ -2,7 +2,7 @@ defmodule Alaja.Msg do
   @moduledoc """
   Event types delivered to an `Alaja.App` callback module.
 
-  Each `Alaja.Msg.t/0` is one variant from the union defined below. Apps
+  Each `t:Alaja.Msg.t/0` is one variant from the union defined below. Apps
   pattern-match on the struct type in `update/2`.
 
   ## Example

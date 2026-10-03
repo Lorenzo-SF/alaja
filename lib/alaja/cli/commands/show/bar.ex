@@ -74,7 +74,7 @@ defmodule Alaja.CLI.Commands.Show.Bar do
           n
 
         _ ->
-          IO.puts(:stderr, "Error: value must be an integer, got '#{value_str}'")
+          Alaja.Output.write_error("Error: value must be an integer, got '#{value_str}'")
           exit({:shutdown, 1})
       end
 

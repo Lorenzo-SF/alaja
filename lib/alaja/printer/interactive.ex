@@ -169,14 +169,33 @@ defmodule Alaja.Printer.Interactive do
     end
   end
 
+  # Rows are [question, blank | options]. `active` is a 0-based index
+  # into `numbered`, so an option's row is offset by the two header lines.
+  #
+  # Two bugs used to live here and made every interactive menu crash on a
+  # TTY with `FunctionClauseError: {{label, value}, index}`:
+  #
+  #   * the mapper assumed every element was a `{idx, label, value}`
+  #     tuple, but the two prepended header rows are plain strings — so
+  #     the very first row (`{text, 0}`) already failed to match;
+  #   * `active` was compared against the index within the COMBINED list,
+  #     so the cursor sat on the question line instead of an option.
+  #
+  # `yesno/2` and `menu/2` both take this path, which is why every
+  # `alaja yesno` failed while the same code under `mix test` (no TTY)
+  # looked fine — the non-TTY branch never calls render_menu.
   defp render_menu(text, numbered, active, _color, align) do
     lines =
       ([text, ""] ++
-         numbered)
+         Enum.map(numbered, fn {_idx, label, _val} -> label end))
       |> Enum.with_index()
-      |> Enum.map(fn {{_idx, label, _val}, i} ->
-        prefix = if i == active, do: "> ", else: "  "
-        "#{prefix}#{label}"
+      |> Enum.map(fn
+        {row, i} when i < 2 ->
+          row
+
+        {label, i} ->
+          prefix = if i - 2 == active, do: "> ", else: "  "
+          "#{prefix}#{label}"
       end)
 
     body = Enum.join(lines, "\n")

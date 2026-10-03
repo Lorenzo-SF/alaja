@@ -74,7 +74,7 @@ defmodule Alaja.Components.Animate do
       str ->
         case Alaja.CLI.Color.parse_list(str) do
           {:ok, colors} -> colors
-          {:error, msg} -> IO.puts(:stderr, msg)
+          {:error, msg} -> Alaja.Output.write_error(msg)
         end
     end
   end

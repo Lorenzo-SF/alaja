@@ -73,7 +73,7 @@ defmodule Alaja.Components.Progress do
   @spec finish(%__MODULE__{}) :: :ok
   def finish(bar) do
     render(bar, finished: true)
-    IO.write(:stderr, "\n")
+    Alaja.Output.write_raw_error("\n")
     :ok
   end
 
@@ -104,10 +104,10 @@ defmodule Alaja.Components.Progress do
           " (elapsed: #{div(elapsed, 1000)}s)"
         end
 
-      IO.write(:stderr, "\r\e[K")
-      IO.write(:stderr, Buffer.to_iodata(buf))
-      IO.write(:stderr, suffix)
-      IO.write(:stderr, eta)
+      Alaja.Output.write_raw_error("\r\e[K")
+      Alaja.Output.write_raw_error(Buffer.to_iodata(buf))
+      Alaja.Output.write_raw_error(suffix)
+      Alaja.Output.write_raw_error(eta)
     end
   end
 

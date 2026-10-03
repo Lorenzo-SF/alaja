@@ -15,7 +15,7 @@ defmodule Alaja.Theme.Bootstrap do
   used `alaja` once interactively (which runs the showcase), the
   guard short-circuits and the function is a no-op.
 
-  Called from `Alaja.Application.start/2` so any code that runs inside
+  Called from **Alaja.Application.start/2** so any code that runs inside
   `mix test` (and therefore under `mix test --cover` in CI) gets a
   populated theme directory without each test having to bootstrap
   explicitly. The showcase still calls it as a belt-and-braces guard

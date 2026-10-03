@@ -83,7 +83,16 @@ defmodule Alaja.Components.Table.Renderer do
     |> String.split("\n", trim: true)
   end
 
-  defp iodata_to_buffer(lines) do
+  @doc """
+  Parses rendered table lines back into an `Alaja.Buffer`.
+
+  Public because the SGR parsing below is the load-bearing, easy-to-break
+  part of rendering: the CLI renders a table to iodata, then re-parses that
+  iodata into cells, so every colour Alaja emits has to survive this
+  round trip. Testable directly rather than only through a whole table.
+  """
+  @spec iodata_to_buffer(iodata()) :: Alaja.Buffer.t()
+  def iodata_to_buffer(lines) do
     parsed = Enum.map(lines, &parse_line/1)
 
     width =
@@ -180,8 +189,13 @@ defmodule Alaja.Components.Table.Renderer do
         rgb -> rgb
       end
 
+    # "On" codes are applied first, then the "off" codes, so an SGR that
+    # turns something on and off again in the same sequence cancels
+    # itself: "1;2;22" is bold+dim then back to normal intensity, i.e.
+    # neither. Applying `off` to the incoming effects only left the
+    # freshly-enabled ones standing.
     new_effects =
-      if on == [] and off == [], do: effects, else: (effects -- off) ++ Enum.reverse(on)
+      if on == [] and off == [], do: effects, else: (effects ++ Enum.reverse(on)) -- off
 
     {new_fg, new_effects}
   end
@@ -190,23 +204,73 @@ defmodule Alaja.Components.Table.Renderer do
   #   `@no_fg_change` — not a colour code, leave as is
   #   `nil` — explicit reset (SGR 39)
   #   `{r,g,b}` — colour tuple
+  #
+  # Extended colour forms are consumed as a UNIT before the split.
+  # `38;2;R;G;B` and `38;5;N` put extra parameters behind the 38, and
+  # splitting on every `;` shredded them:
+  #
+  #     "38;2;255;202;0" -> ["38", "2", "255", "202", "0"]
+  #                          ^     ^               ^
+  #                          |     |               +-- SGR 0 -> fg reset to nil
+  #                          |     +-- SGR 2 -> DIM
+  #                          +-- 38 -> unrecognised
+  #
+  # So every 24-bit colour came back as a cell with `fg: nil` and
+  # `effects: [:dim]`: the border rendered grey, `--row-2-color` made
+  # row 2 look dim, and any colour whose parameters happened to contain
+  # a `2` picked up the same phantom effect. Worse, the trailing `0` of
+  # `38;2;r;g;b` was read as a bare SGR 0, wiping the foreground.
+  #
+  # `classify_sgr_value/1` then recognises the whole "38;2;…" string,
+  # which is what this function now hands it.
   defp parse_sgr_codes(skipped) do
-    parts = String.split(skipped, ";")
-
-    Enum.reduce(parts, {@no_fg_change, [], []}, fn part, acc ->
+    skipped
+    |> take_extended_colour()
+    |> Enum.reduce({@no_fg_change, [], []}, fn part, acc ->
       classify_sgr_part(part, acc)
     end)
+  end
+
+  # Splits on `;` while keeping `38;2;R;G;B` and `38;5;N` intact.
+  # Same idea as `String.split/2` with the exception handled by hand,
+  # because there is no option for "don't split these".
+  defp take_extended_colour(skipped) do
+    case Regex.run(~r/\A(.*?)(38;2;\d{1,3};\d{1,3};\d{1,3}|38;5;\d{1,3})(.*)\z/s, skipped) do
+      [_, before, colour, rest] ->
+        # `before` keeps its own `;`-separated codes: in "1;38;2;r;g;b"
+        # the "1" is a separate effect and must not be glued to the
+        # separator as a single "1;" part, which matches nothing.
+        split_params(before) ++ [colour] ++ take_extended_colour(rest)
+
+      _ ->
+        split_params(skipped)
+    end
+  end
+
+  defp split_params(params) do
+    params |> String.split(";") |> Enum.reject(&(&1 == ""))
   end
 
   # Single-part SGR classifier. Returns the new accumulator tuple.
   # `acc` is `{fg_change, on_atoms, off_atoms}` from the outer reduce.
   # Extracted from `parse_sgr_codes/1` to keep that function under the
   # cyclomatic complexity cap.
+  #
+  # Order matters. The old dispatch tried any two-byte code starting with
+  # 0-7 or 9 as a standard foreground first, which swallowed SGR 22
+  # ("normal intensity") before the effect tables ever saw it — so
+  # "1;2;22" parsed as bold+dim with the "22" ignored, and the "22"
+  # came back as a colour candidate that matched no palette entry.
+  # Colours are now recognised by VALUE, not by width.
   defp classify_sgr_part(part, {fg_acc, on_acc, off_acc}) do
     {new_fg, on, off} =
       case part do
         "" ->
-          {:skip}
+          # A parameter string can legitimately be empty (a leading
+          # `38;2;…` leaves one before splitting). Skipping it is the
+          # documented behaviour; the tuple shape matters because the
+          # caller destructures all three elements.
+          {:skip, [], []}
 
         "0" ->
           {nil, [], []}
@@ -214,11 +278,8 @@ defmodule Alaja.Components.Table.Renderer do
         "39" ->
           {nil, [], []}
 
-        p when byte_size(p) == 2 ->
-          classify_short_sgr(p)
-
         p when is_binary(p) ->
-          classify_long_sgr(p)
+          classify_sgr_value(p)
       end
 
     case new_fg do
@@ -227,13 +288,10 @@ defmodule Alaja.Components.Table.Renderer do
     end
   end
 
-  defp classify_short_sgr(<<c, _::binary>> = p) when c in ?0..?7 or c in ?9..?9 do
-    {parse_standard_fg_code(p), [], []}
-  end
-
-  defp classify_short_sgr(p), do: classify_long_sgr(p)
-
-  defp classify_long_sgr(part) do
+  # Ordered most specific first: extended colours carry extra parameters,
+  # then the "off" codes, then the plain effect codes, and only then the
+  # fixed foreground codes. Anything unrecognised is simply ignored.
+  defp classify_sgr_value(part) do
     cond do
       String.starts_with?(part, "38;2;") ->
         {parse_truecolor_skip(part), [], []}
@@ -241,14 +299,14 @@ defmodule Alaja.Components.Table.Renderer do
       String.starts_with?(part, "38;5;") ->
         {parse_xterm256_skip(part), [], []}
 
+      part =~ ~r/^2[2-5]$/ ->
+        {@no_fg_change, [], off_atoms_for(part)}
+
       Map.has_key?(@sgr_to_effect, part) ->
         {@no_fg_change, [Map.fetch!(@sgr_to_effect, part)], []}
 
-      part =~ ~r/^2[2-5]$/ ->
-        {@no_fg_change, [], [off_atom_for(part)]}
-
       true ->
-        {@no_fg_change, [], []}
+        {parse_standard_fg_code(part), [], []}
     end
   end
 
@@ -257,10 +315,14 @@ defmodule Alaja.Components.Table.Renderer do
     {fg_out, on ++ on_acc, off ++ off_acc}
   end
 
-  defp off_atom_for("22"), do: :bold
-  defp off_atom_for("23"), do: :italic
-  defp off_atom_for("24"), do: :underline
-  defp off_atom_for("25"), do: :blink
+  # Which effects each "off" code clears. SGR 22 is "normal intensity",
+  # which turns off BOTH bold (1) and dim/faint (2) — clearing only bold
+  # left "1;2;22" rendering as bold+dim, which is what the round trip
+  # used to hand back.
+  defp off_atoms_for("22"), do: [:bold, :dim]
+  defp off_atoms_for("23"), do: [:italic]
+  defp off_atoms_for("24"), do: [:underline]
+  defp off_atoms_for("25"), do: [:blink]
 
   defp parse_truecolor_skip(skipped) do
     rest = String.slice(skipped, 5, byte_size(skipped) - 5)

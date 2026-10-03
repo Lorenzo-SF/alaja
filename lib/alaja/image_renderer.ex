@@ -262,7 +262,7 @@ defmodule Alaja.ImageRenderer do
         :ok
 
       {:error, reason} ->
-        IO.puts(:stderr, "ASCII art error: #{reason}")
+        Alaja.Output.write_error("ASCII art error: #{reason}")
         :unsupported
     end
   end
