@@ -40,7 +40,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
         --row-1-bold "true;false;true;true" \\
         --row-2-italic "true;true;false;true"
 
-### Added
 - **`flag name, type, required: true`** — a flag with `required: true`
   is now validated at dispatch time. If the user omits it (or the
   parser sees `nil`), the CLI exits with
