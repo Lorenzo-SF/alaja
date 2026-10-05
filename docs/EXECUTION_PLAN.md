@@ -10,13 +10,13 @@
 
 ## 0. Estado actual (verificado 2026-07-21)
 
-| Check | Resultado |
-|-------|-----------|
-| `mix format --check-formatted` | ✅ 0 cambios |
-| `mix compile --warnings-as-errors` | ✅ 0 warnings |
-| `mix credo --strict --format=json` | ✅ 0 issues |
-| `mix test --cover` | ✅ 699 tests, 0 fail, coverage **45.2%** |
-| `mix dialyzer` | ✅ 0 errors |
+| Check                              | Resultado                                |
+| ---------------------------------- | ---------------------------------------- |
+| `mix format --check-formatted`     | ✅ 0 cambios                             |
+| `mix compile --warnings-as-errors` | ✅ 0 warnings                            |
+| `mix credo --strict --format=json` | ✅ 0 issues                              |
+| `mix test --cover`                 | ✅ 699 tests, 0 fail, coverage **45.2%** |
+| `mix dialyzer`                     | ✅ 0 errors                              |
 
 CHANGELOG `[Unreleased]` actualizado. Git history normalizado.
 
@@ -26,26 +26,26 @@ CHANGELOG `[Unreleased]` actualizado. Git history normalizado.
 
 ## 1. Resumen
 
-| Severidad | Total | Realizadas | Pendientes |
-|-----------|-------|------------|------------|
-| 🔴 P0 | 0 | 0 | 0 |
-| 🟠 P1 | 3 | 2 | 1 |
-| 🟡 P2 | 8 | 3 | 5 |
-| 🟢 P3 | 4 | 1 | 3 |
-| **Refactors estructurales** | — | — | **6** (ALA-16..20, ALA-24) |
-| **Coverage gaps** | — | — | 3 |
-| **Cross-project hardening** | — | — | **3** (ALA-25..27) |
-| **Total tareas** | **15 + 12** | **6** | **21** |
+| Severidad                   | Total       | Realizadas | Pendientes                 |
+| --------------------------- | ----------- | ---------- | -------------------------- |
+| 🔴 P0                       | 0           | 0          | 0                          |
+| 🟠 P1                       | 3           | 2          | 1                          |
+| 🟡 P2                       | 8           | 3          | 5                          |
+| 🟢 P3                       | 4           | 1          | 3                          |
+| **Refactors estructurales** | —           | —          | **6** (ALA-16..20, ALA-24) |
+| **Coverage gaps**           | —           | —          | 3                          |
+| **Cross-project hardening** | —           | —          | **3** (ALA-25..27)         |
+| **Total tareas**            | **15 + 12** | **6**      | **21**                     |
 
 **Esfuerzo restante estimado**: ~45h (incluye refactors gordos + hardening).
 
 ### Vista por impacto (ver §10 para detalle)
 
-| Impacto | # tareas | Descripción |
-|---------|----------|-------------|
-| 🟢 LOCAL | 12 | Solo afecta a alaja, sin tocar otros proyectos |
-| 🟡 MEDIO | 2 | Afecta a 1-2 consumers (arrea, delfos) |
-| 🔴 CRÍTICO | 7 | Afecta a ≥3 consumers o a la API pública del ecosistema |
+| Impacto    | # tareas | Descripción                                             |
+| ---------- | -------- | ------------------------------------------------------- |
+| 🟢 LOCAL   | 12       | Solo afecta a alaja, sin tocar otros proyectos          |
+| 🟡 MEDIO   | 2        | Afecta a 1-2 consumers (arrea, delfos)                  |
+| 🔴 CRÍTICO | 7        | Afecta a ≥3 consumers o a la API pública del ecosistema |
 
 > **Las 7 tareas CRÍTICAS** (ALA-16, ALA-17, ALA-24, ALA-25, ALA-26, ALA-27 + verificación cross) requieren branch dedicada y smoke tests en los proyectos consumidores antes de merge.
 
@@ -54,30 +54,37 @@ CHANGELOG `[Unreleased]` actualizado. Git history normalizado.
 ## 2. Tareas realizadas en este batch
 
 ### ✅ ALA-01: Añadir constantes ANSI como module attributes
+
 - **Estado**: pendiente (era parte del batch original)
 - **No tocado en este batch**
 
 ### ✅ ALA-08: Eliminar alias no usado en `Buffer`
+
 - **Commits**: parte del batch de limpieza
 - **Qué se hizo**: alias `Buffer` no usado en `test/alaja/print_raw_buffer_test.exs:19` eliminado.
 
 ### ✅ ALA-09: Reducir cyclomatic complexity en `animate_filled/2`
+
 - **Commit**: `97818b8` ("refactor(credo): lower animate_filled/5 :rainbow cyclomatic complexity")
 - **Qué se hizo**: refactor de la cláusula `:rainbow` para reducir complejidad ciclomática de 10 a ≤9.
 
 ### ✅ ALA-10: Eliminar rama inalcanzable `:error` en `Gradient.render`
+
 - **Commit**: `372304b` ("fix(dialyzer): resolve three contract + pattern errors")
 - **Qué se hizo**: branch `{:error, _}` eliminado en `lib/alaja/cli/commands/show/gradient.ex:61` porque `Gradient.render` retorna `binary()`, no `{:error, _}`.
 
 ### ✅ ALA-11: Corregir `@spec` en `Gradient` component
+
 - **Commit**: `372304b`
 - **Qué se hizo**: `@spec` en `lib/alaja/components/gradient.ex:62` corregido de `String.t() | {:error, String.t()}` a `iodata()` (lo que realmente retorna).
 
 ### ✅ ALA-12: Corregir `@spec` en `Config.run/1`
+
 - **Commit**: `372304b`
 - **Qué se hizo**: `@spec run/1 :: :ok` corregido a `:ok | :error` (el body retorna `:error` cuando el comando está deprecated).
 
 ### ✅ Extras (no estaban en plan original)
+
 - **42 `@doc` strings añadidos** (commit `d8133ec`):
   - 12 en `lib/alaja/cli/commands/show/` (`run/1` de animated_bar, animate, ask, bar, breadcrumbs, image, json, list, menu, multibar, pulsar, yesno)
   - 30 en `lib/alaja/cli/dispatch.ex` (helpers `success`, `error`, `warning`, ..., `theme`, `config`)
@@ -94,25 +101,30 @@ CHANGELOG `[Unreleased]` actualizado. Git history normalizado.
 ## 3. Tareas pendientes
 
 ### ALA-02: Aplicar theme con tests para snapshots
+
 - **Severidad**: 🟠 P1
 - **Estado**: pendiente
 - (Ver detalles en plan original)
 
 ### ALA-03: Theme via `Pote.Orchestrator`
+
 - **Severidad**: 🟠 P1
 - **Estado**: parcialmente hecho (commit `c650d08` para theme components)
 - **Pendiente**: completar la integración con `Pote.Orchestrator` para decisión de emisión ANSI.
 
 ### ALA-04: Wizard types + specs
+
 - **Severidad**: 🟡 P2
 - **Estado**: pendiente
 
 ### ALA-05: Deduplicar constantes ANSI
+
 - **Severidad**: 🟡 P2
 - **Estado**: pendiente
 - **Dependencia**: ALA-01 (constants como module attributes)
 
 ### ALA-06: Refactor `Printer` → `Formatter` + `RawPrinter`
+
 - **Severidad**: 🟡 P2 → 🟠 P1 (reclasificado por AUDIT v2)
 - **Estado**: pendiente
 - **Hallazgo** (`AUDIT.md` §5 línea 248, §3 línea 80):
@@ -136,23 +148,28 @@ CHANGELOG `[Unreleased]` actualizado. Git history normalizado.
 - **Riesgo**: BAJO-MEDIO. Cambiar la estructura interna de Printer puede afectar output si las funciones no son perfectamente equivalentes. Plan: branch dedicada + snapshot diff en arrea/delfos.
 
 ### ALA-07: Component theme colors
+
 - **Severidad**: 🟡 P2
 - **Estado**: parcialmente hecho (commit `c650d08`)
 - **Pendiente**: extender a más componentes
 
 ### ALA-13: Eliminar `TODO` dejado en código
+
 - **Severidad**: 🟢 P3
 - **Estado**: pendiente (verificar si hay TODOs)
 
 ### ALA-14: Tests de `Wizard`
+
 - **Severidad**: 🟢 P3
 - **Estado**: pendiente
 
 ### ALA-15: Tests de ANSI verbose
+
 - **Severidad**: 🟢 P3
 - **Estado**: pendiente
 
 ### ALA-25: Hardening `Alaja.ImageRenderer` — dependencia oculta de Trebejo
+
 - **Hallazgo** (`AUDIT.md` §6 línea 275):
   > `Alaja.ImageRenderer` usa `apply(Trebejo.Image, func, args)` — Trebejo no está en `deps` y no hay mock en tests. Si se elimina Trebejo, `image` dejaría de funcionar silenciosamente.
 - **Severidad**: 🔴 Cross-project (silently broken si Trebejo desaparece)
@@ -170,6 +187,7 @@ CHANGELOG `[Unreleased]` actualizado. Git history normalizado.
 - **Impacto**: 🔴 CRÍTICO (afecta a cualquier app que use `alaja image`)
 
 ### ALA-26: Deduplicar `Printer.get_terminal_width/0` vs `Terminal.width/0`
+
 - **Hallazgo** (`AUDIT.md` §6 línea 276):
   > `Alaja.Printer.get_terminal_width/0` duplica lógica de `Alaja.Terminal.width/0` — debería delegar.
 - **Severidad**: 🟡 P2
@@ -186,6 +204,7 @@ CHANGELOG `[Unreleased]` actualizado. Git history normalizado.
 - **Impacto**: 🟡 MEDIO (cambia API interna de Printer; consumers: arrea, delfos)
 
 ### ALA-27: Unificar persistencia JSON — `Alaja.Config` vs `Pote.Theme`
+
 - **Hallazgo** (`AUDIT.md` §6 línea 277):
   > `Alaja.Config` reimplementa persistencia JSON que `Pote.Theme` ya maneja internamente. Posible divergencia de formatos.
 - **Severidad**: 🟠 P1 (cross-project drift risk)
@@ -211,6 +230,7 @@ CHANGELOG `[Unreleased]` actualizado. Git history normalizado.
 ## 4. REFACTORS ESTRUCTURALES (gordos, no abordados por tamaño)
 
 ### ALA-16: Split `lib/alaja/components/table.ex` (1119 líneas)
+
 - **Hallazgo**: `table.ex` es un **god-module de 1119 líneas** con rendering de tablas completo (cell rendering, alignment, formatting, borders, themes).
 - **Severidad**: 🔴 Estructural
 - **Ficheros**:
@@ -263,6 +283,7 @@ CHANGELOG `[Unreleased]` actualizado. Git history normalizado.
 ---
 
 ### ALA-17: Split `lib/alaja/buffer.ex` (771 líneas)
+
 - **Hallazgo**: `buffer.ex` es **god-module de 771 líneas** con gestión de buffer de pantalla (write, range, position, iodata, etc.).
 - **Severidad**: 🔴 Estructural
 - **Ficheros**:
@@ -286,7 +307,7 @@ CHANGELOG `[Unreleased]` actualizado. Git history normalizado.
      - Mover todas las funciones de write
      - Tests con property tests (write + read consistency)
   2. **Paso 2: Extraer Range + Position** (3h)
-     - Mover range/* y positioned/*
+     - Mover range/_ y positioned/_
      - Tests
   3. **Fase 3: Extraer Renderer** (2h)
      - Mover to_iodata, to_string
@@ -300,6 +321,7 @@ CHANGELOG `[Unreleased]` actualizado. Git history normalizado.
 ---
 
 ### ALA-18: Split `lib/alaja/components/color_wheel.ex` (670 líneas)
+
 - **Hallazgo**: god-module de 670 líneas para rendering de color wheel con harmonies
 - **Severidad**: 🟠 Estructural
 - **Esfuerzo estimado**: 6-8h
@@ -315,6 +337,7 @@ CHANGELOG `[Unreleased]` actualizado. Git history normalizado.
 ---
 
 ### ALA-19: Split `lib/alaja/cli/commands/show/multibar.ex` y `pulsar.ex` (704+543 líneas)
+
 - **Hallazgo**: ambos componentes show son muy grandes
 - **Severidad**: 🟡 Estructural
 - **Esfuerzo estimado**: 6-8h cada uno
@@ -324,6 +347,7 @@ CHANGELOG `[Unreleased]` actualizado. Git history normalizado.
 ---
 
 ### ALA-20: Externalizar `def help/0` de 18 comandos (datos, no código)
+
 - **Hallazgo**: 18 funciones `def help/0` con **95-206 líneas** de literal help text inline en el código
 - **Severidad**: 🟡 Estructural / mantenibilidad
 - **Ficheros**:
@@ -351,6 +375,7 @@ CHANGELOG `[Unreleased]` actualizado. Git history normalizado.
 > Tareas estructurales identificadas tras revisión complementaria del AUDIT que **no estaban** en el plan original.
 
 ### ALA-24: Split `lib/alaja/cli/definition.ex` (548 líneas)
+
 - **Hallazgo** (`AUDIT.md` §5 línea 247):
   > `CLI.Definition` (548 LoC) — **🟡 Un archivo para 4 concerns distintos**: DSL (macro) + dispatch + flag parsing + validación
 - **Severidad**: 🟠 Estructural (reclasificado desde el audit v2)
@@ -410,6 +435,7 @@ CHANGELOG `[Unreleased]` actualizado. Git history normalizado.
 ## 5. Coverage gaps (subir de 45.2% → 70%+)
 
 ### ALA-21: Tests para show commands sin cobertura
+
 - **Hallazgo**: coverage 45.2% indica ~55% sin cubrir. Probable en `show/*` y `cli/commands/*`.
 - **Severidad**: 🟡 Mantenibilidad
 - **Ficheros**:
@@ -430,12 +456,14 @@ CHANGELOG `[Unreleased]` actualizado. Git history normalizado.
 - **Riesgos**: BAJO. Solo añadir tests.
 
 ### ALA-22: Tests para `cli/commands/base.ex` (parse helpers)
+
 - **Hallazgo**: `Base.parse_*` / `apply_align` no documentados en el audit. Coverage probablemente bajo.
 - **Ficheros**: `test/alaja/cli/commands/base_test.exs`
 - **Esfuerzo**: 1h
 - **Plan**: tests para cada función parse/apply_align con inputs válidos e inválidos
 
 ### ALA-23: Tests para `cli/parser.ex`
+
 - **Similar a ALA-22, pero para `Alaja.CLI.Parser`**
 - **Esfuerzo**: 1h
 
@@ -445,30 +473,30 @@ CHANGELOG `[Unreleased]` actualizado. Git history normalizado.
 
 > Módulos con LoC elevada que **no aparecen** en el AUDIT actual como problemáticos, pero están en el top-15 de `lib/`. Si en una futura auditoría se marcan como god-modules, ya están localizados. **No tienen ID asignado todavía** — se les dará uno cuando se justifique un refactor.
 
-| Módulo | LoC | Responsabilidad | Riesgo potencial |
-|--------|-----|-----------------|------------------|
-| `lib/alaja/theme/custom_templates.ex` | 511 | Templates custom de theme (load/parse) | Si se añaden más tipos de template, podría dividirse en `CustomTemplates.Parser` + `CustomTemplates.Registry` |
-| `lib/alaja/cli/commands/color.ex` | 501 | Comandos CLI de color (`color show`, `color convert`, etc.) | Si se añaden más sub-comandos, podría dividirse por verbo |
-| `lib/alaja/components/multi_bar.ex` | 457 | Render de multi-bar (progress bars múltiples) | Similar a `multibar.ex` (ALA-19) pero en `components/` |
-| `lib/alaja/cli/commands/show/message.ex` | 448 | Render de mensajes con niveles de severidad | Si se añaden más tipos de mensaje, podría dividirse por nivel |
-| `lib/alaja/cli/commands/action.ex` | 431 | Acciones CLI (run/ejecutar) | Si crece con más tipos de acciones, podría dividirse |
-| `lib/alaja/syntax.ex` | 425 | Syntax highlighting (Chroma integration) | Si se añaden más lenguajes, podría dividirse en `Syntax.Elixir`, `Syntax.Rust`, etc. |
-| `lib/alaja/components/table.ex` (show wrapper) | 394 | Wrapper CLI de Table component | — (delegado a Table) |
+| Módulo                                         | LoC | Responsabilidad                                             | Riesgo potencial                                                                                              |
+| ---------------------------------------------- | --- | ----------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------- |
+| `lib/alaja/theme/custom_templates.ex`          | 511 | Templates custom de theme (load/parse)                      | Si se añaden más tipos de template, podría dividirse en `CustomTemplates.Parser` + `CustomTemplates.Registry` |
+| `lib/alaja/cli/commands/color.ex`              | 501 | Comandos CLI de color (`color show`, `color convert`, etc.) | Si se añaden más sub-comandos, podría dividirse por verbo                                                     |
+| `lib/alaja/components/multi_bar.ex`            | 457 | Render de multi-bar (progress bars múltiples)               | Similar a `multibar.ex` (ALA-19) pero en `components/`                                                        |
+| `lib/alaja/cli/commands/show/message.ex`       | 448 | Render de mensajes con niveles de severidad                 | Si se añaden más tipos de mensaje, podría dividirse por nivel                                                 |
+| `lib/alaja/cli/commands/action.ex`             | 431 | Acciones CLI (run/ejecutar)                                 | Si crece con más tipos de acciones, podría dividirse                                                          |
+| `lib/alaja/syntax.ex`                          | 425 | Syntax highlighting (Chroma integration)                    | Si se añaden más lenguajes, podría dividirse en `Syntax.Elixir`, `Syntax.Rust`, etc.                          |
+| `lib/alaja/components/table.ex` (show wrapper) | 394 | Wrapper CLI de Table component                              | — (delegado a Table)                                                                                          |
 
 **Decisión**: no se aborda en este plan. Revisar en próxima auditoría (v3) si alguno cruza el umbral de "god-module" (mezcla 3+ concerns).
 
 ## 6. Dependencias externas
 
-| Tarea | Dependencia externa | Impacto |
-|-------|---------------------|---------|
-| ALA-02 | Pote: regenerar snapshots si Pote cambia defaults | 🟢 LOCAL |
-| ALA-06 | arrea, delfos consumen `Alaja.Printer` | 🟡 MEDIO |
-| ALA-16 | arrea, botica, mavis (consumers de tabla) | 🔴 CRÍTICO |
-| ALA-17 | arrea, mavis, cualquier render de output | 🔴 CRÍTICO |
-| ALA-24 | **TODOS** los proyectos del ecosistema (DSL macro `__using__/1`) | 🔴 CRÍTICO |
+| Tarea  | Dependencia externa                                                | Impacto    |
+| ------ | ------------------------------------------------------------------ | ---------- |
+| ALA-02 | Pote: regenerar snapshots si Pote cambia defaults                  | 🟢 LOCAL   |
+| ALA-06 | arrea, delfos consumen `Alaja.Printer`                             | 🟡 MEDIO   |
+| ALA-16 | arrea, botica, mavis (consumers de tabla)                          | 🔴 CRÍTICO |
+| ALA-17 | arrea, mavis, cualquier render de output                           | 🔴 CRÍTICO |
+| ALA-24 | **TODOS** los proyectos del ecosistema (DSL macro `__using__/1`)   | 🔴 CRÍTICO |
 | ALA-25 | trebejo (dep oculta en `ImageRenderer`); verificar `image` command | 🔴 CRÍTICO |
-| ALA-26 | arrea, delfos (consumers de `Alaja.Printer`) | 🟡 MEDIO |
-| ALA-27 | pote (conflicto de persistencia JSON con `Pote.Theme`) | 🔴 CRÍTICO |
+| ALA-26 | arrea, delfos (consumers de `Alaja.Printer`)                       | 🟡 MEDIO   |
+| ALA-27 | pote (conflicto de persistencia JSON con `Pote.Theme`)             | 🔴 CRÍTICO |
 
 Alaja **no depende de arrea** ni de otros proyectos lorenzo-sf para **compilar**. Pero varios de sus símbolos públicos son **contratos implícitos** del ecosistema:
 
@@ -505,9 +533,9 @@ mix test --cover                    # objetivo: subir a ≥70%
 mix dialyzer
 
 # Para verificar consumers (ALA-16, ALA-17):
-cd ~/cacafuti/arrea && mix compile && mix test --cover
-cd ~/cacafuti/delfos && mix compile && mix test --cover
-cd ~/cacafuti/candil && mix compile && mix test --cover
+cd ~/workspace/github/arrea && mix compile && mix test --cover
+cd ~/workspace/github/delfos && mix compile && mix test --cover
+cd ~/workspace/github/candil && mix compile && mix test --cover
 
 # Snapshot diff para cambios visuales:
 git diff test/alaja/snapshots/   # revisar ANTES de commit
@@ -520,6 +548,7 @@ git diff test/alaja/snapshots/   # revisar ANTES de commit
 Bajo `[Unreleased]`:
 
 ### Changed
+
 - `Alaja.Components.Table` split into Renderer/Calculator/Builder/Theme/Borders (ALA-16)
 - `Alaja.Buffer` split into Writer/Range/Position/Renderer (ALA-17)
 - `Alaja.Components.ColorWheel` split into Renderer/Harmonies/Info (ALA-18)
@@ -529,11 +558,13 @@ Bajo `[Unreleased]`:
 - `Alaja.Config` persists themes via `Pote.Theme` shared helper (ALA-27)
 
 ### Added
+
 - Tests para show commands (ALA-21)
 - Tests para `cli/parser.ex` y `cli/commands/base.ex` (ALA-22, ALA-23)
 - `Alaja.ImageAdapter` behaviour + mock for Trebejo optional dep (ALA-25)
 
 ### Fixed
+
 - `Alaja.ImageRenderer` no longer fails silently when Trebejo is absent (ALA-25)
 - Tareas ALA-XX según se completen
 
@@ -555,21 +586,21 @@ Cada tarea se clasifica según su **radio de explosión** (blast radius) en el e
 
 Estas tareas son autocontenidas. El cambio no es visible fuera de alaja, o solo afecta a módulos internos sin consumers externos.
 
-| ID | Tarea | Acción tras completar |
-|----|-------|----------------------|
-| ALA-02 | Aplicar theme con tests para snapshots | Nada — tests internos |
-| ALA-04 | Wizard types + specs | Nada — tipos internos |
-| ALA-05 | Deduplicar constantes ANSI | Nada — refactor de constants |
-| ALA-07 | Component theme colors | Nada — colors internos |
-| ALA-13 | Eliminar `TODO` dejado en código | Nada — cleanup |
-| ALA-14 | Tests de `Wizard` | Nada — añadir tests |
-| ALA-15 | Tests de ANSI verbose | Nada — añadir tests |
-| ALA-18 | Split `color_wheel.ex` (670 LoC) | Nada — visual interno, sin consumers externos |
-| ALA-19 | Split `multibar.ex` + `pulsar.ex` (1249 LoC) | Nada — visual interno |
-| ALA-20 | Externalizar `help/0` de 18 comandos | Nada — solo presentación |
-| ALA-21 | Tests para show commands | Nada — añadir tests |
-| ALA-22 | Tests para `cli/commands/base.ex` | Nada — añadir tests |
-| ALA-23 | Tests para `cli/parser.ex` | Nada — añadir tests |
+| ID     | Tarea                                        | Acción tras completar                         |
+| ------ | -------------------------------------------- | --------------------------------------------- |
+| ALA-02 | Aplicar theme con tests para snapshots       | Nada — tests internos                         |
+| ALA-04 | Wizard types + specs                         | Nada — tipos internos                         |
+| ALA-05 | Deduplicar constantes ANSI                   | Nada — refactor de constants                  |
+| ALA-07 | Component theme colors                       | Nada — colors internos                        |
+| ALA-13 | Eliminar `TODO` dejado en código             | Nada — cleanup                                |
+| ALA-14 | Tests de `Wizard`                            | Nada — añadir tests                           |
+| ALA-15 | Tests de ANSI verbose                        | Nada — añadir tests                           |
+| ALA-18 | Split `color_wheel.ex` (670 LoC)             | Nada — visual interno, sin consumers externos |
+| ALA-19 | Split `multibar.ex` + `pulsar.ex` (1249 LoC) | Nada — visual interno                         |
+| ALA-20 | Externalizar `help/0` de 18 comandos         | Nada — solo presentación                      |
+| ALA-21 | Tests para show commands                     | Nada — añadir tests                           |
+| ALA-22 | Tests para `cli/commands/base.ex`            | Nada — añadir tests                           |
+| ALA-23 | Tests para `cli/parser.ex`                   | Nada — añadir tests                           |
 
 **Workflow**: branch en `alaja` → tests → commit → push. No tocar otros proyectos.
 
@@ -579,11 +610,11 @@ Estas tareas son autocontenidas. El cambio no es visible fuera de alaja, o solo 
 
 Estas tareas cambian la **estructura interna** de un módulo usado por 1-2 proyectos. Si el refactor es backwards-compatible, los consumidores siguen compilando sin cambios, pero hay que **smoke-testear** que el output no cambia.
 
-| ID | Tarea | Consumidores | Smoke test requerido |
-|----|-------|--------------|----------------------|
-| ALA-03 | Theme via `Pote.Orchestrator` | pote (integración) | `cd ../pote && mix test --cover` |
-| ALA-06 | Refactor `Printer` → `Formatter` + `RawPrinter` | arrea, delfos | `cd ../arrea && mix test` + `cd ../delfos && mix test` |
-| ALA-26 | Deduplicar `Printer.get_terminal_width/0` | arrea, delfos | `cd ../arrea && mix test` + `cd ../delfos && mix test` |
+| ID     | Tarea                                           | Consumidores       | Smoke test requerido                                   |
+| ------ | ----------------------------------------------- | ------------------ | ------------------------------------------------------ |
+| ALA-03 | Theme via `Pote.Orchestrator`                   | pote (integración) | `cd ../pote && mix test --cover`                       |
+| ALA-06 | Refactor `Printer` → `Formatter` + `RawPrinter` | arrea, delfos      | `cd ../arrea && mix test` + `cd ../delfos && mix test` |
+| ALA-26 | Deduplicar `Printer.get_terminal_width/0`       | arrea, delfos      | `cd ../arrea && mix test` + `cd ../delfos && mix test` |
 
 **Workflow**: branch en `alaja` → tests propios → smoke test en consumidores → si pasa, merge. Si falla, ajustar fachada hasta mantener output idéntico.
 
@@ -593,25 +624,26 @@ Estas tareas cambian la **estructura interna** de un módulo usado por 1-2 proye
 
 Estas tareas tocan la **API pública** de alaja. Si se hace mal, rompe el ecosistema entero. Requieren planificación cuidadosa, branch dedicada y verificación obligatoria en todos los consumidores antes de merge.
 
-| ID | Tarea | Consumidores | Blast radius |
-|----|-------|--------------|--------------|
-| **ALA-16** | Split `Table` (1119 LoC) | arrea, botica, mavis | Cualquier render de tablas |
-| **ALA-17** | Split `Buffer` (771 LoC) | arrea, mavis, todos los renders | Core de rendering de pantalla |
-| **ALA-24** | Split `CLI.Definition` (548 LoC) | **TODOS**: arrea, delfos, candil, trebejo, botica, mavis | Macro `__using__/1` es contrato público del DSL |
-| **ALA-25** | Hardening `ImageRenderer` + Trebejo dep | Cualquier app usando `alaja image` | Fallo silencioso actual; arreglar bien = OK |
-| **ALA-27** | Unificar persistencia JSON Alaja.Config ↔ Pote.Theme | pote (cross-project) | Themes ya guardados en disco pueden quedar incompatibles |
+| ID         | Tarea                                                | Consumidores                                             | Blast radius                                             |
+| ---------- | ---------------------------------------------------- | -------------------------------------------------------- | -------------------------------------------------------- |
+| **ALA-16** | Split `Table` (1119 LoC)                             | arrea, botica, mavis                                     | Cualquier render de tablas                               |
+| **ALA-17** | Split `Buffer` (771 LoC)                             | arrea, mavis, todos los renders                          | Core de rendering de pantalla                            |
+| **ALA-24** | Split `CLI.Definition` (548 LoC)                     | **TODOS**: arrea, delfos, candil, trebejo, botica, mavis | Macro `__using__/1` es contrato público del DSL          |
+| **ALA-25** | Hardening `ImageRenderer` + Trebejo dep              | Cualquier app usando `alaja image`                       | Fallo silencioso actual; arreglar bien = OK              |
+| **ALA-27** | Unificar persistencia JSON Alaja.Config ↔ Pote.Theme | pote (cross-project)                                     | Themes ya guardados en disco pueden quedar incompatibles |
 
 **Workflow** (para cada una):
+
 1. **Branch dedicada** en `alaja`: `refactor/ala-XX-<name>`
 2. **Implementar** con tests exhaustivos (incluyendo property tests donde aplique)
 3. **Verificar 5/5** comandos en alaja: `mix format && mix credo --strict && mix test --cover && mix dialyzer && mix compile --warnings-as-errors`
 4. **Smoke tests OBLIGATORIOS** en todos los consumidores:
    ```bash
-   cd ~/cacafuti/arrea && mix deps.get && mix compile --warnings-as-errors && mix test
-   cd ~/cacafuti/delfos && mix deps.get && mix compile --warnings-as-errors && mix test
-   cd ~/cacafuti/candil && mix deps.get && mix compile --warnings-as-errors && mix test
-   cd ~/cacafuti/trebejo && mix deps.get && mix compile --warnings-as-errors && mix test
-   cd ~/cacafuti/botica && mix deps.get && mix compile --warnings-as-errors && mix test
+   cd ~/workspace/github/arrea && mix deps.get && mix compile --warnings-as-errors && mix test
+   cd ~/workspace/github/delfos && mix deps.get && mix compile --warnings-as-errors && mix test
+   cd ~/workspace/github/candil && mix deps.get && mix compile --warnings-as-errors && mix test
+   cd ~/workspace/github/trebejo && mix deps.get && mix compile --warnings-as-errors && mix test
+   cd ~/workspace/github/botica && mix deps.get && mix compile --warnings-as-errors && mix test
    ```
 5. **Snapshot diff** (ALA-16, ALA-17): regenerar snapshots solo si el diff es < 5%; revisar visualmente cada cambio
 6. **Rollback plan**: revert del PR + bump patch de alaja si se descubre regresión post-merge
@@ -625,12 +657,12 @@ Estas tareas tocan la **API pública** de alaja. Si se hace mal, rompe el ecosis
 
 ### 📊 Matriz resumen
 
-| Impacto | # tareas | Esfuerzo | Branch dedicada | Smoke tests externos |
-|---------|----------|----------|-----------------|----------------------|
-| 🟢 LOCAL | 13 | ~13h | No | 0 proyectos |
-| 🟡 MEDIO | 3 | ~6h | No (en alaja) | 1-2 proyectos |
-| 🔴 CRÍTICO | 5 | ~38h | **Sí** | **5-6 proyectos** |
-| **Total** | **21** | **~57h** | — | — |
+| Impacto    | # tareas | Esfuerzo | Branch dedicada | Smoke tests externos |
+| ---------- | -------- | -------- | --------------- | -------------------- |
+| 🟢 LOCAL   | 13       | ~13h     | No              | 0 proyectos          |
+| 🟡 MEDIO   | 3        | ~6h      | No (en alaja)   | 1-2 proyectos        |
+| 🔴 CRÍTICO | 5        | ~38h     | **Sí**          | **5-6 proyectos**    |
+| **Total**  | **21**   | **~57h** | —               | —                    |
 
 ### 🎯 Orden de ejecución sugerido (de menor a mayor riesgo)
 
@@ -653,20 +685,20 @@ Estas tareas tocan la **API pública** de alaja. Si se hace mal, rompe el ecosis
 
 ### ✅ Tareas implementadas en este ciclo
 
-| Tarea | Commit | Estado |
-|-------|--------|--------|
-| **ALA-08** | batch original | ✅ Alias no usado en `Buffer` |
-| **ALA-09** | batch original | ✅ Cyclomatic complexity `:rainbow` reducida |
-| **ALA-10** | batch original | ✅ Rama inalcanzable `:error` eliminada |
-| **ALA-11** | batch original | ✅ `@spec` Gradient corregido |
-| **ALA-12** | batch original | ✅ `@spec` Config.run/1 corregido |
-| **ALA-13** | `42205b5` (mix.lock + deprecation) | ✅ `TODO` dejado en código |
-| **ALA-14** | `ba3749d` | ✅ 42 `@doc` strings (17 docs + 30 dispatch) |
-| **ALA-15** | pendiente | ⏳ Pendiente (parcial — ver §10.b) |
-| **ALA-25** | `88d5e77` | ✅ ImageRenderer con Trebejo dep (mantenido `Alaja.Image` fallback) |
-| **ALA-26** | `88d5e77` | ✅ Printer dedup (verificación) |
-| **ALA-27** | — | ⏳ Pendiente (cross-project con pote) |
-| **AUDIT v2** | docs | ✅ §11 con agrupación por impacto |
+| Tarea        | Commit                             | Estado                                                              |
+| ------------ | ---------------------------------- | ------------------------------------------------------------------- |
+| **ALA-08**   | batch original                     | ✅ Alias no usado en `Buffer`                                       |
+| **ALA-09**   | batch original                     | ✅ Cyclomatic complexity `:rainbow` reducida                        |
+| **ALA-10**   | batch original                     | ✅ Rama inalcanzable `:error` eliminada                             |
+| **ALA-11**   | batch original                     | ✅ `@spec` Gradient corregido                                       |
+| **ALA-12**   | batch original                     | ✅ `@spec` Config.run/1 corregido                                   |
+| **ALA-13**   | `42205b5` (mix.lock + deprecation) | ✅ `TODO` dejado en código                                          |
+| **ALA-14**   | `ba3749d`                          | ✅ 42 `@doc` strings (17 docs + 30 dispatch)                        |
+| **ALA-15**   | pendiente                          | ⏳ Pendiente (parcial — ver §10.b)                                  |
+| **ALA-25**   | `88d5e77`                          | ✅ ImageRenderer con Trebejo dep (mantenido `Alaja.Image` fallback) |
+| **ALA-26**   | `88d5e77`                          | ✅ Printer dedup (verificación)                                     |
+| **ALA-27**   | —                                  | ⏳ Pendiente (cross-project con pote)                               |
+| **AUDIT v2** | docs                               | ✅ §11 con agrupación por impacto                                   |
 
 ### 🟢 Cierre del proyecto
 
@@ -676,20 +708,21 @@ Estas tareas tocan la **API pública** de alaja. Si se hace mal, rompe el ecosis
 
 ### ❌ Pendientes (5 tareas)
 
-| Tarea | Tipo | Estimación |
-|-------|------|------------|
-| ALA-16 Split `Table` (1119 LoC) | CRÍTICO | 12-15h |
-| ALA-17 Split `Buffer` (771 LoC) | CRÍTICO | 8-10h |
-| ALA-18 Split `ColorWheel` (670 LoC) | MEDIO | 6-8h |
-| ALA-19 Split `multibar.ex` + `pulsar.ex` (1249 LoC) | MEDIO | 12-16h |
-| ALA-20 Externalizar `help/0` de 18 commands | MEDIO | 4-6h |
-| **ALA-24** Split `CLI.Definition` (548 LoC) | CRÍTICO | 8-10h |
-| ALA-15 Component theme colors (parcial) | MEDIO | 1h |
-| ALA-27 Unificar JSON Alaja.Config ↔ Pote.Theme | CRÍTICO | 3-4h (cross-project) |
+| Tarea                                               | Tipo    | Estimación           |
+| --------------------------------------------------- | ------- | -------------------- |
+| ALA-16 Split `Table` (1119 LoC)                     | CRÍTICO | 12-15h               |
+| ALA-17 Split `Buffer` (771 LoC)                     | CRÍTICO | 8-10h                |
+| ALA-18 Split `ColorWheel` (670 LoC)                 | MEDIO   | 6-8h                 |
+| ALA-19 Split `multibar.ex` + `pulsar.ex` (1249 LoC) | MEDIO   | 12-16h               |
+| ALA-20 Externalizar `help/0` de 18 commands         | MEDIO   | 4-6h                 |
+| **ALA-24** Split `CLI.Definition` (548 LoC)         | CRÍTICO | 8-10h                |
+| ALA-15 Component theme colors (parcial)             | MEDIO   | 1h                   |
+| ALA-27 Unificar JSON Alaja.Config ↔ Pote.Theme      | CRÍTICO | 3-4h (cross-project) |
 
 **Total esfuerzo restante**: ~50-65h.
 
 **Recomendación**:
+
 - Cada CRÍTICO justifica un release propio (2.X.0)
 - ALA-16 es el gordo visual — último en orden
 - ALA-24 tiene blast radius = todos los consumers — segundo en orden
