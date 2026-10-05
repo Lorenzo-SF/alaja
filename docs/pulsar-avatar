@@ -18,7 +18,7 @@
 set -euo pipefail
 
 ALAJ="${ALAJA:-alaja}"
-AVATAR="${AVATAR:-$HOME/cacafuti/bitacora/Imagenes/batamantaman/avatar.png}"
+AVATAR="${AVATAR:-$HOME/workspace/github/bitacora/Imagenes/batamantaman/avatar.png}"
 PIDFILE="${TMPDIR:-/tmp}/alaja-pulsar.pid"
 GEOMFILE="${TMPDIR:-/tmp}/alaja-pulsar.geom"
 

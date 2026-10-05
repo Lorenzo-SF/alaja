@@ -41,7 +41,7 @@ defmodule Alaja.CLI.Commands.Show.Gradient do
        "alaja gradient \"release\" --from #FFFF00 --to hex:ff00ff --direction vertical"},
       {"Background gradient", "alaja gradient \"urgent\" --from red --to yellow --bg"},
       {"Single-colour override", "alaja gradient \"quiet\" --color grey"},
-      {"Brand title", "alaja gradient \"CACAFUTI\" --colors hex:7aa2f7|hex:f5c2e7|hex:abe9b3"},
+      {"Brand title", "alaja gradient \"LASACA\" --colors hex:7aa2f7|hex:f5c2e7|hex:abe9b3"},
       {"Multiline vertical",
        "alaja gradient \"alaja;line2;line3\" --from hex:ff0000 --to hex:0000ff --direction down_to_up"}
     ]
