@@ -4,7 +4,7 @@ defmodule Alaja.MixProject do
   def project do
     [
       app: :alaja,
-      version: "3.1.2",
+      version: "3.2.0",
       elixir: "~> 1.19",
       start_permanent: Mix.env() == :prod,
       deps: deps(),
@@ -195,7 +195,7 @@ defmodule Alaja.MixProject do
           Mix.Tasks.Alaja.Snapshot
         ]
       ],
-      source_ref: "3.1.2"
+      source_ref: "3.2.0"
     ]
   end
 
