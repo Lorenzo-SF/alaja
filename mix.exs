@@ -265,15 +265,12 @@ defmodule Alaja.MixProject do
 
   defp deps do
     [
-      # Sibling deps point straight at GitHub: no version bumps to track, no
-      # publish ordering between packages. `MIX_ENV=prod mix hex.publish`
-      # still works if a Hex release is ever needed again.
-      {:pote, github: "Lorenzo-SF/pote", override: true},
+      {:pote, "~> 3.0", override: true},
       {:jason, "~> 1.4"},
       {:credo, "~> 1.7", only: [:dev, :test], runtime: false},
       {:dialyxir, "~> 1.4", only: [:dev, :test], runtime: false},
       {:ex_doc, "~> 0.34", only: :dev, runtime: false},
-      {:batamanta, github: "Lorenzo-SF/Batamanta", optional: true, runtime: false},
+      {:batamanta, "~> 3.1", optional: true, runtime: false},
       {:excoveralls, "~> 0.18", only: :test, runtime: false},
       {:benchee, "~> 1.3", only: :dev}
     ]
