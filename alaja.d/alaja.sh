@@ -138,6 +138,11 @@ do_install() {
         return 3
     fi
     check_project || return 1
+
+    asdf set elixir 1.19.5-otp-28
+    asdf set erlang 28.5.0.7 
+
+
     info "elixir $(elixir --version 2>/dev/null | tail -1 | sed 's/^Elixir //')"
 
     step "Compilación (MIX_ENV=prod mix gen)"

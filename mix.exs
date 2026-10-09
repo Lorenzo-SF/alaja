@@ -286,31 +286,23 @@ defmodule Alaja.MixProject do
 
   defp aliases do
     [
-      gen: ["deps.get", "compile", "batamanta", "install"],
-      install: fn _ ->
-        dest_dir = Path.expand("~/.local/bin")
-        File.mkdir_p!(dest_dir)
-        config = Mix.Project.config()
-        app_name = Atom.to_string(config[:app])
-
-        source_path = Path.expand("alaja")
-        dest_path = Path.join(dest_dir, app_name)
-
-        if File.exists?(source_path) do
-          install_binary(source_path, dest_path)
-        else
-          Mix.shell().error("[ERROR] No se encontro el binario: #{source_path}")
-          Mix.shell().info("   Ejecutaste 'mix batamanta' primero?")
-        end
-      end,
+      gen: ["clean_build", "deps.get", "compile", "batamanta"],
+      clean_build: &clean_build/1,
       qa: [
-        "format",
-        "compile",
-        "dialyzer",
+        "format --check-formatted",
+        "compile --warnings-as-errors --force",
+        "credo --strict",
         "cmd sh -c 'MIX_ENV=test mix test --cover'",
-        "cmd sh -c 'alaja json \"$(mix credo --strict --format=json)\"'"
+        "dialyzer"
       ]
     ]
+  end
+
+  defp clean_build(_args) do
+    File.rm_rf("_build")
+    File.rm_rf("deps")
+    File.rm_rf("mix.lock")
+    Mix.shell().info("✅  Clean slate.")
   end
 
   # Copia el binario empaquetado a `~/bin`, sustituyendo lo que haya ahí.
