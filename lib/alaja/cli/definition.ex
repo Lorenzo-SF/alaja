@@ -56,6 +56,7 @@ defmodule Alaja.CLI.Definition do
     global_opts = Keyword.get(opts, :global_opts, true)
     catch_all = Keyword.get(opts, :catch_all)
     command_help = Keyword.get(opts, :command_help, true)
+    groups = Keyword.get(opts, :groups, [])
 
     quote do
       # Both arities are imported: `flag/3` and `argument/3` carry a
@@ -78,6 +79,12 @@ defmodule Alaja.CLI.Definition do
       @global_opts unquote(global_opts)
       @catch_all unquote(catch_all)
       @command_help unquote(command_help)
+      @command_groups unquote(groups)
+      # Sin `Macro.escape/1`: la lista llega como AST sin expandir, y
+      # escaparla congela los sigilos que el host haya usado —`~w(a b)`
+      # se quedaría como `{:sigil_w, _, _}` y `__command_groups__/0`
+      # devolvería basura en vez de los nombres. Inyectar el AST deja que
+      # el compilador los expanda, que es lo que quiere el host.
       @usage_exit_code Keyword.get(unquote(opts), :usage_exit_code, 1)
       @halt_on_error Keyword.get(unquote(opts), :halt_on_error, false)
       @before_compile Alaja.CLI.Definition
@@ -363,6 +370,19 @@ defmodule Alaja.CLI.Definition do
       def __command_help__, do: @command_help
 
       @doc """
+      Los grupos declarados con `use Alaja.CLI.Definition, groups: …`,
+      como `[{nombre, [comandos]}]`.
+
+      Los agrupa el help global. Un comando que no aparece en ningún grupo
+      se lista al final, bajo "Otros", para que la referencia nunca deje de
+      mentionar un comando que existe. Vacío —lo por defecto— significa
+      que el help global es una tabla plana, que es lo que se veía antes de
+      que esta opción existiera.
+      """
+      @doc false
+      def __command_groups__, do: @command_groups
+
+      @doc """
       El código de salida para un uso incorrecto: flag obligatorio que
       falta, argumento que falta, flags en conflicto.
 
@@ -397,7 +417,8 @@ defmodule Alaja.CLI.Definition do
               __otp_app__(),
               __allow_unknown_flags__(),
               __catch_all__(),
-              __usage_exit_code__()
+              __usage_exit_code__(),
+              __command_groups__()
             )
           rescue
             e in Alaja.CLI.Exit ->
@@ -537,7 +558,8 @@ defmodule Alaja.CLI.Definition do
         otp_app,
         allow_unknown_flags \\ false,
         catch_all \\ nil,
-        usage_exit_code \\ 1
+        usage_exit_code \\ 1,
+        groups \\ []
       ) do
     case args do
       # Top-level help: `alaja`, `alaja --help`, `alaja -h`, and `alaja
@@ -545,16 +567,16 @@ defmodule Alaja.CLI.Definition do
       # command. `alaja` alone runs the startup showcase first on TTYs;
       # the full help is only rendered afterwards if the user asks for it.
       [] ->
-        dispatch_empty(commands, otp_app)
+        dispatch_empty(commands, otp_app, groups)
 
       ["--help" | _] ->
-        render_full_help(commands, otp_app)
+        render_full_help(commands, otp_app, groups)
 
       ["-h" | _] ->
-        render_full_help(commands, otp_app)
+        render_full_help(commands, otp_app, groups)
 
       ["help"] ->
-        render_full_help(commands, otp_app)
+        render_full_help(commands, otp_app, groups)
 
       ["--version" | _] ->
         render_version(otp_app)
@@ -746,22 +768,22 @@ defmodule Alaja.CLI.Definition do
   defp type_label(:keep), do: "value"
   defp type_label(type), do: to_string(type)
 
-  defp dispatch_empty(commands, otp_app) do
+  defp dispatch_empty(commands, otp_app, groups) do
     # The alaja welcome showcase (pulsar animation + interactive prompt)
     # is alaja-specific and only makes sense when alaja itself is the
     # host. For external apps that consume `Alaja.CLI.Definition` via
     # the DSL, skip it entirely and render the host's command summary.
     if otp_app == :alaja and Alaja.CLI.Showcase.enabled?() do
       case Alaja.CLI.Showcase.run() do
-        :help -> render_full_help(commands, otp_app)
+        :help -> render_full_help(commands, otp_app, groups)
         _ -> :ok
       end
     else
-      render_full_help(commands, otp_app)
+      render_full_help(commands, otp_app, groups)
     end
   end
 
-  defp render_full_help(commands, otp_app) do
+  defp render_full_help(commands, otp_app, groups) do
     # Print the available commands list as well, formatted like a
     # one-screen reference, so callers see what's available without
     # having to dig into the formatted tables.
@@ -785,13 +807,17 @@ defmodule Alaja.CLI.Definition do
       # apero, pote, trebejo, ...): never render alaja's own reference.
       # Only the host's command list is shown, branded with the host's
       # application name and version.
-      render_host_help(descriptions, otp_app)
+      render_host_help(descriptions, otp_app, groups)
     end
 
     :ok
   end
 
-  defp render_host_help(descriptions, otp_app) do
+  # `groups` viene de `use Alaja.CLI.Definition, groups: …`. Vacío —el
+  # caso por defecto y el de todos los hosts que no adoptaron la opción—
+  # renderiza la tabla plana de siempre, así que añadirla no cambia nada
+  # para nadie que no la use.
+  defp render_host_help(descriptions, otp_app, []) do
     app_title = otp_app |> Atom.to_string() |> String.capitalize()
     vsn = app_version(otp_app)
     app_name = to_string(otp_app)
@@ -822,6 +848,68 @@ defmodule Alaja.CLI.Definition do
     IO.puts("Run '#{app_name} <command> --help' for the full option list of a specific command.")
 
     :ok
+  end
+
+  defp render_host_help(descriptions, otp_app, groups) do
+    render_host_grouped_help(descriptions, otp_app, groups)
+  end
+
+  defp render_host_grouped_help(descriptions, otp_app, groups) do
+    app_title = otp_app |> Atom.to_string() |> String.capitalize()
+    vsn = app_version(otp_app)
+    app_name = to_string(otp_app)
+    by_name = Map.new(descriptions)
+
+    grouped = MapSet.new(groups |> Enum.flat_map(fn {_title, names} -> names end))
+    leftovers = Enum.reject(descriptions, fn {cmd, _desc} -> MapSet.member?(grouped, cmd) end)
+
+    sections =
+      Enum.map(groups, fn {title, names} ->
+        {title, Enum.filter(names, &Map.has_key?(by_name, &1))}
+      end)
+
+    sections =
+      if leftovers == [] do
+        sections
+      else
+        sections ++ [{"Otros", Enum.map(leftovers, &elem(&1, 0))}]
+      end
+
+    Alaja.Components.Header.print(app_title,
+      subtitle: "v#{vsn} · Complete command reference",
+      size: :medium,
+      color: {0, 180, 216},
+      subtitle_color: {150, 150, 160}
+    )
+
+    for {title, names} <- sections do
+      IO.puts("")
+      group_title(title)
+      print_command_table(Enum.map(names, fn name -> {name, Map.fetch!(by_name, name)} end))
+    end
+
+    IO.puts("")
+
+    IO.puts("Run '#{app_name} <command> --help' for the full option list of a specific command.")
+
+    :ok
+  end
+
+  defp group_title(title) do
+    IO.puts([Alaja.ANSI.fg(0, 180, 216), title, Alaja.ANSI.reset()])
+    IO.puts("")
+  end
+
+  defp print_command_table(rows) do
+    Alaja.Components.Table.print(
+      headers: ["Command", "Description"],
+      rows: Enum.map(rows, fn {cmd, desc} -> [cmd, desc] end),
+      table_border: :rounded,
+      border_color: {0, 180, 216},
+      headers_color: :cyan,
+      headers_effects: [:bold],
+      padding: 1
+    )
   end
 
   # Reads the host application's own version from its Application spec,
