@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.2.1] - 2026-10-14
+
 ### Fixed
 - **Colour was unconditionally disabled in standalone builds.** A
   batamanta binary, escript, or `mix release` printed plain white text
@@ -36,6 +38,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `Alaja.Config.color_enabled?/0`.
 
 ### Added
+- **`alaja.d/alaja.sh`** — install script implementing the shared
+  meta-repo contract: `--install` prepares the toolchain, compiles and
+  leaves the project ready; `--check` verifies without installing or
+  mutating the repo; `--help` prints usage. Reports with the common
+  `[✓] ok · [!] aviso · [✗] fallo · [-] omitido` vocabulary. Resolves its
+  own symlinks with a `readlink` loop rather than `readlink -f`, which is
+  not portable to BSD/macOS, pins toolchain versions from `.tool-versions`
+  via `asdf set` when asdf is present, and refuses to install asdf or any
+  SDK itself — that belongs to `setup`, and N repos each installing the
+  same global toolchain would race.
 - **`Alaja.Terminal.tty?/0`** — whether stdout is an interactive
   terminal, cached in `:persistent_term`. Uses
   `File.stat("/dev/fd/1")`, which the kernel resolves against the
@@ -46,6 +58,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   pipe, so it reports "not a terminal" even at a real one. Probing fd 2
   instead works (stderr is inherited) but tests the wrong descriptor,
   and would write ANSI into a file on `alaja … > out.txt`.
+
+### Changed
+- **`mix gen`** now runs `clean_build` first (wiping `_build`, `deps`
+  and `mix.lock`) so a stale artifact can never survive into a build.
+  It no longer runs an `install` step: alaja is a library consumed
+  through `deps`, so there is no symlink to create and pretending
+  otherwise made `--check` report a failure on every run.
+- **`mix qa`** is a real gate now: `format --check-formatted` instead of
+  `format`, `compile --warnings-as-errors --force` instead of `compile`,
+  and `credo --strict` added. The old `alaja json "$(mix credo
+  --strict --format=json)"` self-render was dropped — it made the QA
+  task depend on the very binary under test.
 
 ## [3.2.0] - 2026-10-05
 
@@ -208,5 +232,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 [3.0.1]: https://hex.pm/packages/alaja/3.0.1
 [3.0.0]: https://hex.pm/packages/alaja/3.0.0
 [2.4.0]: https://hex.pm/packages/alaja/2.4.0
-[Unreleased]: https://github.com/Lorenzo-SF/alaja/compare/3.2.0...HEAD
+[Unreleased]: https://github.com/Lorenzo-SF/alaja/compare/3.2.1...HEAD
+[3.2.1]: https://github.com/Lorenzo-SF/alaja/compare/3.2.0...3.2.1
 [3.2.0]: https://github.com/Lorenzo-SF/alaja/compare/3.1.2...3.2.0
