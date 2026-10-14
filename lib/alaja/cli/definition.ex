@@ -1153,16 +1153,27 @@ defmodule Alaja.CLI.Definition do
   # cualquiera cuando el hash va primero. Un token que no casa con
   # ningún flag y no parece un flag se apila como posicional y el
   # parseo **sigue**.
-  defp parse_flags(flags, args, allow_unknown_flags, acc \\ [], loose \\ [])
+  defp parse_flags(flags, args, allow_unknown_flags, acc \\ [], loose \\ [], unknown \\ [])
   # `loose` se acumula por delante, así que se invierte al volver a
   # pegarlo: `secrets list t` tiene que llegar como ["list", "t"] y no
   # al revés, que es como se asignan a los `argument` declarados.
-  defp parse_flags([], args, _allow_unknown_flags, acc, loose),
-    do: {:ok, acc, args ++ Enum.reverse(loose)}
+  #
+  # Los flags desconocidos se guardan aparte y se entregan **detrás** de
+  # los posicionales. Antes se devolvía `args` entero, así que el flag
+  # ocupaba la primera ranura y `parse_arguments` se lo asignaba al
+  # primer `argument` declarado:
+  #
+  #     $ acho show-call mi_call --typo=1
+  #     Error: call '--typo=1' no encontrada
+  #
+  # Un flag mal escrito se comía el argumento posicional, y el síntoma
+  # —"no existe lo que pediste"— no señalaba el problema real.
+  defp parse_flags([], args, _allow_unknown_flags, acc, loose, unknown),
+    do: {:ok, acc, Enum.reverse(loose) ++ Enum.reverse(unknown) ++ args}
 
-  defp parse_flags(flags, args, allow_unknown_flags, acc, loose) do
+  defp parse_flags(flags, args, allow_unknown_flags, acc, loose, unknown) do
     matched = match_flag(flags, args)
-    parse_matched_flag(matched, flags, args, allow_unknown_flags, acc, loose)
+    parse_matched_flag(matched, flags, args, allow_unknown_flags, acc, loose, unknown)
   end
 
   # Cuando `match_flag/2` devuelve nil, el token es un posicional, un
@@ -1174,20 +1185,20 @@ defmodule Alaja.CLI.Definition do
   # porque tragárselo convertiría un error de tipeo en un "no pasó nada"
   # silencioso: `arrea run --comand "x"` dejaría de decir "quiso decir
   # --command?".
-  defp parse_matched_flag(nil, flags, [arg | rest] = args, allow_unknown_flags, acc, loose)
+  defp parse_matched_flag(nil, flags, [arg | rest], allow_unknown_flags, acc, loose, unknown)
        when is_binary(arg) do
     if String.starts_with?(arg, "-") do
       case reject_unknown_flag(flags, arg, allow_unknown_flags) do
-        :ok -> {:ok, acc, args}
+        :ok -> parse_flags(flags, rest, allow_unknown_flags, acc, loose, [arg | unknown])
         {:error, _} = err -> err
       end
     else
-      parse_flags(flags, rest, allow_unknown_flags, acc, [arg | loose])
+      parse_flags(flags, rest, allow_unknown_flags, acc, [arg | loose], unknown)
     end
   end
 
-  defp parse_matched_flag(nil, _flags, args, _allow_unknown_flags, acc, loose),
-    do: {:ok, acc, args ++ Enum.reverse(loose)}
+  defp parse_matched_flag(nil, _flags, args, _allow_unknown_flags, acc, loose, unknown),
+    do: {:ok, acc, Enum.reverse(loose) ++ Enum.reverse(unknown) ++ args}
 
   defp parse_matched_flag(
          %{type: :boolean, repeatable: true} = flag,
@@ -1195,11 +1206,20 @@ defmodule Alaja.CLI.Definition do
          [arg | rest],
          allow_unknown_flags,
          acc,
-         loose
+         loose,
+         unknown
        ) do
     value_already = arg =~ "=true" or arg =~ "=false"
     value = if value_already, do: String.contains?(arg, "=true"), else: true
-    parse_flags(flags -- [flag], rest, allow_unknown_flags, [{flag.name, value} | acc], loose)
+
+    parse_flags(
+      flags -- [flag],
+      rest,
+      allow_unknown_flags,
+      [{flag.name, value} | acc],
+      loose,
+      unknown
+    )
   end
 
   defp parse_matched_flag(
@@ -1208,15 +1228,32 @@ defmodule Alaja.CLI.Definition do
          [arg | rest],
          allow_unknown_flags,
          acc,
-         loose
+         loose,
+         unknown
        ) do
     value_already = arg =~ "=true" or arg =~ "=false"
     value = if value_already, do: String.contains?(arg, "=true"), else: true
-    parse_flags(flags -- [flag], rest, allow_unknown_flags, [{flag.name, value} | acc], loose)
+
+    parse_flags(
+      flags -- [flag],
+      rest,
+      allow_unknown_flags,
+      [{flag.name, value} | acc],
+      loose,
+      unknown
+    )
   end
 
-  defp parse_matched_flag(%{type: :boolean} = flag, _flags, [], allow_unknown_flags, acc, loose) do
-    parse_flags([flag], [], allow_unknown_flags, [{flag.name, true} | acc], loose)
+  defp parse_matched_flag(
+         %{type: :boolean} = flag,
+         _flags,
+         [],
+         allow_unknown_flags,
+         acc,
+         loose,
+         unknown
+       ) do
+    parse_flags([flag], [], allow_unknown_flags, [{flag.name, true} | acc], loose, unknown)
   end
 
   defp parse_matched_flag(
@@ -1225,14 +1262,31 @@ defmodule Alaja.CLI.Definition do
          [arg | rest],
          allow_unknown_flags,
          acc,
-         loose
+         loose,
+         unknown
        ) do
     {value, remaining} = parse_flag_value(arg, rest)
     parsed = cast_flag_value(flag.type, value, flag.default)
-    parse_flags(flags, remaining, allow_unknown_flags, [{flag.name, parsed} | acc], loose)
+
+    parse_flags(
+      flags,
+      remaining,
+      allow_unknown_flags,
+      [{flag.name, parsed} | acc],
+      loose,
+      unknown
+    )
   end
 
-  defp parse_matched_flag(%{} = flag, flags, [arg | rest], allow_unknown_flags, acc, loose) do
+  defp parse_matched_flag(
+         %{} = flag,
+         flags,
+         [arg | rest],
+         allow_unknown_flags,
+         acc,
+         loose,
+         unknown
+       ) do
     {value, remaining} = parse_flag_value(arg, rest)
     parsed = cast_flag_value(flag.type, value, flag.default)
 
@@ -1241,12 +1295,13 @@ defmodule Alaja.CLI.Definition do
       remaining,
       allow_unknown_flags,
       [{flag.name, parsed} | acc],
-      loose
+      loose,
+      unknown
     )
   end
 
-  defp parse_matched_flag(%{} = _flag, _flags, [], _allow_unknown_flags, acc, loose),
-    do: {:ok, acc, Enum.reverse(loose)}
+  defp parse_matched_flag(%{} = _flag, _flags, [], _allow_unknown_flags, acc, loose, unknown),
+    do: {:ok, acc, Enum.reverse(loose) ++ Enum.reverse(unknown)}
 
   defp match_flag(_flags, []), do: nil
 
@@ -1618,6 +1673,12 @@ defmodule Alaja.CLI.Definition do
   end
 
   defp parse_arguments(args, positional) do
+    # Un flag que llegó suelto —porque `allow_unknown_flags` lo tragó, o
+    # porque venía después de `--`— no es un argumento posicional aunque
+    # esté en esa lista. Sin este filtro ocupaba la siguiente ranura:
+    # `probe uno --typo=1` daba `other: "--typo=1"`.
+    positional = Enum.reject(positional, &flag_like?/1)
+
     Enum.zip(args, positional)
     |> Enum.map(fn
       {%{name: name, type: type}, value} -> {name, cast_arg_value(type, value)}
@@ -1625,6 +1686,10 @@ defmodule Alaja.CLI.Definition do
     end)
     |> Map.new()
   end
+
+  defp flag_like?("--" <> _), do: true
+  defp flag_like?("-" <> rest), do: rest != ""
+  defp flag_like?(_other), do: false
 
   defp cast_arg_value(:string, val), do: val
 
