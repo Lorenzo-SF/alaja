@@ -57,6 +57,7 @@ defmodule Alaja.CLI.Definition do
     catch_all = Keyword.get(opts, :catch_all)
     command_help = Keyword.get(opts, :command_help, true)
     groups = Keyword.get(opts, :groups, [])
+    examples = Keyword.get(opts, :examples, [])
 
     quote do
       # Both arities are imported: `flag/3` and `argument/3` carry a
@@ -80,6 +81,7 @@ defmodule Alaja.CLI.Definition do
       @catch_all unquote(catch_all)
       @command_help unquote(command_help)
       @command_groups unquote(groups)
+      @command_examples unquote(examples)
       # Sin `Macro.escape/1`: la lista llega como AST sin expandir, y
       # escaparla congela los sigilos que el host haya usado —`~w(a b)`
       # se quedaría como `{:sigil_w, _, _}` y `__command_groups__/0`
@@ -369,6 +371,28 @@ defmodule Alaja.CLI.Definition do
       @doc false
       def __command_help__, do: @command_help
 
+      unquote(presentation_accessors_block())
+
+      @doc """
+      El código de salida para un uso incorrecto: flag obligatorio que
+      falta, argumento que falta, flags en conflicto.
+
+      Por defecto 1, que es lo que espera un CLI genérico. Un host con
+      una tabla de códigos propia (Acho reserva el 2 para uso) lo declara
+      con `use Alaja.CLI.Definition, usage_exit_code: 2`.
+      """
+      @doc false
+      def __usage_exit_code__, do: @usage_exit_code
+    end
+  end
+
+  # Los accesores de cómo se presenta el help. Viven aparte de
+  # `accessors_block/0` para que ninguno de los dos se pase de la
+  # complejidad máxima que fija el proyecto: son definiciones puras que
+  # crecen sin coste, pero crecer sin que nada lo mida es cómo se acaba
+  # manteniendo un fichero que nadie lee entero.
+  defp presentation_accessors_block do
+    quote do
       @doc """
       Los grupos declarados con `use Alaja.CLI.Definition, groups: …`,
       como `[{nombre, [comandos]}]`.
@@ -383,15 +407,18 @@ defmodule Alaja.CLI.Definition do
       def __command_groups__, do: @command_groups
 
       @doc """
-      El código de salida para un uso incorrecto: flag obligatorio que
-      falta, argumento que falta, flags en conflicto.
+      Los ejemplos declarados con `use Alaja.CLI.Definition, examples: …`,
+      como `[{título, [líneas]}]`.
 
-      Por defecto 1, que es lo que espera un CLI genérico. Un host con
-      una tabla de códigos propia (Acho reserva el 2 para uso) lo declara
-      con `use Alaja.CLI.Definition, usage_exit_code: 2`.
+      Se imprimen al final del help global. Es el hueco que un README no
+      cubre: la secuencia de comandos que de verdad hace falta para llegar
+      al primer resultado, y que nadie recuerda de memoria.
+
+      Vacío —lo por defecto— no imprime nada, así que los hosts que no la
+      usan no cambian.
       """
       @doc false
-      def __usage_exit_code__, do: @usage_exit_code
+      def __command_examples__, do: @command_examples
     end
   end
 
@@ -418,7 +445,8 @@ defmodule Alaja.CLI.Definition do
               __allow_unknown_flags__(),
               __catch_all__(),
               __usage_exit_code__(),
-              __command_groups__()
+              groups: __command_groups__(),
+              examples: __command_examples__()
             )
           rescue
             e in Alaja.CLI.Exit ->
@@ -559,24 +587,27 @@ defmodule Alaja.CLI.Definition do
         allow_unknown_flags \\ false,
         catch_all \\ nil,
         usage_exit_code \\ 1,
-        groups \\ []
+        host \\ []
       ) do
+    groups = Keyword.get(host, :groups, [])
+    examples = Keyword.get(host, :examples, [])
+
     case args do
       # Top-level help: `alaja`, `alaja --help`, `alaja -h`, and `alaja
       # help` all render the full help instead of trying to dispatch to a
       # command. `alaja` alone runs the startup showcase first on TTYs;
       # the full help is only rendered afterwards if the user asks for it.
       [] ->
-        dispatch_empty(commands, otp_app, groups)
+        dispatch_empty(commands, otp_app, groups, examples)
 
       ["--help" | _] ->
-        render_full_help(commands, otp_app, groups)
+        render_full_help(commands, otp_app, groups, examples)
 
       ["-h" | _] ->
-        render_full_help(commands, otp_app, groups)
+        render_full_help(commands, otp_app, groups, examples)
 
       ["help"] ->
-        render_full_help(commands, otp_app, groups)
+        render_full_help(commands, otp_app, groups, examples)
 
       ["--version" | _] ->
         render_version(otp_app)
@@ -768,22 +799,22 @@ defmodule Alaja.CLI.Definition do
   defp type_label(:keep), do: "value"
   defp type_label(type), do: to_string(type)
 
-  defp dispatch_empty(commands, otp_app, groups) do
+  defp dispatch_empty(commands, otp_app, groups, examples) do
     # The alaja welcome showcase (pulsar animation + interactive prompt)
     # is alaja-specific and only makes sense when alaja itself is the
     # host. For external apps that consume `Alaja.CLI.Definition` via
     # the DSL, skip it entirely and render the host's command summary.
     if otp_app == :alaja and Alaja.CLI.Showcase.enabled?() do
       case Alaja.CLI.Showcase.run() do
-        :help -> render_full_help(commands, otp_app, groups)
+        :help -> render_full_help(commands, otp_app, groups, examples)
         _ -> :ok
       end
     else
-      render_full_help(commands, otp_app, groups)
+      render_full_help(commands, otp_app, groups, examples)
     end
   end
 
-  defp render_full_help(commands, otp_app, groups) do
+  defp render_full_help(commands, otp_app, groups, examples) do
     # Print the available commands list as well, formatted like a
     # one-screen reference, so callers see what's available without
     # having to dig into the formatted tables.
@@ -807,7 +838,7 @@ defmodule Alaja.CLI.Definition do
       # apero, pote, trebejo, ...): never render alaja's own reference.
       # Only the host's command list is shown, branded with the host's
       # application name and version.
-      render_host_help(descriptions, otp_app, groups)
+      render_host_help(descriptions, otp_app, groups, examples)
     end
 
     :ok
@@ -817,7 +848,7 @@ defmodule Alaja.CLI.Definition do
   # caso por defecto y el de todos los hosts que no adoptaron la opción—
   # renderiza la tabla plana de siempre, así que añadirla no cambia nada
   # para nadie que no la use.
-  defp render_host_help(descriptions, otp_app, []) do
+  defp render_host_help(descriptions, otp_app, [], []) do
     app_title = otp_app |> Atom.to_string() |> String.capitalize()
     vsn = app_version(otp_app)
     app_name = to_string(otp_app)
@@ -847,11 +878,19 @@ defmodule Alaja.CLI.Definition do
 
     IO.puts("Run '#{app_name} <command> --help' for the full option list of a specific command.")
 
-    :ok
+    descriptions
   end
 
-  defp render_host_help(descriptions, otp_app, groups) do
-    render_host_grouped_help(descriptions, otp_app, groups)
+  defp render_host_help(descriptions, otp_app, [], examples) do
+    descriptions
+    |> render_host_help(otp_app, [], [])
+    |> render_host_examples(otp_app, examples)
+  end
+
+  defp render_host_help(descriptions, otp_app, groups, examples) do
+    descriptions
+    |> render_host_grouped_help(otp_app, groups)
+    |> render_host_examples(otp_app, examples)
   end
 
   defp render_host_grouped_help(descriptions, otp_app, groups) do
@@ -892,7 +931,32 @@ defmodule Alaja.CLI.Definition do
 
     IO.puts("Run '#{app_name} <command> --help' for the full option list of a specific command.")
 
-    :ok
+    descriptions
+  end
+
+  # Los ejemplos van al final del help, que es donde el lector ha pasado de
+  # "¿qué comandos hay?" a "¿por dónde empiezo?". El hueco que un README no
+  # cubre bien: la secuencia exacta que lleva al primer resultado.
+  defp render_host_examples(descriptions, otp_app, examples) do
+    _ = otp_app
+
+    case examples do
+      [] ->
+        descriptions
+
+      _ ->
+        IO.puts("")
+        IO.puts([Alaja.ANSI.fg(166, 227, 161), "EXAMPLES", Alaja.ANSI.reset()])
+        IO.puts("")
+
+        for {title, lines} <- examples do
+          IO.puts([Alaja.ANSI.fg(166, 227, 161), title, Alaja.ANSI.reset()])
+          Enum.each(List.wrap(lines), &IO.puts(["  " <> &1]))
+          IO.puts("")
+        end
+
+        :ok
+    end
   end
 
   defp group_title(title) do
