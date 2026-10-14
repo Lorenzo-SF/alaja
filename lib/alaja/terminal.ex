@@ -29,6 +29,64 @@ defmodule Alaja.Terminal do
   @spec height() :: pos_integer()
   def height, do: rows()
 
+  @doc """
+  Returns whether stdout is attached to an interactive terminal.
+
+  This is Alaja's own TTY detection, and it exists because
+  `IO.ANSI.enabled?/0` cannot answer the question in a release.
+
+  `IO.ANSI.enabled?/0` is literally `Application.get_env(:elixir,
+  :ansi_enabled, false)` (Elixir 1.18 and 1.19 alike) — it does **no** TTY
+  detection of its own. That key is written by `Elixir.Kernel.CLI`, which
+  only runs for the `elixir`/`mix` launcher. In a standalone release — a
+  batamanta binary, an escript, `mix release` — it never runs, the key stays
+  unset, and `IO.ANSI.enabled?/0` is hardcoded `false`. Every Alaja renderer
+  gates colour on that answer, so such a release painted monochrome no
+  matter what the terminal supported.
+
+  Uses `/dev/fd/1` rather than sniffing `TERM`: `TERM` is an inherited
+  string that happily survives a pipe (`TERM=xterm sh -c 'echo hi > f'`),
+  so it says nothing about whether *this* process owns a terminal.
+
+  The obvious POSIX probe, `sh -c '[ -t 1 ]'`, cannot answer it from the
+  BEAM and silently answers the wrong thing. `System.cmd/3` — and every
+  `:erlang.open_port/2` — replaces the child's fd 1 with a capture pipe,
+  so `[ -t 1 ]` sees that pipe and is `false` even at a real terminal.
+  Asking about fd 2 instead does work, because `System.cmd/3` leaves stderr
+  inherited — but that tests stderr, not stdout, so `alaja … > out.txt`
+  reports a terminal that is not there and writes ANSI into the file.
+
+  `File.stat("/dev/fd/1")` is resolved by the kernel against the calling
+  process's own descriptors, so this is the BEAM's real stdout, and no
+  subprocess is involved. A terminal is the one case that reports
+  `:device`; a pipe or socket reports `:other` and a redirected file
+  `:regular`. `/dev/fd/1` exists on both Linux and macOS.
+
+  Cached in `:persistent_term` because the question is asked once per
+  rendered cell.
+  """
+  @spec tty?() :: boolean()
+  def tty? do
+    case :persistent_term.get(__MODULE__, nil) do
+      nil ->
+        detected = detect_tty?()
+        :persistent_term.put(__MODULE__, detected)
+        detected
+
+      cached ->
+        cached
+    end
+  end
+
+  defp detect_tty? do
+    match?({:ok, %File.Stat{type: :device}}, File.stat("/dev/fd/1"))
+  rescue
+    # No `/dev/fd` (Windows), or the stat was refused. Reporting "not a
+    # terminal" is the safe answer: it is what Alaja reported everywhere
+    # before this function existed.
+    _ -> false
+  end
+
   defp columns do
     case :io.columns() do
       {:ok, n} when n > 0 -> n

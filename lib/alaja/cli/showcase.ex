@@ -58,10 +58,14 @@ defmodule Alaja.CLI.Showcase do
   @doc """
   Whether the showcase should run: interactive TTY and not disabled
   through `ALAJ: NO_SHOWCASE`.
+
+  Asks `Alaja.Config.color_enabled?/0` rather than `IO.ANSI.enabled?/0`
+  directly: in a release the latter is a hardcoded `false`, which silently
+  downgraded every release build to the non-interactive path.
   """
   @spec enabled?() :: boolean()
   def enabled? do
-    IO.ANSI.enabled?() and
+    Alaja.Config.color_enabled?() and
       System.get_env("ALAJ: NO_SHOWCASE") not in ["1", "true", "yes"]
   end
 

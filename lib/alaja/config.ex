@@ -37,20 +37,46 @@ defmodule Alaja.Config do
   @doc """
   Returns whether ANSI colour output is enabled.
 
-  Normally this is `no_color` from `alaja.conf` combined with whether
-  the current device is a terminal. A `Batamanta` BEAM daemon breaks
-  that second half: it captures output through its own io_server, so
-  `IO.ANSI.enabled?/0` inside a warm daemon is always `false` and every
-  command came out colourless. The wrapper knows what the real stdout
-  is, so it sets `Application.put_env(:alaja, :color, :always | :never)`
-  per request and that wins here.
+  Resolution order — highest wins:
+
+      1. `:alaja, :color` set to `:always` / `:never` (the `--force-color`
+         and `--no-color` flags land here, via `Alaja.CLI.NoColor`).
+      2. `no_color`, which is `true` when the `--no-color` flag was passed
+         or when `NO_COLOR` is set in the environment.
+      3. `:elixir, :ansi_enabled`, **only when it was explicitly set**.
+      4. `Alaja.Terminal.tty?/0`.
+
+  Step 3 is deliberately a `fetch_env/1` and not `IO.ANSI.enabled?/0`.
+  `IO.ANSI.enabled?/0` is `Application.get_env(:elixir, :ansi_enabled,
+  false)` — a plain read with a `false` default and no TTY detection of its
+  own. In a standalone release (batamanta binary, escript, `mix release`)
+  the `elixir`/`mix` launcher never runs, so the key is never written and
+  the function reports `false` unconditionally. Since every renderer asks
+  this one, a release built that way printed plain white text with no
+  colour, no bold, and no effects even on a fully capable terminal — the
+  machine never had a say in it.
+
+  Honouring an explicit `:ansi_enabled` keeps `mix test`, `elixir --color`
+  and `elixir --no-color` behaving exactly as before; only the previously
+  unanswered "nobody set it" case now consults the real device.
   """
   @spec color_enabled?() :: boolean()
   def color_enabled? do
     case Application.get_env(:alaja, :color) do
       :always -> true
       :never -> false
-      _ -> get(:no_color, false) == false and IO.ANSI.enabled?()
+      _ -> get(:no_color, false) == false and ansi_enabled?()
+    end
+  end
+
+  # `:elixir, :ansi_enabled` wins whenever somebody actually decided it
+  # (`elixir --color`, `mix`, the test suite). Only when nobody did do we
+  # ask the terminal, instead of inheriting `IO.ANSI.enabled?/0`'s
+  # hardcoded `false`.
+  defp ansi_enabled? do
+    case Application.fetch_env(:elixir, :ansi_enabled) do
+      {:ok, value} -> value == true
+      :error -> Alaja.Terminal.tty?()
     end
   end
 

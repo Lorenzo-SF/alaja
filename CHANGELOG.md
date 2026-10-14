@@ -5,6 +5,48 @@ All notable changes to Alaja are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Fixed
+- **Colour was unconditionally disabled in standalone builds.** A
+  batamanta binary, escript, or `mix release` printed plain white text
+  with no colour, no bold and no effects even at a fully capable
+  terminal. `Alaja.Config.color_enabled?/0` fell back to
+  `IO.ANSI.enabled?/0`, which is literally
+  `Application.get_env(:elixir, :ansi_enabled, false)` in both Elixir
+  1.18 and 1.19 — a bare read with a `false` default and **no** TTY
+  detection. That key is written by `Elixir.Kernel.CLI`, which only
+  runs for the `elixir`/`mix` launcher, so a release never set it. It
+  now falls back to the new `Alaja.Terminal.tty?/0` instead, while an
+  explicitly set `:ansi_enabled` still wins — so `mix test`,
+  `elixir --color` and `elixir --no-color` are unaffected. This is
+  platform-independent: it affected every release build on every OS,
+  and only reproduced as "Linux works, macOS does not" because `mix`
+  happens to do its own detection.
+- **`--force-color` / `--force-colour` did nothing.** The flag parsed
+  into `Alaja.CLI.GlobalOpts` and stopped there; no consumer ever read
+  it back, and every `Keyword.get(opts, :color)` in the codebase is a
+  colour *value*, not a boolean. `Alaja.CLI.NoColor.sync/1` now writes
+  `:alaja, :color` = `:always`, which is the key `color_enabled?/0`
+  consults first. A monochrome binary could previously not be coaxed
+  back into colour by any flag at all.
+- **`Alaja.CLI.Picker.run/3` and `Alaja.CLI.Showcase.enabled?/0`** asked
+  `IO.ANSI.enabled?/0` directly, so in a release they always took the
+  non-interactive path. Both now go through
+  `Alaja.Config.color_enabled?/0`.
+
+### Added
+- **`Alaja.Terminal.tty?/0`** — whether stdout is an interactive
+  terminal, cached in `:persistent_term`. Uses
+  `File.stat("/dev/fd/1")`, which the kernel resolves against the
+  calling process's own descriptors, so it needs no subprocess and is
+  correct on Linux and macOS alike. The obvious POSIX probe,
+  `sh -c '[ -t 1 ]'`, silently answers the wrong thing: `System.cmd/3`
+  and `:erlang.open_port/2` replace the child's fd 1 with a capture
+  pipe, so it reports "not a terminal" even at a real one. Probing fd 2
+  instead works (stderr is inherited) but tests the wrong descriptor,
+  and would write ANSI into a file on `alaja … > out.txt`.
+
 ## [3.2.0] - 2026-10-05
 
 ### Fixed

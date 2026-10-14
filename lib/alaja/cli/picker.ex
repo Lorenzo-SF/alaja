@@ -29,12 +29,17 @@ defmodule Alaja.CLI.Picker do
 
   @doc """
   Runs the picker. Returns `{:ok, item}` or `:cancelled`.
+
+  The interactive/non-interactive split asks
+  `Alaja.Config.color_enabled?/0`, not `IO.ANSI.enabled?/0`. In a release
+  the latter reads an `:elixir, :ansi_enabled` key that no one ever set, so
+  it answered `false` and a built binary could never open the picker.
   """
   @spec run([any()], String.t(), keyword()) :: {:ok, any()} | :cancelled
   def run(items, prompt, opts \\ []) when is_list(items) and is_binary(prompt) do
     cond do
       items == [] -> :cancelled
-      not IO.ANSI.enabled?() -> non_interactive(items, prompt)
+      not Alaja.Config.color_enabled?() -> non_interactive(items, prompt)
       true -> interactive(items, prompt, opts)
     end
   end
