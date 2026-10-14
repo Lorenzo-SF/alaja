@@ -32,19 +32,45 @@ defmodule Alaja.TerminalTest do
       assert Terminal.tty?() == Terminal.tty?()
     end
 
-    test "agrees with the type of the process's own fd 1" do
-      # The probe is `File.stat("/dev/fd/1")`, which the kernel resolves
-      # against *this* process. Under ExUnit stdout is a capture pipe, so
-      # the honest expectation here is "not a terminal" — asserted by
-      # comparing against the same stat rather than a hardcoded false, so
-      # the test still says something true when run from a real terminal.
-      assert Terminal.tty?() ==
-               match?({:ok, %File.Stat{type: :device}}, File.stat("/dev/fd/1"))
+    test "reconoce un dispositivo de caracteres real" do
+      # Este es el test que faltaba. El anterior era
+      #
+      #     assert tty?() == match?(File.stat("/dev/fd/1").type == :device)
+      #
+      # que no afirmaba que la sonda fuese *correcta*, sino que
+      # coincidía con su propia implementación. Eso sólo detecta un
+      # resultado constante equivocado; si la sonda devuelve algo que no
+      # es `:device` **porque el sistema no se parece a Linux**, ambos
+      # lados valen `false` y el test pasa alegre con el bug presente.
+      # Justo lo que pasa en macOS, donde `/dev/fd` es fdescfs y no
+      # `/proc/self/fd`.
+      #
+      # `/dev/tty` es un `S_IFCHR` exista o no terminal de control, en
+      # ambos sistemas. Si la sonda no lo reconoce, la sonda está rota.
+      case :os.type() do
+        {:unix, _} ->
+          assert Terminal.device?("/dev/tty"),
+                 "la sonda no reconoce un dispositivo de caracteres inequívoco"
+
+        _ ->
+          # Windows no tiene /dev; ahí `device?/0` siempre es false.
+          refute Terminal.device?("/dev/tty")
+      end
     end
 
-    test "is false under a redirected stdout" do
-      # ExUnit captures stdout, which is the whole point: a CLI that emits
-      # ANSI into a pipe is the bug this module exists to prevent.
+    test "no confunde una tubería con un terminal" do
+      # Bajo ExUnit, fd 1 es una tubería de captura. Esto no es
+      # tautológico: dice algo sobre el disco, no sobre la función.
+      refute Terminal.device?("/dev/fd/1")
+    end
+
+    test "un path inexistente no revienta" do
+      refute Terminal.device?("/dev/definitely-not-a-real-device")
+    end
+
+    test "es false con la stdout capturada" do
+      # ExUnit captura stdout, que es justo lo que este módulo existe
+      # para evitar: un CLI que escupe ANSI a una tubería.
       refute Terminal.tty?()
     end
   end

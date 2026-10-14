@@ -78,12 +78,26 @@ defmodule Alaja.Terminal do
     end
   end
 
-  defp detect_tty? do
-    match?({:ok, %File.Stat{type: :device}}, File.stat("/dev/fd/1"))
+  defp detect_tty?, do: device?("/dev/fd/1")
+
+  @doc """
+  Si `path` es un dispositivo de caracteres.
+
+  Aislada de `tty?/0` para poder testear la sonda sin montar una terminal:
+  el test necesita un carácter de dispositivo **real** contra el que
+  compararse, y `/dev/tty` lo es — es un nodo `S_IFCHR` exista o no
+  terminal de control, en Linux igual que en macOS.
+
+  No es pública por diseño; se expone para el test, que es donde se
+  comprueba que la sonda distingue algo.
+  """
+  @spec device?(Path.t()) :: boolean()
+  def device?(path) do
+    match?({:ok, %File.Stat{type: :device}}, File.stat(path))
   rescue
-    # No `/dev/fd` (Windows), or the stat was refused. Reporting "not a
-    # terminal" is the safe answer: it is what Alaja reported everywhere
-    # before this function existed.
+    # No `/dev` (Windows), o el stat fue rechazado. "No es terminal" es
+    # la respuesta segura: es lo que Alaja reportaba en todas partes
+    # antes de que existiera esta función.
     _ -> false
   end
 
