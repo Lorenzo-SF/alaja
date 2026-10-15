@@ -205,16 +205,33 @@ phase_build() {
 }
 
 phase_link() {
-    # Una librería no deja ejecutable: quien la usa es otro proyecto mix, vía
-    # deps. Por eso no hay symlink que crear, y decirlo evita que --check lo
-    # reporte como fallo en cada ejecución.
-    skip "$PROJECT es una librería: no hay symlink que crear"
-    if [[ -d "$REPO/_build" ]]; then
-        ok "_build presente"
-    else
-        warn "_build ausente"
+    local exe
+    if ! exe="$(find_exe)"; then
+        fail "no encuentro el ejecutable \`$PROJECT\`"
+        hint "buscado en: $REPO/$PROJECT y $REPO/_build/**/$PROJECT"
+        return 1
     fi
-    info "para usarla: dep {:$PROJECT, github: \"Lorenzo-SF/$PROJECT\"}"
+    ok "ejecutable: $exe"
+
+    chmod +x "$exe" 2>/dev/null || true
+    mkdir -p "$BIN_DIR" || { fail "no se pudo crear $BIN_DIR"; return 1; }
+
+    # `ln -sfn` no sustituye un fichero REAL que ya ocupe el destino (candil
+    # deja uno: su alias `mix gen install` copia en vez de enlazar), y `ln -sf`
+    # sobre un symlink a directorio se mete dentro. Por eso el `rm` previo:
+    # se quita lo que haya y se enlaza limpio.
+    rm -f "$BIN_DIR/$PROJECT"
+    if ln -s "$exe" "$BIN_DIR/$PROJECT"; then
+        ok "$BIN_DIR/$PROJECT -> $exe"
+    else
+        fail "no se pudo crear el symlink en $BIN_DIR"
+        return 1
+    fi
+
+    if [[ ":$PATH:" != *":$BIN_DIR:"* ]]; then
+        warn "$BIN_DIR NO está en el PATH"
+        hint 'export PATH="$HOME/.local/bin:$PATH"'
+    fi
 }
 
 phase_verify() {
@@ -363,7 +380,7 @@ ${_B}QUÉ HACE --check${_N}
 
 ${_B}VARIABLES${_N}
   ALAJA_REPO      raíz del repo (por defecto: el directorio padre de este script)
-  ALAJA_BIN_DIR   dónde se crean los enlaces (por defecto ~/.local/bin)
+  ALAJA_BIN_DIR   dónde se crean los enlaces (por defectos ~/.local/bin)
 
 ${_B}CÓDIGOS DE SALIDA${_N}
   0 ok · 1 fallo · 2 opción desconocida
